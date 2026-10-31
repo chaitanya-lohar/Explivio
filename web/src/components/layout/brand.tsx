@@ -17,7 +17,7 @@ export function Brand({ compact = false, className }: BrandProps) {
       </span>
       {compact ? null : (
         <span className="flex flex-col leading-tight">
-          <span className="text-card text-foreground">{appConfig.name}</span>
+          <span className="text-title text-foreground">{appConfig.name}</span>
           <span className="text-meta text-secondary">Studio Suite</span>
         </span>
       )}

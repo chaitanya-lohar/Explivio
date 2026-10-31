@@ -4,8 +4,7 @@ import { Plus } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/shared/page-header";
 import { buttonStyles } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { VideoStatusBadge } from "@/features/video-library/video-status-badge";
+import { VideoCard } from "@/features/video-library/video-card";
 import { listVideos } from "@/services";
 
 export const metadata: Metadata = { title: "My Videos" };
@@ -28,21 +27,11 @@ export default async function VideosPage() {
         <h2 id="sample-videos" className="text-section text-foreground">
           Sample projects
         </h2>
-        <p className="mt-1 text-meta text-muted">Mock data for building the library layout in the next milestone.</p>
+        <p className="mt-1 text-meta text-muted">Mock data until the library is built (search, filters and list view come in a later milestone).</p>
         <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {videos.map((video) => (
             <li key={video.id}>
-              <Card interactive padding="sm" className="relative h-full">
-                <h3 className="text-card text-foreground">
-                  <Link href={`/videos/${video.id}`} className="after:absolute after:inset-0 after:rounded-card">
-                    {video.title}
-                  </Link>
-                </h3>
-                <p className="mt-1 text-meta text-muted">{video.durationSeconds}s · 9:16 vertical</p>
-                <div className="mt-4">
-                  <VideoStatusBadge status={video.status} />
-                </div>
-              </Card>
+              <VideoCard video={video} />
             </li>
           ))}
         </ul>

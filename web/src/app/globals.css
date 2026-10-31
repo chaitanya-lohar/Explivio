@@ -41,16 +41,16 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* Typography scale: page 30px, section 20px, card 15px, body 15px, meta 13px. */
+  /* Typography scale: page 30px, section 20px, title (card headings) 15px, body 15px, meta 13px. Named "title", not "card", so it cannot clash with the card colour. */
   --text-page: 1.875rem;
   --text-page--line-height: 2.375rem;
   --text-page--font-weight: 600;
   --text-section: 1.25rem;
   --text-section--line-height: 1.75rem;
   --text-section--font-weight: 600;
-  --text-card: 0.9375rem;
-  --text-card--line-height: 1.375rem;
-  --text-card--font-weight: 600;
+  --text-title: 0.9375rem;
+  --text-title--line-height: 1.375rem;
+  --text-title--font-weight: 600;
   --text-body: 0.9375rem;
   --text-body--line-height: 1.5rem;
   --text-meta: 0.8125rem;

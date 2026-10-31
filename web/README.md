@@ -1,6 +1,6 @@
 # Explivio web app
 
-The Explivio dashboard frontend: Next.js 16 (App Router), React 19, TypeScript (strict), Tailwind CSS 4 and Lucide icons. This milestone is the foundation: design tokens, reusable UI components, the app shell, and placeholder routes. Screens are built one by one in later milestones.
+The Explivio dashboard frontend: Next.js 16 (App Router), React 19, TypeScript (strict), Tailwind CSS 4 and Lucide icons. Built so far: F1 (design tokens, UI components, app shell, routes) and F2 (Home dashboard and the Create → Settings → Generate flow). The remaining screens are placeholders, built in later milestones.
 
 ## Run it
 
@@ -33,15 +33,20 @@ src/
       settings/           /settings    Preferences
   components/
     ui/                   Primitives: Button, IconButton, Card, Badge, TextInput, Textarea, Select,
-                          Checkbox, Switch, Divider, LoadingSpinner, Skeleton, Dialog
+                          Checkbox, Switch, RadioCard, SegmentedControl, Divider, LoadingSpinner,
+                          Skeleton, Dialog
     layout/               AppShell, Sidebar, SidebarNav, MobileNav, Brand, UserSummary, PageContainer
-    shared/               PageHeader, EmptyState, MilestonePlaceholder
-  features/               Feature-specific pieces (e.g. video-library/VideoStatusBadge)
+    shared/               PageHeader, Breadcrumbs, EmptyState, MilestonePlaceholder
+  features/
+    dashboard/            RecentVideos
+    video-creation/       HomeComposer, CreatePromptForm, ConfigureForm, idea cards,
+                          generateVideo server action
+    video-library/        VideoCard, VideoThumbnail, VideoStatusBadge
   services/               Data access. Pages import from "@/services"; today it re-exports mock/,
                           later it switches to real API calls without page changes
-  config/                 appConfig (name, tagline, video defaults) and navigation
+  config/                 appConfig (video options and defaults), ideas, navigation
   types/                  Shared types (VideoProject, VideoStatus, UserProfile)
-  lib/                    Small helpers (cn)
+  lib/                    cn, formatDate, video-request (prompt validation, URL helpers)
 ```
 
 ## Design system
@@ -60,7 +65,7 @@ All colours are CSS variables in `src/app/globals.css`, exposed to Tailwind thro
 | `border-border` | `#303649` | Borders, dividers |
 | `success` / `warning` / `error` | `#48C78E` / `#F5B95C` / `#FF6B78` | Status only |
 
-Type scale: `text-page` (30px), `text-section` (20px), `text-card` (15px), `text-body` (15px), `text-meta` (13px). Radii: `rounded-card` (14px), `rounded-control` (10px). Focus rings and reduced-motion handling are global.
+Type scale: `text-page` (30px), `text-section` (20px), `text-title` (15px, card headings), `text-body` (15px), `text-meta` (13px). Radii: `rounded-card` (14px), `rounded-control` (10px). Focus rings and reduced-motion handling are global.
 
 Conventions:
 
@@ -75,6 +80,15 @@ Conventions:
 - Desktop (≥1024px): full sidebar.
 - Tablet (768–1023px): compact icon sidebar with screen-reader labels and tooltips.
 - Mobile (<768px): top bar with a menu button that opens the navigation in a drawer (native `<dialog>`).
+
+## Creation flow (F2)
+
+- **Home (`/`):** prompt composer with duration (30/60/90s) and fixed 9:16 format. "Create video" goes straight to Settings. Idea cards fill the prompt. Recent videos shows the three newest projects.
+- **Create (`/create`):** step 1, the prompt with ideas. Prefills from `?prompt=` when the user comes back from Settings with "Edit prompt".
+- **Settings (`/configure`):** step 2, duration, voice (female/male), captions (on), music (off). Format and visual style are fixed. A summary panel sits alongside. Without a valid prompt it points back to step 1.
+- **Data between steps:** the prompt and duration travel in the URL (`?prompt=&duration=`), so a refresh or a shared link keeps them. No client state library is needed.
+- **Generate:** calls the `generateVideo` server action. It re-validates on the server (it can be called by any POST), records the request through `@/services`, and sends the user to `/generating?video=<id>`. The button shows a loading state and blocks double submits.
+- **Validation:** shared by client and server (`lib/video-request.ts`). The prompt is required, 10–600 characters. Errors are tied to the field with `aria-describedby`, and focus moves to the field.
 
 ## Notes
 

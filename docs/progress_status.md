@@ -17,6 +17,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | M6 — Evaluation | ⬜ Not started | No `evaluations/` scorecard yet. Starter prompts are listed in the implementation plan. |
 | Dashboard design (Stitch) | 🟡 Mostly fixed | 11 screens reviewed against [the design doc](Explivio_Dashboard_Design_Document_v1.docx). Two Stitch edit passes (2026-10-31) removed invented credits, quotas, plans, expiry periods and unsupported options, added mobile layouts, and fixed contrast and labels. Stitch keeps each edit as a new screen version. QA: 6 of 11 screens pass every check. Outstanding: Progress screen still contains "Synthesizing frame…" text, List view scrolls sideways by 188px at phone width, three secondary labels at 4.30–4.46:1 contrast (target 4.5). |
 | Dashboard frontend — F1 foundation | ✅ Done | `web/`: Next.js 16, React 19, TypeScript strict, Tailwind 4. Design tokens, 13 UI primitives, app shell (desktop sidebar, tablet icon sidebar, mobile drawer), 7 placeholder routes, mock service layer. `lint`, `tsc` and `build` pass. Live QA at 1440/820/390px: no overflow, contrast, label or small-text issues. See [web/README.md](../web/README.md). |
+| Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
 
 ## Latest outputs
 
@@ -38,7 +39,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 
 ## Next steps
 
-1. **F2 — Home dashboard and Create/Configure flow** in `web/`, built from the corrected Stitch screens.
+1. **F3 — Generation progress and failure screens** in `web/`: truthful stage list, retry, and the Video ready page with preview and download.
 2. Finish the remaining Stitch fixes (Progress "frame" text, List view at phone width, three contrast misses).
 3. Run the M1/M5 acceptance tests on the 6 starter prompts, and record the results.
 4. Integrate the director prompt and update the storyboard schema to match.
@@ -47,6 +48,8 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 7. Start the M6 evaluation scorecard (`evaluations/`).
 
 ## Changelog
+
+- **2026-10-31** — Built frontend milestone F2: Home dashboard, Create and Settings steps, `generateVideo` server action, RadioCard / SegmentedControl / Breadcrumbs components. Fixed a design-token clash (`text-card` font size also applied the card background colour, hiding text); the size token is now `text-title`.
 
 - **2026-10-31** — Created the `dev` branch. Work is committed to `dev`; `main` changes only through pull requests from `dev`.
 

@@ -28,7 +28,7 @@ export function Card({ interactive = false, selected = false, padding = "md", cl
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("text-card text-foreground", className)} {...props} />;
+  return <h3 className={cn("text-title text-foreground", className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
