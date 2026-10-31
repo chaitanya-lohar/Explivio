@@ -41,7 +41,7 @@ export function Dialog({ open, onClose, title, children, placement = "center", c
       )}
     >
       <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-2">
-        <h2 className="text-card text-foreground">{title}</h2>
+        <h2 className="text-title text-foreground">{title}</h2>
         <IconButton label="Close" icon={<X />} onClick={onClose} />
       </div>
       <div className="p-4">{children}</div>

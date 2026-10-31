@@ -1,17 +1,32 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Plus } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/shared/page-header";
 import { buttonStyles } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { VideoStatusBadge } from "@/features/video-library/video-status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { VideoCard } from "@/features/video-library/video-card";
 import { listVideos } from "@/services";
 
 export const metadata: Metadata = { title: "My Videos" };
 
-export default async function VideosPage() {
+async function VideoList() {
+  await connection();
   const videos = await listVideos();
+  return (
+    <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {videos.map((video) => (
+        <li key={video.id}>
+          <VideoCard video={video} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export default function VideosPage() {
   return (
     <PageContainer>
       <PageHeader
@@ -24,28 +39,14 @@ export default async function VideosPage() {
           </Link>
         }
       />
-      <section aria-labelledby="sample-videos">
-        <h2 id="sample-videos" className="text-section text-foreground">
-          Sample projects
+      <section aria-labelledby="all-videos">
+        <h2 id="all-videos" className="text-section text-foreground">
+          Your projects
         </h2>
-        <p className="mt-1 text-meta text-muted">Mock data for building the library layout in the next milestone.</p>
-        <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {videos.map((video) => (
-            <li key={video.id}>
-              <Card interactive padding="sm" className="relative h-full">
-                <h3 className="text-card text-foreground">
-                  <Link href={`/videos/${video.id}`} className="after:absolute after:inset-0 after:rounded-card">
-                    {video.title}
-                  </Link>
-                </h3>
-                <p className="mt-1 text-meta text-muted">{video.durationSeconds}s · 9:16 vertical</p>
-                <div className="mt-4">
-                  <VideoStatusBadge status={video.status} />
-                </div>
-              </Card>
-            </li>
-          ))}
-        </ul>
+        <p className="mt-1 text-meta text-muted">Search, filters and a list view come in a later milestone.</p>
+        <Suspense fallback={<Skeleton className="mt-4 h-80 rounded-card" />}>
+          <VideoList />
+        </Suspense>
       </section>
     </PageContainer>
   );

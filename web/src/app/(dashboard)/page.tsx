@@ -1,24 +1,18 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Suspense } from "react";
 import { PageContainer } from "@/components/layout/page-container";
-import { MilestonePlaceholder } from "@/components/shared/milestone-placeholder";
 import { PageHeader } from "@/components/shared/page-header";
-import { buttonStyles } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { RecentVideos } from "@/features/dashboard/recent-videos";
+import { HomeComposer } from "@/features/video-creation/home-composer";
 
 export default function HomePage() {
   return (
     <PageContainer>
-      <PageHeader
-        title="What will you create today?"
-        description="Turn an educational idea into a narrated, captioned vertical video."
-        actions={
-          <Link href="/create" className={buttonStyles()}>
-            <Plus aria-hidden="true" className="size-5" />
-            Create video
-          </Link>
-        }
-      />
-      <MilestonePlaceholder description="The home dashboard will hold the prompt composer, idea suggestions and your recent videos." next={{ href: "/create", label: "Go to Create Video" }} />
+      <PageHeader title="What will you create today?" description="Describe any concept and get a clear, narrated vertical video ready to share." />
+      <HomeComposer />
+      <Suspense fallback={<Skeleton className="h-80 rounded-card" />}>
+        <RecentVideos />
+      </Suspense>
     </PageContainer>
   );
 }

@@ -19,16 +19,22 @@ export interface FieldProps extends FieldMessageProps {
   children: ReactNode;
   className?: string;
   required?: boolean;
+  hideLabel?: boolean;
+  /** Optional content at the right end of the label row. */
+  labelAside?: ReactNode;
 }
 
 /** Label + control + description + validation message, wired together for assistive tech. */
-export function Field({ id, label, description, error, required, children, className }: FieldProps) {
+export function Field({ id, label, description, error, required, hideLabel, labelAside, children, className }: FieldProps) {
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      <label htmlFor={id} className="text-meta font-medium text-foreground">
-        {label}
-        {required ? <span className="text-muted"> (required)</span> : null}
-      </label>
+      <div className={cn("flex items-center justify-between gap-3", hideLabel && "sr-only")}>
+        <label htmlFor={id} className="text-meta font-medium text-foreground">
+          {label}
+          {required ? <span className="text-muted"> (required)</span> : null}
+        </label>
+        {labelAside}
+      </div>
       {children}
       <FieldMessages id={id} description={description} error={error} />
     </div>
