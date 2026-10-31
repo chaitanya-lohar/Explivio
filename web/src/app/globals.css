@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* Explivio design tokens. Raw values live here only; components use the semantic Tailwind names below. */
+:root {
+  --background: #10121a;
+  --surface: #171a25;
+  --card: #1d2130;
+  --surface-raised: #252a3a;
+
+  --primary: #8b7cff;
+  --primary-foreground: #10121a;
+  --secondary: #4dd6c8;
+
+  --text-primary: #f4f5fa;
+  --text-secondary: #a6adbf;
+
+  --border: #303649;
+
+  --success: #48c78e;
+  --warning: #f5b95c;
+  --error: #ff6b78;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-surface-raised: var(--surface-raised);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-foreground: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Typography scale: page 30px, section 20px, card 15px, body 15px, meta 13px. */
+  --text-page: 1.875rem;
+  --text-page--line-height: 2.375rem;
+  --text-page--font-weight: 600;
+  --text-section: 1.25rem;
+  --text-section--line-height: 1.75rem;
+  --text-section--font-weight: 600;
+  --text-card: 0.9375rem;
+  --text-card--line-height: 1.375rem;
+  --text-card--font-weight: 600;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.5rem;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.125rem;
+
+  --radius-card: 0.875rem;
+  --radius-control: 0.625rem;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+@layer base {
+  html {
+    background: var(--background);
+  }
+
+  body {
+    @apply bg-background font-sans text-body text-foreground antialiased;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "explivio-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "remotion studio src/video/index.tsx",
+    "generate": "tsx src/cli.ts",
+    "check:apis": "node scripts/check-apis.mjs",
+    "list:free-voices": "node scripts/list-free-voices.mjs",
+    "test:free-voices": "node scripts/test-free-voices.mjs",
+    "render:demo": "tsx src/cli.ts --demo",
+    "render:photosynthesis": "tsx src/cli.ts --demo photosynthesis --duration 30 --speak --voice=male",
+    "render:rain": "tsx src/cli.ts --demo rain --duration 30 --speak --voice=female",
+    "typecheck": "tsc --noEmit",
+    "render:api": "tsx src/cli.ts --demo api --duration 60",
+    "make:music": "node scripts/make-music.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "^2.31.0",
+    "@remotion/cli": "4.0.539",
+    "@remotion/renderer": "4.0.539",
+    "dotenv": "^18.0.9",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "4.0.539",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "overrides": {
+    "zod": "$zod"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "protobufjs@7.6.6": true
+  }
+}
