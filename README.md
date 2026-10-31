@@ -8,6 +8,11 @@ A local prototype that turns an educational topic into a vertical narrated video
 - `web/`: the Explivio dashboard frontend (Next.js). See [web/README.md](web/README.md).
 - `docs/`: PRD, plans, design documents and [progress status](docs/progress_status.md).
 
+## Branches
+
+- `main`: stable. Changes reach it only through a pull request from `dev`.
+- `dev`: day-to-day work. Commit and push here, then open a pull request `dev` → `main` when a piece of work is ready.
+
 ## Requirements
 
 - Node.js 20 or newer
