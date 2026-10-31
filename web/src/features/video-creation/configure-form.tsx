@@ -12,6 +12,7 @@ import { RadioCard } from "@/components/ui/radio-card";
 import { Switch } from "@/components/ui/switch";
 import { appConfig, formatLabel } from "@/config/app";
 import { cn } from "@/lib/cn";
+import { progressHref } from "@/lib/routes";
 import { creationHref, parseDuration, validatePrompt } from "@/lib/video-request";
 import type { VideoDuration, VoiceId } from "@/types/video";
 import { generateVideo } from "./actions";
@@ -54,7 +55,7 @@ export function ConfigureForm() {
     setSubmitError(null);
     startTransition(async () => {
       const result = await generateVideo({ prompt, durationSeconds: duration, voice, captions, music });
-      if (result.ok) router.push(`/generating?video=${encodeURIComponent(result.videoId)}`);
+      if (result.ok) router.push(progressHref(result.videoId));
       else setSubmitError(result.error);
     });
   }

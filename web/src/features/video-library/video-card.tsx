@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import { buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
+import { videoHref } from "@/lib/routes";
 import type { VideoProject } from "@/types/video";
 import { VideoStatusBadge } from "./video-status-badge";
 import { VideoThumbnail } from "./video-thumbnail";
@@ -16,7 +17,7 @@ export function VideoCard({ video }: { video: VideoProject }) {
       </div>
       <div className="flex flex-1 flex-col gap-3 border-t border-border p-4">
         <h3 className="text-title text-foreground">
-          <Link href={`/videos/${video.id}`} className="after:absolute after:inset-0 after:rounded-card">
+          <Link href={videoHref(video)} className="after:absolute after:inset-0 after:rounded-card">
             {video.title}
           </Link>
         </h3>
@@ -26,8 +27,8 @@ export function VideoCard({ video }: { video: VideoProject }) {
             <time dateTime={video.createdAt}>{formatDate(video.createdAt)}</time>
           </span>
         </div>
-        {video.downloadUrl ? (
-          <a href={video.downloadUrl} download className={buttonStyles({ variant: "secondary", fullWidth: true, className: "relative z-10 mt-auto" })}>
+        {video.status === "ready" && video.videoUrl ? (
+          <a href={`${video.videoUrl}?download=1`} download className={buttonStyles({ variant: "secondary", fullWidth: true, className: "relative z-10 mt-auto" })}>
             <Download aria-hidden="true" className="size-4" />
             Download MP4
           </a>

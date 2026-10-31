@@ -18,6 +18,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | Dashboard design (Stitch) | 🟡 Mostly fixed | 11 screens reviewed against [the design doc](Explivio_Dashboard_Design_Document_v1.docx). Two Stitch edit passes (2026-10-31) removed invented credits, quotas, plans, expiry periods and unsupported options, added mobile layouts, and fixed contrast and labels. Stitch keeps each edit as a new screen version. QA: 6 of 11 screens pass every check. Outstanding: Progress screen still contains "Synthesizing frame…" text, List view scrolls sideways by 188px at phone width, three secondary labels at 4.30–4.46:1 contrast (target 4.5). |
 | Dashboard frontend — F1 foundation | ✅ Done | `web/`: Next.js 16, React 19, TypeScript strict, Tailwind 4. Design tokens, 13 UI primitives, app shell (desktop sidebar, tablet icon sidebar, mobile drawer), 7 placeholder routes, mock service layer. `lint`, `tsc` and `build` pass. Live QA at 1440/820/390px: no overflow, contrast, label or small-text issues. See [web/README.md](../web/README.md). |
 | Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
+| Dashboard frontend — F3 progress, failure, video ready | ✅ Done | `/generating` follows real status from `GET /api/videos/[id]` every 2s: four pipeline stages (plan, narration, render, finishing), an indeterminate bar (no fake percentages), a failure view with saved settings, Try again and Edit settings. When the video is ready it opens `/videos/[id]`: native 9:16 player and Download MP4 (streamed with HTTP Range support), plus Regenerate. Expired videos show saved settings and Regenerate. The mock service steps jobs through stages on a timer; the "How APIs work" sample streams the real MP4 from `runs/`. Tests: file route (200/206/416, download header, bytes identical, no path leak), browser flow 18/18. |
 
 ## Latest outputs
 
@@ -39,7 +40,8 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 
 ## Next steps
 
-1. **F3 — Generation progress and failure screens** in `web/`: truthful stage list, retry, and the Video ready page with preview and download.
+1. **Authentication architecture** in `web/`: `(auth)` route group with login, signup, forgot/reset password and verify-email screens. No real auth yet.
+2. **F4 — Connect the real pipeline:** replace the mock video service with calls to the video generation CLI or API.
 2. Finish the remaining Stitch fixes (Progress "frame" text, List view at phone width, three contrast misses).
 3. Run the M1/M5 acceptance tests on the 6 starter prompts, and record the results.
 4. Integrate the director prompt and update the storyboard schema to match.
@@ -48,6 +50,8 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 7. Start the M6 evaluation scorecard (`evaluations/`).
 
 ## Changelog
+
+- **2026-10-31** — Built frontend milestone F3: generation progress with real stages, failure and retry, Video ready page (player, Range-streamed download, regenerate), expired view, status API route. Home, My Videos and video details now read status per request.
 
 - **2026-10-31** — Built frontend milestone F2: Home dashboard, Create and Settings steps, `generateVideo` server action, RadioCard / SegmentedControl / Breadcrumbs components. Fixed a design-token clash (`text-card` font size also applied the card background colour, hiding text); the size token is now `text-title`.
 

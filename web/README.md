@@ -90,6 +90,13 @@ Conventions:
 - **Generate:** calls the `generateVideo` server action. It re-validates on the server (it can be called by any POST), records the request through `@/services`, and sends the user to `/generating?video=<id>`. The button shows a loading state and blocks double submits.
 - **Validation:** shared by client and server (`lib/video-request.ts`). The prompt is required, 10–600 characters. Errors are tied to the field with `aria-describedby`, and focus moves to the field.
 
+## Generation and results (F3)
+
+- **`/generating?video=<id>`:** polls `GET /api/videos/<id>` every 2s. It shows the four pipeline stages and an indeterminate bar, because the pipeline reports stages, not percentages. On failure it shows saved settings with Try again (same id) and Edit settings. When the video is ready it opens `/videos/<id>`.
+- **`/videos/<id>`:** a ready video gets a native 9:16 player and Download MP4. An expired video gets saved settings and Regenerate. Generating and failed videos redirect to the progress screen.
+- **`GET /api/videos/<id>/file`:** streams the MP4 with HTTP Range support, so the player can seek. `?download=1` makes the browser save it.
+- **Mock service:** keeps its store on `globalThis`, so route handlers, server actions and pages share it, and steps new jobs through the stages on a timer. Server-side status reads use `connection()` so they run per request, not at build time.
+
 ## Notes
 
 - `cacheComponents` is on. The sidebar's active-link highlight sits in a `Suspense` boundary because `usePathname` suspends on dynamic routes it can't prerender.

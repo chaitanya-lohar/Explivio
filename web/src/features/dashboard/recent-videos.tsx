@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { ArrowRight, Clapperboard } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card } from "@/components/ui/card";
@@ -8,6 +9,8 @@ import { listVideos } from "@/services";
 const RECENT_COUNT = 3;
 
 export async function RecentVideos() {
+  // Statuses change while jobs run, so read them per request rather than at build time.
+  await connection();
   const videos = (await listVideos()).slice(0, RECENT_COUNT);
   return (
     <section aria-labelledby="recent-heading" className="flex flex-col gap-4">
