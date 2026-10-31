@@ -97,6 +97,14 @@ Conventions:
 - **`GET /api/videos/<id>/file`:** streams the MP4 with HTTP Range support, so the player can seek. `?download=1` makes the browser save it.
 - **Mock service:** keeps its store on `globalThis`, so route handlers, server actions and pages share it, and steps new jobs through the stages on a timer. Server-side status reads use `connection()` so they run per request, not at build time.
 
+## Authentication screens (demo only)
+
+- **Routes:** `(auth)` route group with its own layout (brand bar, centred content, no dashboard sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`. The layout isn't a security boundary.
+- **Components:** `components/auth/` holds AuthLayout, AuthCard (plus AuthSplit and AuthCentered), AuthHeader, AuthFooter / AuthBackLink, AuthMessage (also used for form errors) and AuthBrandPanel. `components/ui/password-input.tsx` adds a show/hide toggle; `TextInput` gained `leadingIcon`, `labelAside` and `trailingAction`, so there's no separate AuthInput.
+- **Feature code:** `features/authentication/` holds the types, validation (email, required fields, password rules: 8+ characters and a number or symbol, confirmation, terms), server actions, and the form components (including PasswordChecklist and PasswordStrengthIndicator).
+- **Data flow:** forms validate on the client, then call server actions that re-validate and call `@/services`, which today re-exports `services/mock/auth.ts`. The mock checks nothing, stores nothing and sends no email, and every success message says it's a demo. To add real auth, replace those re-exports and add sessions and route protection.
+- **Navigation:** sign-up goes to `/verify-email?to=<masked email>`; the full address never goes in the URL. Reset goes to `/login?reset=1`.
+
 ## Notes
 
 - `cacheComponents` is on. The sidebar's active-link highlight sits in a `Suspense` boundary because `usePathname` suspends on dynamic routes it can't prerender.

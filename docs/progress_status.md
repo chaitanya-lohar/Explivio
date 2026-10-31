@@ -19,6 +19,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | Dashboard frontend — F1 foundation | ✅ Done | `web/`: Next.js 16, React 19, TypeScript strict, Tailwind 4. Design tokens, 13 UI primitives, app shell (desktop sidebar, tablet icon sidebar, mobile drawer), 7 placeholder routes, mock service layer. `lint`, `tsc` and `build` pass. Live QA at 1440/820/390px: no overflow, contrast, label or small-text issues. See [web/README.md](../web/README.md). |
 | Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
 | Dashboard frontend — F3 progress, failure, video ready | ✅ Done | `/generating` follows real status from `GET /api/videos/[id]` every 2s: four pipeline stages (plan, narration, render, finishing), an indeterminate bar (no fake percentages), a failure view with saved settings, Try again and Edit settings. When the video is ready it opens `/videos/[id]`: native 9:16 player and Download MP4 (streamed with HTTP Range support), plus Regenerate. Expired videos show saved settings and Regenerate. The mock service steps jobs through stages on a timer; the "How APIs work" sample streams the real MP4 from `runs/`. Tests: file route (200/206/416, download header, bytes identical, no path leak), browser flow 18/18. |
+| Authentication UI (demo only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 
 ## Latest outputs
 
@@ -28,6 +29,8 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | 2026-10-28 | `runs/2026-10-28T18-36-24-897Z-4a4ab22c/video.mp4` | Earlier render of the same video, 57.7 s. |
 
 ## Known issues and constraints
+
+- **Auth is demo-only:** the auth screens don't sign anyone in, and the dashboard isn't protected. The sign-up terms checkbox refers to a Terms of Service and Privacy Policy that don't exist yet.
 
 - **Indian-English voice unavailable:** ElevenLabs returns HTTP 402 for library voices through the API on the free plan. Set `ELEVENLABS_NARRATOR_VOICE_ID` after upgrading.
 - **ElevenLabs credits:** free plan, 10,000 characters per month. Each API video render uses about 700.
@@ -40,7 +43,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 
 ## Next steps
 
-1. **Authentication architecture** in `web/`: `(auth)` route group with login, signup, forgot/reset password and verify-email screens. No real auth yet.
+1. **Real authentication:** choose a provider or backend, sessions, protected dashboard routes, Terms and Privacy pages.
 2. **F4 — Connect the real pipeline:** replace the mock video service with calls to the video generation CLI or API.
 2. Finish the remaining Stitch fixes (Progress "frame" text, List view at phone width, three contrast misses).
 3. Run the M1/M5 acceptance tests on the 6 starter prompts, and record the results.
@@ -50,6 +53,8 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 7. Start the M6 evaluation scorecard (`evaluations/`).
 
 ## Changelog
+
+- **2026-10-31** — Reviewed the 5 Stitch auth screens. Implemented them in `web/` as an `(auth)` route group with shared components (AuthLayout, AuthCard, AuthHeader, AuthFooter, AuthMessage, PasswordInput, PasswordChecklist, PasswordStrengthIndicator), typed validation, server actions and a clearly labelled mock auth service.
 
 - **2026-10-31** — Built frontend milestone F3: generation progress with real stages, failure and retry, Video ready page (player, Range-streamed download, regenerate), expired view, status API route. Home, My Videos and video details now read status per request.
 
