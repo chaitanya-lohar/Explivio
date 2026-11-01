@@ -1,0 +1,168 @@
+{
+  "note": "Manual review scores (rules in M6_QUALITY_SCORECARD.md). Narration is provisional (measured, not listened to). Sync and duration follow the measured values. Captions 9 rather than 10 where cues sometimes split a phrase mid-thought (e.g. 'axis by about 23.5 degrees as').",
+  "cases": {
+    "F4": {
+      "topic": "Why the Moon Has Phases (F4 reference)",
+      "runId": "2026-11-01T15-55-00-745Z-a4105af9",
+      "phase": "baseline",
+      "config": "A",
+      "voice": "male",
+      "maxDriftSeconds": 1.06,
+      "scores": {
+        "script": 18,
+        "visual": 5,
+        "narration": 12,
+        "captions": 9,
+        "sync": 9,
+        "duration": 4,
+        "educational": 7,
+        "presentation": 2
+      },
+      "issues": "22.0 s for 30 s (64 words). Empty middle; step cards show production notes. Headline arrow '->' (fixed in F4)."
+    },
+    "B1": {
+      "topic": "Why Do We Have Seasons?",
+      "phase": "baseline",
+      "maxDriftSeconds": 0.92,
+      "scores": {
+        "script": 19,
+        "visual": 5,
+        "narration": 12,
+        "captions": 9,
+        "sync": 9,
+        "duration": 10,
+        "educational": 8,
+        "presentation": 2
+      },
+      "issues": "Accurate (axial tilt, not distance). Visual: empty middle, production notes ('An animated globe showing…'). First Gemini call waited 30 s on the hanging 3.8 model."
+    },
+    "B2": {
+      "topic": "What Is a Prime Number?",
+      "phase": "baseline",
+      "maxDriftSeconds": 3.37,
+      "scores": {
+        "script": 19,
+        "visual": 5,
+        "narration": 12,
+        "captions": 10,
+        "sync": 4,
+        "duration": 10,
+        "educational": 8,
+        "presentation": 2
+      },
+      "issues": "Accurate, good 7 vs 6 example. Captions off, confirmed absent in the MP4. Scene visuals lag narration by up to 3.4 s. Card shows 'Definition Text · Branching Graphic · Number 1 Highlight'."
+    },
+    "B3": {
+      "topic": "Why Is the Sky Blue?",
+      "phase": "baseline",
+      "maxDriftSeconds": 4.02,
+      "scores": {
+        "script": 18,
+        "visual": 5,
+        "narration": 12,
+        "captions": 9,
+        "sync": 3,
+        "duration": 10,
+        "educational": 8,
+        "presentation": 2
+      },
+      "issues": "Accurate Rayleigh simplification (doesn't mention why not violet; fine for beginners). Music off, confirmed silent pauses (-81.7 dBFS). Drift up to 4.0 s."
+    },
+    "B4": {
+      "topic": "How Does Gravity Work?",
+      "phase": "baseline",
+      "maxDriftSeconds": 1.6,
+      "scores": {
+        "script": 17,
+        "visual": 5,
+        "narration": 12,
+        "captions": 10,
+        "sync": 8,
+        "duration": 8,
+        "educational": 7,
+        "presentation": 2
+      },
+      "issues": "24.0 s for 30 s (67 words). Headline 'Gravity Holds the Universe Together' is a slight overstatement. Captions and music off, both confirmed in the MP4."
+    },
+    "A1": {
+      "topic": "Why the Moon Has Phases",
+      "phase": "after",
+      "maxDriftSeconds": 0.61,
+      "scores": {
+        "script": 19,
+        "visual": 13,
+        "narration": 12,
+        "captions": 9,
+        "sync": 10,
+        "duration": 10,
+        "educational": 8,
+        "presentation": 3
+      },
+      "issues": "28.0 s (73 words, was 22 s/64 words). Diagrams match each scene; the process highlight follows the narration. Hub centre labelled 'Sunlight source' instead of the Moon. Labels carried '1.' numbering (fixed after this run)."
+    },
+    "A3": {
+      "topic": "How Does Photosynthesis Work?",
+      "phase": "after",
+      "maxDriftSeconds": 0.37,
+      "scores": {
+        "script": 18,
+        "visual": 8,
+        "narration": 12,
+        "captions": 9,
+        "sync": 10,
+        "duration": 10,
+        "educational": 9,
+        "presentation": 3
+      },
+      "issues": "63.0 s for 60 s. Clear, accurate steps. MAJOR: the title matched the photosynthesis demo theme, so the demo's pre-written step cards (another script) appeared, e.g. 'Water travels from the roots' over 'The 3 Ingredients', plus a production note. Fixed after this run. Verified fixed by re-rendering stills from the same run data: \"The 3 Ingredients\" now shows Sunlight energy / Water from roots / Carbon dioxide from air."
+    },
+    "A5": {
+      "topic": "What Is Artificial Intelligence?",
+      "phase": "after",
+      "maxDriftSeconds": 0.59,
+      "scores": {
+        "script": 17,
+        "visual": 13,
+        "narration": 12,
+        "captions": 9,
+        "sync": 10,
+        "duration": 10,
+        "educational": 7,
+        "presentation": 3
+      },
+      "issues": "34.0 s for 30 s (within tolerance). Comparison and checklist visuals match the narration. Weak 8-word ending. Labels 'Step 1:' prefix duplicated the step numbers (fixed after this run)."
+    },
+    "A2": {
+      "topic": "Why Do We Have Seasons?",
+      "phase": "after",
+      "maxDriftSeconds": 0.35,
+      "scores": {
+        "script": 19,
+        "visual": 15,
+        "narration": 12,
+        "captions": 9,
+        "sync": 10,
+        "duration": 10,
+        "educational": 9,
+        "presentation": 4
+      },
+      "issues": "31.0 s for 30 s. Directly comparable with B1: the process steps (tilts toward / direct sunlight = summer / tilts away / indirect = winter) highlight as each is spoken; good misconception framing. First attempt failed on a schema error that the new classifier wrongly treated as fatal (fixed, rerun)."
+    },
+    "A4": {
+      "topic": "How the Internet Works",
+      "phase": "after",
+      "maxDriftSeconds": 0.9,
+      "scores": {
+        "script": 18,
+        "visual": 12,
+        "narration": 12,
+        "captions": 9,
+        "sync": 9,
+        "duration": 10,
+        "educational": 9,
+        "presentation": 3
+      },
+      "issues": "66.0 s for 60 s (155 words at only 2.37 words/s: technical words are slower to say). Accurate DNS / packets / routers / cables. Flag for review: \"routers pick the fastest path\" simplifies routing. The hub layout draws a path (router → cables → server) as a star. First attempt timed out at 30 s on gemini-3.6-flash (storyboard took 28 s on the rerun); timeout raised to 45 s with one same-model retry."
+    }
+  }
+}

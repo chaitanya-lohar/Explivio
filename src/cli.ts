@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import {mkdir, writeFile, copyFile, readFile} from 'node:fs/promises';
+import {mkdir, writeFile, copyFile, readFile, stat} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {execFile} from 'node:child_process';
@@ -8,6 +8,7 @@ import {createStoryboard} from './providers/gemini.js';
 import {createNarration} from './providers/elevenlabs.js';
 import {StoryboardSchema, type Storyboard} from './schemas/storyboard.js';
 import {apiStoryboard, buildApiVideo} from './api-explainer.js';
+import {sceneStartsFromWords} from './pipeline/scene-timing.js';
 
 const execFileAsync = promisify(execFile);
 const args = process.argv.slice(2);
@@ -77,11 +78,14 @@ try {
   await writeFile(path.join(runDir, 'storyboard.json'), JSON.stringify(storyboard, null, 2));
   manifest.storyboard = scriptMeta;
   const narrationText = storyboard.scenes.map((scene) => scene.narration_text).join('\n\n');
+  // ElevenLabs bills by characters of submitted text.
+  manifest.metrics = {narrationCharacters: narrationText.length, narrationWords: narrationText.split(/\s+/).filter(Boolean).length};
   let audioPath = '';
   let captionCues: {start: number; end: number; text: string}[] = [];
   let actualSeconds: number = seconds;
   let composition = 'ExplainerVideo';
   let renderProps: unknown;
+  let sceneStarts: number[] | undefined;
   if (demoName === 'api') {
     const {props, meta} = await stage('narration', () => buildApiVideo(storyboard, runDir, publicRunDir, runId, seconds, voiceGender));
     manifest.narration = meta; composition = 'ApiExplainer'; renderProps = props; actualSeconds = props.seconds;
@@ -92,8 +96,11 @@ try {
     const localAudio = path.join(runDir, 'narration.mp3');
     const audio = await stage('narration', () => createNarration(narrationText, localAudio, voiceGender));
     await copyFile(localAudio, path.join(publicRunDir, 'narration.mp3'));
-    audioPath = `runs/${runId}/narration.mp3`; captionCues = audio.captionCues; actualSeconds = Math.max(1, Math.ceil(audio.durationSeconds));
-    const {captionCues: _cues, words: _words, ...audioMeta} = audio; manifest.narration = audioMeta;
+    // Keep at least 0.4 s after the last word so speech never ends exactly on the final frame.
+    audioPath = `runs/${runId}/narration.mp3`; captionCues = audio.captionCues; actualSeconds = Math.max(1, Math.ceil(audio.durationSeconds + 0.4));
+    // Scene changes follow when each scene's first word is actually spoken (falls back to estimates if timings don't line up).
+    sceneStarts = sceneStartsFromWords(storyboard.scenes.map((scene) => scene.narration_text), audio.words) ?? undefined;
+    const {captionCues: _cues, words: _words, ...audioMeta} = audio; manifest.narration = {...audioMeta, sceneTiming: sceneStarts ? 'narration-aligned' : 'estimated'};
   }
   manifest.actualDurationSeconds = actualSeconds;
   manifest.durationDifferenceSeconds = actualSeconds - seconds;
@@ -101,10 +108,11 @@ try {
   const outputPath = path.join(runDir, 'video.mp4');
   await stage('render', async () => {
     const propsPath = path.join(runDir, 'render-props.json');
-    await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : ''}));
+    await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, handwrittenSteps: demo, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : ''}));
     const cli = path.resolve('node_modules', '@remotion', 'cli', 'remotion-cli.js');
     await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', '--crf=18', '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
   });
+  manifest.metrics = {...(manifest.metrics as object), outputBytes: (await stat(outputPath)).size};
   manifest.status = 'succeeded'; manifest.output = path.relative(process.cwd(), outputPath); manifest.elapsedMs = Date.now() - started; manifest.finishedAt = new Date().toISOString();
   await saveManifest();
   console.log(`\nVideo saved: ${outputPath}\nRun manifest: ${path.join(runDir, 'manifest.json')}`);

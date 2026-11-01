@@ -2,6 +2,8 @@ import React from 'react';
 import {AbsoluteFill, Audio, Img, Sequence, Easing, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import type {Storyboard} from '../schemas/storyboard.js';
 import type {VideoProps} from './video.js';
+import {sceneFramesFromStarts} from '../pipeline/scene-timing';
+import {ConceptVisual} from './concept-visual';
 
 type Scene = Storyboard['scenes'][number];
 const TRANSITION = 16;
@@ -20,30 +22,39 @@ const rainSteps = [
   {label: '05  /  COLLECTION', title: 'Water returns to the surface', detail: 'Runoff and rivers carry rain back to lakes and oceans.'}
 ];
 
-export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = ''}) => {
+export type Theme = {accent: string; warm: string; image: string; section: string; themed: boolean; steps: {label: string; title: string; detail: string}[]};
+
+/**
+ * Hand-made themes exist only for the rain and photosynthesis demos. Any other topic gets no photo and no
+ * pre-written step copy: its visuals come from its own storyboard (see ConceptVisual).
+ */
+export function themeFor(title: string): Theme {
+  if (/rain|water cycle/i.test(title)) return {accent: '#a9e7f2', warm: '#f5c77a', image: 'assets/rain-hero.png', section: 'EARTH SCIENCE', themed: true, steps: rainSteps};
+  if (/photosynthesis/i.test(title)) return {accent: '#c8e6a2', warm: '#f5cf7a', image: 'assets/photosynthesis-hero.png', section: 'PLANT SCIENCE', themed: true, steps: photosynthesisSteps};
+  return {accent: '#a9e7f2', warm: '#f5c77a', image: '', section: 'EXPLAINER', themed: false, steps: []};
+}
+
+/** Hand-written step cards belong to the demo scripts only; generated videos get diagrams from their own storyboard. */
+export function usesHandwrittenCards(theme: Theme, handwrittenSteps: boolean | undefined): boolean {
+  return theme.themed && handwrittenSteps === true;
+}
+
+export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = '', sceneStarts, handwrittenSteps}) => {
   const {fps, durationInFrames} = useVideoConfig();
   const scenes = storyboard.scenes;
-  const isRain = /rain|water cycle/i.test(storyboard.title);
-  const isPhoto = /photosynthesis/i.test(storyboard.title);
-  const theme = isRain ? {accent: '#a9e7f2', warm: '#f5c77a', image: 'assets/rain-hero.png', section: 'EARTH SCIENCE', steps: rainSteps}
-    : isPhoto ? {accent: '#c8e6a2', warm: '#f5cf7a', image: 'assets/photosynthesis-hero.png', section: 'PLANT SCIENCE', steps: photosynthesisSteps}
-      // Any other topic: no topic-specific photo or step copy exists, so build the cards from the storyboard itself.
-      : {accent: '#a9e7f2', warm: '#f5c77a', image: '', section: 'EXPLAINER', steps: scenes.map((scene, i) => ({
-        label: `${String(i + 1).padStart(2, '0')}  /  ${(scene.key_elements[0] || 'Key idea').toUpperCase()}`,
-        title: scene.key_elements.length ? scene.key_elements.slice(0, 3).join(' · ') : scene.on_screen_text,
-        detail: scene.visual_description
-      }))};
-  const themed = isRain || isPhoto;
-  const totalEstimated = scenes.reduce((sum, scene) => sum + scene.estimated_duration_seconds, 0) || scenes.length;
+  const theme = themeFor(storyboard.title);
   const timelineFrames = Math.round(seconds * fps);
+  // Prefer narration-aligned scene times; older runs (no sceneStarts) fall back to the storyboard's estimates.
+  const totalEstimated = scenes.reduce((sum, scene) => sum + scene.estimated_duration_seconds, 0) || scenes.length;
   let cursor = 0;
+  const cores = sceneStarts?.length === scenes.length
+    ? sceneFramesFromStarts(sceneStarts, seconds, fps)
+    : scenes.map((scene) => { const duration = Math.max(1, Math.round((scene.estimated_duration_seconds / totalEstimated) * timelineFrames)); const from = cursor; cursor += duration; return {from, duration}; });
   const sequences = scenes.map((scene, index) => {
-    const coreFrames = Math.max(1, Math.round((scene.estimated_duration_seconds / totalEstimated) * timelineFrames));
-    const from = Math.max(0, cursor - (index > 0 ? TRANSITION : 0));
-    const duration = coreFrames + (index > 0 ? TRANSITION : 0) + (index < scenes.length - 1 ? TRANSITION : 0);
-    cursor += coreFrames;
+    const from = Math.max(0, cores[index].from - (index > 0 ? TRANSITION : 0));
+    const duration = cores[index].duration + (index > 0 ? TRANSITION : 0) + (index < scenes.length - 1 ? TRANSITION : 0);
     return <Sequence key={scene.scene_id} from={from} durationInFrames={duration} premountFor={fps}>
-      <EditorialScene scene={scene} index={index} total={scenes.length} duration={duration} topic={storyboard.title} section={theme.section} accent={theme.accent} warm={theme.warm} image={theme.image} themed={themed} step={theme.steps[index] || theme.steps[theme.steps.length - 1]} />
+      <EditorialScene scene={scene} index={index} total={scenes.length} duration={duration} topic={storyboard.title} section={theme.section} accent={theme.accent} warm={theme.warm} image={theme.image} themed={usesHandwrittenCards(theme, handwrittenSteps)} step={theme.steps[index] || theme.steps[theme.steps.length - 1] || {label: '', title: '', detail: ''}} />
     </Sequence>;
   });
   return <AbsoluteFill style={{backgroundColor: '#071017'}}>
@@ -90,7 +101,9 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
       <div style={{width: 72, height: 4, marginTop: 26, background: warm, borderRadius: 4}} />
     </div>
 
-    <div style={{position: 'absolute', left: 76, right: 76, bottom: 513, transform: `translateY(${(1 - callout) * 22}px) scale(${0.985 + callout * 0.015})`, opacity: callout}}>
+    {/* Topics without a hand-made theme: an animated diagram built from this scene's storyboard (no production notes on screen). */}
+    {themed ? null : <ConceptVisual scene={scene} durationInFrames={duration} />}
+    {themed ? <div style={{position: 'absolute', left: 76, right: 76, bottom: 513, transform: `translateY(${(1 - callout) * 22}px) scale(${0.985 + callout * 0.015})`, opacity: callout}}>
       <div style={{borderRadius: 18, padding: '24px 31px 24px', background: 'rgba(5,13,18,.76)', border: '1px solid rgba(247,245,236,.24)', boxShadow: '0 22px 65px rgba(0,0,0,.32)', backdropFilter: 'blur(18px)'}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14}}>
           <div style={{fontSize: 17, fontWeight: 700, color: accent, letterSpacing: 2.8}}>{step.label}</div>
@@ -102,8 +115,8 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
           <div style={{fontSize: 22, lineHeight: 1.35, color: 'rgba(248,245,236,.82)', marginTop: 9}}>{step.detail}</div>
         </>}
       </div>
-      {themed ? <div style={{fontSize: 20, lineHeight: 1.35, color: 'rgba(248,245,236,.84)', marginTop: 18, textShadow: '0 2px 15px rgba(0,0,0,.7)', maxWidth: 850}}>{scene.visual_description}</div> : null}
-    </div>
+      <div style={{fontSize: 20, lineHeight: 1.35, color: 'rgba(248,245,236,.84)', marginTop: 18, textShadow: '0 2px 15px rgba(0,0,0,.7)', maxWidth: 850}}>{scene.visual_description}</div>
+    </div> : null}
 
     <div style={{position: 'absolute', left: 76, right: 76, bottom: 124, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
       <div style={{fontSize: 16, letterSpacing: 2.8, color: 'rgba(248,245,236,.64)'}}>{themed ? 'A SHORT SCIENCE FILM' : 'A SHORT EXPLAINER'}</div>

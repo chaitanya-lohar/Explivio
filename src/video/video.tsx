@@ -2,7 +2,7 @@ import React from 'react';
 import {AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import type {Storyboard} from '../schemas/storyboard.js';
 
-export type VideoProps = {storyboard: Storyboard; audioPath: string; seconds: number; captionCues: {start: number; end: number; text: string}[]; captions?: boolean; musicPath?: string};
+export type VideoProps = {storyboard: Storyboard; audioPath: string; seconds: number; captionCues: {start: number; end: number; text: string}[]; captions?: boolean; musicPath?: string; /** Narration-aligned scene start times (s); absent in older runs. */ sceneStarts?: number[]; /** True only for the built-in demo scripts, whose themes include hand-written step cards. */ handwrittenSteps?: boolean};
 
 const SceneCard: React.FC<{storyboard: Storyboard; title: string; body: string; index: number}> = ({storyboard, title, body, index}) => {
   const frame = useCurrentFrame();

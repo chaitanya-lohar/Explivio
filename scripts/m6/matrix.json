@@ -1,0 +1,21 @@
+{
+  "note": "M6 test matrix. phase: baseline = current pipeline before fixes; after = after fixes; pending = not run (ElevenLabs credit budget). Configs: A captions+music, B no captions+music, C captions+no music, D neither.",
+  "cases": [
+    {"id": "B1", "phase": "baseline", "config": "A", "topic": "Why Do We Have Seasons?", "category": "Science", "durationSeconds": 30, "voice": "female", "captions": true, "music": true, "prompt": "Why do we have seasons? Explain it for complete beginners."},
+    {"id": "B2", "phase": "baseline", "config": "B", "topic": "What Is a Prime Number?", "category": "Mathematics", "durationSeconds": 30, "voice": "male", "captions": false, "music": true, "prompt": "What is a prime number? Explain it for complete beginners with a simple example."},
+    {"id": "B3", "phase": "baseline", "config": "C", "topic": "Why Is the Sky Blue?", "category": "Science", "durationSeconds": 30, "voice": "female", "captions": true, "music": false, "prompt": "Why is the sky blue? Explain it for complete beginners."},
+    {"id": "B4", "phase": "baseline", "config": "D", "topic": "How Does Gravity Work?", "category": "Physics", "durationSeconds": 30, "voice": "male", "captions": false, "music": false, "prompt": "How does gravity work? Explain it for complete beginners."},
+    {"id": "A1", "phase": "after", "config": "A", "topic": "Why the Moon Has Phases", "category": "Science", "durationSeconds": 30, "voice": "male", "captions": true, "music": true, "prompt": "Explain why the Moon has phases, for complete beginners, in simple steps."},
+    {"id": "A2", "phase": "after", "config": "A", "topic": "Why Do We Have Seasons?", "category": "Science", "durationSeconds": 30, "voice": "female", "captions": true, "music": true, "prompt": "Why do we have seasons? Explain it for complete beginners."},
+    {"id": "A3", "phase": "after", "config": "C", "topic": "How Does Photosynthesis Work?", "category": "Biology", "durationSeconds": 60, "voice": "female", "captions": true, "music": false, "prompt": "How does photosynthesis work? Explain it for complete beginners."},
+    {"id": "A4", "phase": "after", "config": "A", "topic": "How the Internet Works", "category": "Technology", "durationSeconds": 60, "voice": "male", "captions": true, "music": true, "prompt": "How does the internet work? Explain it for complete beginners."},
+    {"id": "A5", "phase": "after", "config": "A", "topic": "What Is Artificial Intelligence?", "category": "Technology", "durationSeconds": 30, "voice": "female", "captions": true, "music": true, "prompt": "What is artificial intelligence? Explain it for complete beginners."},
+    {"id": "P1", "phase": "pending", "topic": "How Does a CPU Work?", "category": "Technology", "durationSeconds": 90},
+    {"id": "P2", "phase": "pending", "topic": "The History of the Internet", "category": "History", "durationSeconds": 90},
+    {"id": "P3", "phase": "pending", "topic": "How Does the Human Heart Work?", "category": "Biology", "durationSeconds": 60},
+    {"id": "P4", "phase": "pending", "topic": "What Is Blockchain?", "category": "Technology", "durationSeconds": 60},
+    {"id": "P5", "phase": "pending", "topic": "How Do Black Holes Work?", "category": "Astronomy", "durationSeconds": 90},
+    {"id": "P6", "phase": "pending", "topic": "How Does Electricity Work?", "category": "Physics", "durationSeconds": 60},
+    {"id": "P7", "phase": "pending", "topic": "How Do Vaccines Work?", "category": "Biology", "durationSeconds": 60}
+  ]
+}
