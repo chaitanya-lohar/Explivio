@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {VisualSchema, TEMPLATE_NAMES} from '../src/schemas/visual.js';
 import {StoryboardSchema} from '../src/schemas/storyboard.js';
-import {fallbackVisual, resolveVisual} from '../src/pipeline/visual-plan.js';
+import {fallbackVisual, resolveVisual, revealLabels} from '../src/pipeline/visual-plan.js';
 import {keywords, mentionTimes} from '../src/pipeline/mention-timing.js';
 
 const scene = (extra: Record<string, unknown> = {}) => ({scene_id: 1, narration_text: 'n', on_screen_text: 'Title', visual_type: 'process', visual_description: 'd', key_elements: ['First', 'Second', 'Third'], estimated_duration_seconds: 5, ...extra});
@@ -62,4 +62,10 @@ test('unmentioned items are spaced evenly; ordered reveals never go backwards', 
 test('mentions outside the scene are ignored', () => {
   const t = mentionTimes(['Moon'], spoken('the moon', 30), 10, 20);
   assert.ok(t[0] >= 10 && t[0] <= 20);
+});
+
+test('reveal labels follow each template, with order only where it matters', () => {
+  assert.deepEqual(revealLabels({template: 'flow', nodes: ['A', 'B']}), {labels: ['A', 'B'], ordered: true});
+  assert.deepEqual(revealLabels({template: 'comparison', left: {title: 'L', points: ['l1']}, right: {title: 'R', points: []}, relation: 'vs'}), {labels: ['L', 'l1', 'R'], ordered: false});
+  assert.equal(revealLabels({template: 'cycle', stages: ['a', 'b', 'c']}).ordered, true);
 });

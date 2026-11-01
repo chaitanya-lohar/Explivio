@@ -37,6 +37,25 @@ export function fallbackVisual(scene: VisualInput): Visual {
   }
 }
 
+/**
+ * The labels a template reveals, in reveal order, and whether that order is meaningful (sequences must not
+ * reveal out of order). Used to time each item to when the narration mentions it.
+ */
+export function revealLabels(visual: Visual): {labels: string[]; ordered: boolean} {
+  switch (visual.template) {
+    case 'flow': return {labels: visual.nodes, ordered: true};
+    case 'cycle': return {labels: visual.stages, ordered: true};
+    case 'steps': return {labels: visual.steps, ordered: true};
+    case 'timeline': return {labels: visual.events.map((e) => `${e.label} ${e.when}`), ordered: true};
+    case 'layers': return {labels: visual.layers.map((l) => l.label), ordered: false};
+    case 'comparison': return {labels: [visual.left.title, ...visual.left.points, visual.right.title, ...visual.right.points], ordered: false};
+    case 'orbit': return {labels: [visual.center, visual.orbiter, ...(visual.light ? [visual.light] : []), ...visual.markers], ordered: false};
+    case 'hub': return {labels: [visual.center, ...visual.spokes], ordered: false};
+    case 'checklist': return {labels: visual.items, ordered: true};
+    case 'focus': return {labels: [visual.title, ...visual.chips], ordered: false};
+  }
+}
+
 /** Uses the scene's v2 `visual` when it is valid, otherwise the fallback (and says why). Never throws. */
 export function resolveVisual(scene: VisualInput): ResolvedVisual {
   if (scene.visual === undefined || scene.visual === null) return {visual: fallbackVisual(scene), source: 'fallback', problem: 'no visual'};
