@@ -22,7 +22,8 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
       return {storyboard: StoryboardSchema.parse(json), model: activeModel, attempts: attempt};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (!fallbackAttempted && /(503.*high demand|429.*(?:limit|quota|rate))/i.test(message)) {
+      // Overloaded, rate-limited or hanging models all get one switch to the fallback model.
+      if (!fallbackAttempted && /(503.*high demand|429.*(?:limit|quota|rate)|timed out|timeout)/i.test(message)) {
         const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.6-flash';
         if (fallbackModel !== activeModel) {
           activeModel = fallbackModel;

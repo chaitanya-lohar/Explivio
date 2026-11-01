@@ -1,7 +1,7 @@
 "use server";
 
 import { toVideoRequest } from "@/lib/video-request";
-import { createVideo } from "@/services";
+import { createVideo, PipelineBusyError } from "@/services";
 import type { VideoRequest } from "@/types/video";
 
 export type GenerateVideoResult = { ok: true; videoId: string } | { ok: false; error: string };
@@ -13,7 +13,8 @@ export async function generateVideo(input: VideoRequest): Promise<GenerateVideoR
   try {
     const video = await createVideo(parsed.request);
     return { ok: true, videoId: video.id };
-  } catch {
+  } catch (error) {
+    if (error instanceof PipelineBusyError) return { ok: false, error: error.message };
     return { ok: false, error: "We couldn't start your video. Please try again." };
   }
 }

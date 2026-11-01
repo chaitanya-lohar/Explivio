@@ -4,3 +4,9 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "n
 export function formatDate(iso: string): string {
   return dateFormatter.format(new Date(iso));
 }
+
+/** Seconds as m:ss, e.g. 57 -> "0:57". */
+export function formatLength(seconds: number): string {
+  const total = Math.round(seconds);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}

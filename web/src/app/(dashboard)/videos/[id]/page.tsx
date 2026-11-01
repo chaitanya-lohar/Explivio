@@ -9,7 +9,9 @@ import { progressHref } from "@/lib/routes";
 import { getVideo, getVideoTitle, listVideoIds } from "@/services";
 
 export async function generateStaticParams() {
-  return (await listVideoIds()).map((id) => ({ id }));
+  const ids = await listVideoIds();
+  // Cache Components needs at least one param; an unknown id renders the not-found page.
+  return (ids.length ? ids : ["none"]).map((id) => ({ id }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/videos/[id]">): Promise<Metadata> {

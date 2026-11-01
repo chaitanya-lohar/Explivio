@@ -105,6 +105,13 @@ Conventions:
 - **Data flow:** forms validate on the client, then call server actions that re-validate and call `@/services`, which today re-exports `services/mock/auth.ts`. The mock checks nothing, stores nothing and sends no email, and every success message says it's a demo. To add real auth, replace those re-exports and add sessions and route protection.
 - **Navigation:** sign-up goes to `/verify-email?to=<masked email>`; the full address never goes in the URL. Reset goes to `/login?reset=1`.
 
+## Real video pipeline (F4)
+
+- **How it works:** by default (`VIDEO_SERVICE=pipeline`) each video is a run of the repo-root CLI. `services/pipeline/videos.ts` writes `runs/<id>/request.json` and `prompt.txt`, then starts `src/cli.ts` in its own process, with `--prompt-file`, `--run-id`, `--duration`, `--voice` and optionally `--no-captions` / `--music`. The prompt never goes through a shell. Status, stages and errors are read from `runs/<id>/manifest.json`; the file route streams `runs/<id>/video.mp4`.
+- **Needs:** `npm install` and API keys in the repo-root `.env` (Gemini and ElevenLabs). Generation takes a few minutes, one video at a time.
+- **Logs:** `runs/<id>/pipeline.log` holds the CLI output for debugging.
+- **UI work without keys:** set `VIDEO_SERVICE=mock` in `web/.env.local` (see `.env.example`).
+
 ## Notes
 
 - `cacheComponents` is on. The sidebar's active-link highlight sits in a `Suspense` boundary because `usePathname` suspends on dynamic routes it can't prerender.

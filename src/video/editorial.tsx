@@ -20,14 +20,20 @@ const rainSteps = [
   {label: '05  /  COLLECTION', title: 'Water returns to the surface', detail: 'Runoff and rivers carry rain back to lakes and oceans.'}
 ];
 
-export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues}) => {
-  const {fps} = useVideoConfig();
+export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = ''}) => {
+  const {fps, durationInFrames} = useVideoConfig();
   const scenes = storyboard.scenes;
   const isRain = /rain|water cycle/i.test(storyboard.title);
   const isPhoto = /photosynthesis/i.test(storyboard.title);
   const theme = isRain ? {accent: '#a9e7f2', warm: '#f5c77a', image: 'assets/rain-hero.png', section: 'EARTH SCIENCE', steps: rainSteps}
     : isPhoto ? {accent: '#c8e6a2', warm: '#f5cf7a', image: 'assets/photosynthesis-hero.png', section: 'PLANT SCIENCE', steps: photosynthesisSteps}
-      : {accent: '#a9e7f2', warm: '#f5c77a', image: 'assets/rain-hero.png', section: 'SCIENCE NOTES', steps: rainSteps};
+      // Any other topic: no topic-specific photo or step copy exists, so build the cards from the storyboard itself.
+      : {accent: '#a9e7f2', warm: '#f5c77a', image: '', section: 'EXPLAINER', steps: scenes.map((scene, i) => ({
+        label: `${String(i + 1).padStart(2, '0')}  /  ${(scene.key_elements[0] || 'Key idea').toUpperCase()}`,
+        title: scene.key_elements.length ? scene.key_elements.slice(0, 3).join(' · ') : scene.on_screen_text,
+        detail: scene.visual_description
+      }))};
+  const themed = isRain || isPhoto;
   const totalEstimated = scenes.reduce((sum, scene) => sum + scene.estimated_duration_seconds, 0) || scenes.length;
   const timelineFrames = Math.round(seconds * fps);
   let cursor = 0;
@@ -37,17 +43,23 @@ export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, sec
     const duration = coreFrames + (index > 0 ? TRANSITION : 0) + (index < scenes.length - 1 ? TRANSITION : 0);
     cursor += coreFrames;
     return <Sequence key={scene.scene_id} from={from} durationInFrames={duration} premountFor={fps}>
-      <EditorialScene scene={scene} index={index} total={scenes.length} duration={duration} topic={storyboard.title} section={theme.section} accent={theme.accent} warm={theme.warm} image={theme.image} step={theme.steps[index] || theme.steps[theme.steps.length - 1]} />
+      <EditorialScene scene={scene} index={index} total={scenes.length} duration={duration} topic={storyboard.title} section={theme.section} accent={theme.accent} warm={theme.warm} image={theme.image} themed={themed} step={theme.steps[index] || theme.steps[theme.steps.length - 1]} />
     </Sequence>;
   });
   return <AbsoluteFill style={{backgroundColor: '#071017'}}>
     {sequences}
     {audioPath ? <Audio src={staticFile(audioPath)} /> : null}
-    <EditorialCaptions scenes={scenes} seconds={seconds} cues={captionCues} accent={theme.accent} />
+    {musicPath ? <Audio src={staticFile(musicPath)} volume={(f) => {
+      // Soft bed: quieter while a caption cue (speech) is active, fading in and out at the ends.
+      const time = f / fps; const total = durationInFrames / fps;
+      const speaking = captionCues.some((cue) => time > cue.start - 0.25 && time < cue.end + 0.25);
+      return (speaking ? 0.055 : 0.13) * Math.min(1, time / 1.2) * Math.min(1, Math.max(0, (total - time) / 1.5));
+    }} /> : null}
+    {captions ? <EditorialCaptions scenes={scenes} seconds={seconds} cues={captionCues} accent={theme.accent} /> : null}
   </AbsoluteFill>;
 };
 
-const EditorialScene: React.FC<{scene: Scene; index: number; total: number; duration: number; topic: string; section: string; accent: string; warm: string; image: string; step: {label: string; title: string; detail: string}}> = ({scene, index, total, duration, topic, section, accent, warm, image, step}) => {
+const EditorialScene: React.FC<{scene: Scene; index: number; total: number; duration: number; topic: string; section: string; accent: string; warm: string; image: string; themed: boolean; step: {label: string; title: string; detail: string}}> = ({scene, index, total, duration, topic, section, accent, warm, image, themed, step}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const isFirst = index === 0;
@@ -62,7 +74,9 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
   const calloutDelay = Math.round(fps * 0.2);
   const callout = spring({frame: frame - calloutDelay, fps, config: {damping: 19, stiffness: 120, mass: 0.75}});
   return <AbsoluteFill style={{opacity, overflow: 'hidden', color: '#f8f5ec', fontFamily: 'Arial, sans-serif'}}>
-    <Img src={staticFile(image)} style={{width: '100%', height: '100%', objectFit: 'cover', transform: `translateX(${xShift * frameProgress}%) scale(${scale})`, filter: 'saturate(0.91) contrast(1.04)'}} />
+    {image
+      ? <Img src={staticFile(image)} style={{width: '100%', height: '100%', objectFit: 'cover', transform: `translateX(${xShift * frameProgress}%) scale(${scale})`, filter: 'saturate(0.91) contrast(1.04)'}} />
+      : <AbsoluteFill style={{background: `radial-gradient(circle at ${30 + xShift * 10 * frameProgress}% 28%, rgba(139,124,255,.28), transparent 55%), radial-gradient(circle at 75% 78%, rgba(77,214,200,.18), transparent 50%), linear-gradient(180deg, #121527 0%, #0b0f1c 100%)`}} />}
     <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(4,12,19,.74) 0%, rgba(4,12,19,.30) 28%, rgba(4,12,19,.10) 46%, rgba(4,12,19,.50) 70%, rgba(3,9,14,.94) 100%)'}} />
     <AbsoluteFill style={{background: 'linear-gradient(90deg, rgba(4,11,15,.40), transparent 76%)'}} />
 
@@ -72,7 +86,7 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
     </div>
     <div style={{position: 'absolute', top: 155, left: 78, right: 78, opacity: intro, transform: `translateY(${(1 - intro) * 22}px)`}}>
       <div style={{fontSize: 19, color: accent, letterSpacing: 3.4, fontWeight: 700, textTransform: 'uppercase'}}>{topic}</div>
-      <div style={{fontFamily: 'Georgia, serif', fontSize: 72, lineHeight: 1.05, fontWeight: 700, marginTop: 22, maxWidth: 920, textWrap: 'balance', textShadow: '0 3px 32px rgba(0,0,0,.42)'}}>{scene.on_screen_text}</div>
+      <div style={{fontFamily: 'Georgia, serif', fontSize: 72, lineHeight: 1.05, fontWeight: 700, marginTop: 22, maxWidth: 920, textWrap: 'balance', textShadow: '0 3px 32px rgba(0,0,0,.42)'}}>{scene.on_screen_text.replace(/s*->s*/g, ' → ')}</div>
       <div style={{width: 72, height: 4, marginTop: 26, background: warm, borderRadius: 4}} />
     </div>
 
@@ -88,11 +102,11 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
           <div style={{fontSize: 22, lineHeight: 1.35, color: 'rgba(248,245,236,.82)', marginTop: 9}}>{step.detail}</div>
         </>}
       </div>
-      <div style={{fontSize: 20, lineHeight: 1.35, color: 'rgba(248,245,236,.84)', marginTop: 18, textShadow: '0 2px 15px rgba(0,0,0,.7)', maxWidth: 850}}>{scene.visual_description}</div>
+      {themed ? <div style={{fontSize: 20, lineHeight: 1.35, color: 'rgba(248,245,236,.84)', marginTop: 18, textShadow: '0 2px 15px rgba(0,0,0,.7)', maxWidth: 850}}>{scene.visual_description}</div> : null}
     </div>
 
     <div style={{position: 'absolute', left: 76, right: 76, bottom: 124, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-      <div style={{fontSize: 16, letterSpacing: 2.8, color: 'rgba(248,245,236,.64)'}}>A SHORT SCIENCE FILM</div>
+      <div style={{fontSize: 16, letterSpacing: 2.8, color: 'rgba(248,245,236,.64)'}}>{themed ? 'A SHORT SCIENCE FILM' : 'A SHORT EXPLAINER'}</div>
       <div style={{display: 'flex', gap: 8}}>{Array.from({length: total}, (_, i) => <div key={i} style={{width: i === index ? 26 : 6, height: 6, borderRadius: 8, background: i === index ? accent : 'rgba(248,245,236,.48)'}} />)}</div>
     </div>
   </AbsoluteFill>;
