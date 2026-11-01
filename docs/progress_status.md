@@ -83,23 +83,33 @@ Decisions needed from you:
 - Confirm F4 as the next phase, or tell me to do authentication first.
 - For authentication later: a hosted service (Clerk, Auth0, Supabase Auth) or our own backend.
 
+## Zero-cost policy (2026-11-01, non-negotiable for now)
+
+**Budget: $0.** No billing on any provider, no credit purchases, no upgrades, no paid API calls. Only free tiers within their quotas; when a quota runs out, that work pauses. Paid services are reconsidered only when we decide to prepare for public launch.
+
+- **Gemini:** free tier only. The billing status of the Google Cloud project behind the key **must be confirmed by you** in AI Studio (it isn't visible to the API key).
+- **ElevenLabs:** existing free allowance only (about 1,600 characters until 2026-11-26).
+- **Paused / skipped:** Gemini image-generation experiments (free availability can't be verified). A local image-model trial needs your go-ahead (Python install + model download).
+
 ## Decisions (2026-11-01)
 
 - **Gemini model:** `GEMINI_MODEL=gemini-3.6-flash` applied to the local `.env` (only that line changed).
-- **Next milestone:** M7 Visual Intelligence, with a limited AI illustration experiment first; no image generation in the pipeline until the experiment is reviewed.
+- **Next milestone:** M7 Visual Intelligence: six programmatic templates first, then planning, script quality and silent evaluation. Illustrations are investigated at zero cost only (the earlier paid budget was withdrawn); no generated images in production until you review.
 - **Deferred:** the 90 s and remaining 7-topic evaluation, until ElevenLabs credits reset on 2026-11-26 (unless more credits are added).
 - **Authentication:** Clerk is the preferred direction for future real authentication, subject to a pricing and integration review.
 
 ## Next steps
 
 1. **M7 — Visual Intelligence** (approved; plan ready for review): storyboard v2 schema → six animated templates → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
-2. **AI illustration experiment** (3 topics, at most 18 images) with measured quality, time and cost; integration decision after you review the report.
+2. **Zero-cost illustration investigation:** programmatic scene art plus an options report on local/open-source models (hardware and licences checked). Optional local trial only with your go-ahead.
 3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
 4. **Real authentication with Clerk**, after a pricing and integration review.
 5. **Merge `dev` into `main`** through a pull request once you've reviewed it.
 6. Remaining UI: My Videos search, filters and list view; the Settings page; the leftover Stitch fixes.
 
 ## Changelog
+
+- **2026-11-01** — Adopted the strict $0 policy: withdrew the earlier paid illustration budget, skipped paid/billing-gated image APIs, recorded free-tier limits, and checked hardware for local image generation (integrated AMD GPU, no CUDA, no Python).
 
 - **2026-11-01** — Set `GEMINI_MODEL=gemini-3.6-flash` in the local `.env` (approved). Recorded decisions. Wrote the M7 Visual Intelligence implementation plan.
 

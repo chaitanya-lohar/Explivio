@@ -1,6 +1,6 @@
 # M7 — Visual Intelligence: implementation plan
 
-Status: **plan, awaiting approval** · Branch: `dev` · Prepared 2026-11-01
+Status: **approved, in progress** · Branch: `dev` · Prepared 2026-11-01 · Revised 2026-11-01 for the **strict $0 policy**
 
 ## 1. Goal
 
@@ -10,13 +10,31 @@ Make every generated video *show* what the narration explains, using reusable an
 
 **Target:** average visual score of at least **16/20** and total score of at least **85** on the M7 evaluation set, with no regression in script accuracy, sync or duration.
 
+## 0. Zero-cost policy (non-negotiable for the current phase)
+
+**Budget: $0.** Explivio is in personal/learning development, not public launch. It replaces the earlier paid illustration budget, which is withdrawn.
+
+- No billing is enabled on Google Cloud, the Gemini API or any other provider. No credit purchases, no subscription upgrades, no paid API calls.
+- Only genuinely free tiers are used, within their published quotas. A provider that needs billing or a paid plan is skipped.
+- When a free quota runs out, that part of the work pauses until it resets. Free trials and promotional credits are not treated as free.
+- Paid services can be reconsidered only when we explicitly decide to prepare for public launch.
+
+**Free-tier status of the services in use:**
+
+| Service | Status | Limits / notes |
+|---|---|---|
+| Gemini API (gemini-3.6-flash, storyboards) | Free tier **only if the Google Cloud project behind the key has no billing account linked**. Needs confirming by you in Google AI Studio (billing isn't visible to the API key). | Free-tier rate and daily limits apply. On a quota error the run fails and is retried later; it never falls back to anything paid. |
+| ElevenLabs (narration) | Free plan, existing allowance only (about 1,600 characters left; resets 2026-11-26). | Narrated evaluation pauses when the allowance runs out. No upgrade. |
+| Gemini image models (Nano Banana family) | **Skipped.** Free availability for image output can't be verified without billing details, and the policy says to skip unless genuinely free. | Not used. |
+| Remotion, React, ffmpeg (bundled) | Local, free. Templates, rendering and checks all run locally. | — |
+
 ## 2. Decisions this plan follows
 
 | Decision | Effect on the plan |
 |---|---|
 | `GEMINI_MODEL=gemini-3.6-flash` | Applied to the local `.env` (only that line). |
 | M7 = Visual Intelligence | Templates first: orbit, cycle, layers, flow, timeline, comparison. |
-| Limited AI illustration experiment (3 topics) | Separate script, outside the pipeline. Integration only after the results are reviewed. |
+| AI illustrations: zero-cost investigation only | Local/open-source options assessed against hardware, licences and setup first. No paid image APIs. Nothing goes into production without your review. |
 | Script quality | Character-based length control, hook rules, ending rules, better template selection. |
 | 90 s / 7-topic evaluation deferred to after 2026-11-26 | M7 evaluation uses a credit-free silent mode plus at most 2–3 narrated videos. |
 | Clerk preferred for future authentication | Recorded only; not part of M7. |
@@ -66,31 +84,26 @@ The existing M6 layouts (**steps**, **hub**, **checklist**, **focus**) stay as g
 
 All checks are pure functions with unit tests. Violations go into the one bounded repair, never an open-ended loop. Remaining warnings are recorded in the manifest (`scriptChecks`).
 
-### WS4 — AI illustration experiment (isolated, no pipeline integration)
+### WS4 — Zero-cost illustration investigation (isolated, no pipeline integration)
 
-**Question:** do AI-generated illustrations make educational scenes clearer, at an acceptable time and cost?
+**Question:** can illustrations be produced at **$0** that make scenes clearer than the programmatic templates?
 
-- **Script:** `scripts/m7/illustration-trial.mjs`. It isn't called by the CLI or web app. Outputs go to `runs/m7-illustration-trial/` (gitignored); results go to `docs/quality/M7_ILLUSTRATION_TRIAL.md`.
-- **Topics (3):** Moon phases (spatial), photosynthesis (biological process), how the internet works (abstract/technical).
-- **Images:** 3 per topic, matching storyboard scenes. Tested on the image models already available on the current Gemini key: `gemini-3.1-flash-image` (Nano Banana 2) and `gemini-3.1-flash-lite-image`. Maximum **18 images**.
-- **Prompting:**
-  - **Style:** consistent flat educational illustration, 9:16, dark background to match the app.
-  - **No text:** no words in the image. AI images often garble text, so labels stay programmatic and are overlaid by templates.
-- **What's measured for each image:**
-  - **Time:** generation time in seconds.
-  - **Usage:** token/usage metadata returned by the API.
-  - **Cost:** estimated from Google's **official published price at the time of the trial** (with the source and date recorded; not assumed in advance).
-- **Quality rubric (scored per image, 0–5 each):**
-  - **Relevance:** does it show the scene's concept?
-  - **Scientific accuracy:** correct geometry or anatomy, nothing misleading.
-  - **Artefacts:** no garbled text or artefacts.
-  - **Consistency:** consistent style across a topic.
-  - **Composition:** 9:16, with room for labels.
-  - **Classroom suitability.**
+**Options assessed:**
 
-  Each image is also compared side by side with the template version of the same scene.
-- **Decision gate (filled in with you after the trial):** integrate only if illustrations beat templates on clarity for some scene types, accuracy problems are rare and detectable, and the cost per video and added generation time are within limits you set. If yes, a follow-up milestone adds an optional `illustration` asset provider behind the existing visual-asset contract, used selectively per scene, with templates as the fallback. If no, templates remain the visual system.
-- **Spend:** a few dollars at most, and the exact figure is reported. It uses no ElevenLabs credits.
+| Option | Cost | Assessment on this machine |
+|---|---|---|
+| **Programmatic SVG + Remotion** (WS1 templates, plus hand-built SVG scene art such as Moon/Earth/Sun, a leaf, a heart, network nodes) | $0 | **Primary approach.** Accurate by construction, fast, consistent style, no licensing issues. |
+| **Local open-weight image models** (Stable Diffusion 1.5 / SD-Turbo-class, run through ONNX Runtime on the CPU or DirectML on the integrated GPU) | $0 | Possible but weak. **Hardware (checked 2026-11-01):** AMD Ryzen 5 5625U, integrated Radeon graphics (shared memory, no CUDA), 15.3 GB RAM (about 4.8 GB free when checked), 157 GB free on D:, 21.8 GB on C:, Python not installed. Expect very roughly 1–3 min per 512×512 image, 2–5 GB of model downloads (caches must be redirected to D:), and a new Python setup. These models are unreliable for accurate scientific diagrams. SDXL/FLUX-class models are impractical here. **Licences** must be checked per model before any download (for example SD 1.5 uses CreativeML OpenRAIL-M with use restrictions; some "turbo" variants are non-commercial only). |
+| **Free-licence image libraries** (public-domain / CC0 sources, e.g. NASA imagery, Wikimedia Commons with per-file licence checks) | $0 | Useful for real photos (Moon, Earth). Each asset's licence and attribution must be recorded; no hotlinking; stored locally. |
+| Paid or billing-gated image APIs (including Gemini image models) | Paid / unverifiable | **Skipped** under the $0 policy. |
+
+**Plan:**
+1. Build programmatic scene art first (part of WS1), which gives zero-cost illustrations.
+2. Write the local-model assessment with licence notes (no downloads): `docs/quality/M7_ILLUSTRATION_OPTIONS.md`.
+3. **Optional, only with your explicit go-ahead:** a small local trial (Python + one small open-weight model on D:, at most about 9 images for 3 topics). It measures time per image, peak RAM and disk use, and scores relevance, accuracy, artefacts and consistency against the template version of the same scene.
+4. Nothing generated goes into production until you review the comparison.
+
+**Paused:** any image-generation API experiment. No zero-cost, verifiable option is available.
 
 ### WS5 — Evaluation and regression
 
@@ -113,7 +126,7 @@ All checks are pure functions with unit tests. Violations go into the one bounde
 | 4 | Prompt template guide + selection lint + repair | 1–3 | Gemini fills `visual` data |
 | 5 | Script quality: character budget, hook, ending checks | — (parallel with 2–4) | Lint + repair + tests |
 | 6 | Silent evaluation mode + run 10–12 topics, fix issues found | 2–5 | Visual scores vs. M6 |
-| 7 | AI illustration experiment (3 topics) + report | — (any time) | Trial report + decision gate for you |
+| 7 | Zero-cost illustration options report (+ optional local trial with your go-ahead) | — (any time) | Options report + decision for you |
 | 8 | 2–3 narrated validation videos, M7 report, progress update | 6 | `M7_EVALUATION.md` |
 
 Each step is committed to `dev` separately with its tests, and `docs/progress_status.md` is updated after each.
@@ -126,15 +139,16 @@ Each step is committed to `dev` separately with its tests, and `docs/progress_st
 4. Visual relevance averages **at least 16/20** on the M7 set (M6 after-fix: 12.2), with no scene contradicting its narration.
 5. Script checks: 100% of storyboards within the character budget after at most one repair. Hooks and endings pass lint, or the warning is recorded.
 6. No regression: M6 tests pass. Narrated videos pass every automated check (duration, sync, captions, music, blank frames).
-7. Illustration trial report delivered, with measured time, usage and cost per image and a filled-in rubric. **No image generation in the main pipeline** unless you approve it after the report.
+7. Zero-cost illustration options report delivered (hardware, licences, setup, expected performance). An optional local trial runs only with your go-ahead. **No generated images in the main pipeline** unless you approve them after reviewing the comparison. Total spend $0.
 8. Progress file and docs updated, and every change on `dev`.
 
 ## 6. Budget and limits
 
 - **ElevenLabs:** about 1,600 characters left until 2026-11-26, enough for 2–3 short narrated videos. Most M7 checking uses silent mode.
 - **Gemini text:** storyboards for about 15–20 silent runs, at the same usage pattern as M6.
-- **Gemini image (trial):** at most 18 images. The cost is reported from official pricing and actual usage.
-- **No new paid services or dependencies.** Templates use Remotion and React, which are already installed.
+- **Money:** $0, strictly. No billing, credits, upgrades or paid calls.
+- **Gemini text:** free tier only, subject to quotas and confirming that the project has no billing linked. On a quota error, work pauses.
+- **No new paid services.** Templates use Remotion and React, which are already installed. A local image-model trial (optional) needs your approval for a Python install and model download.
 
 ## 7. Risks
 
@@ -143,9 +157,10 @@ Each step is committed to `dev` separately with its tests, and `docs/progress_st
 | Gemini fills template data poorly | Examples in the prompt, Zod validation, one repair, deterministic fallback; measured as the template-vs-fallback rate. |
 | Templates look repetitive across videos | Selection lint (no template on more than half the scenes), per-template motion variety, palette accents per topic. |
 | Mention matching misses synonyms | Fall back to evenly spaced reveal. Matching uses normalised keywords from each label and is unit-tested. |
-| Illustrations are inaccurate (for example wrong Moon phase geometry) | No text in images; an accuracy score in the rubric; templates stay the default; no integration without your approval. |
+| Illustrations are inaccurate (for example wrong Moon phase geometry) | Programmatic scene art first (accurate by construction); any local-model output scored for accuracy; no integration without your approval. |
+| Accidental spending | Paid providers skipped; Gemini billing status confirmed by you; quota errors pause work instead of switching providers. |
 | Scope creep into a full animation engine | Six templates only, all data-driven, with no free-form animation authoring. |
 
 ## 8. Out of scope for M7
 
-Real authentication (Clerk later, after a pricing/integration review), the deferred 90 s / 7-topic evaluation, new voices, web UI changes beyond what the new visuals need, and putting AI illustrations into production.
+Real authentication (Clerk later, after a pricing/integration review), the deferred 90 s / 7-topic evaluation, new voices, web UI changes beyond what the new visuals need, and putting AI illustrations into production, and any paid service.
