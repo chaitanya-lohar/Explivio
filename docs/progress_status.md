@@ -23,6 +23,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | M4 — Captions / timing | 🟡 Partial | Word-level captions and scene cuts follow measured audio in the API video. The generic `generate` path still times scene changes from storyboard estimates. |
 | M5 — End-to-end | 🟡 Built, not evaluated | `npm run generate -- "<topic>" --duration 60` runs prompt → storyboard → narration → MP4 with a manifest. The "8/10 runs succeed" target has not been measured. |
 | M6 — Evaluation | ✅ Done (subset) | 10 real videos evaluated (5 baseline, 5 after fixes) with automated checks and a 100-point scorecard. Average score 69.2 → **82.8**, pass rate 2/5 → **5/5**. Fixed: duration (word budget), scene sync (narration-aligned, drift 4.0 s → 0.9 s), visuals (storyboard-driven diagrams, no production notes or demo copy), Gemini timeouts/skip/retry. All four caption/music configs verified in the MP4. 16 regression tests (`npm test`). 7 longer topics (60–90 s) not run: ElevenLabs credits. Reports: [docs/quality/](quality/). |
+| M7 — Visual Intelligence | 📝 Planned | Reusable animated templates (orbit, cycle, layers, flow, timeline, comparison) chosen and filled from a backward-compatible storyboard v2; reveal-on-mention timing; script quality (character budget, hooks, endings); a 3-topic AI illustration experiment before any integration; silent evaluation mode to save ElevenLabs credits. Plan: [docs/plans/M7_VISUAL_INTELLIGENCE_PLAN.md](plans/M7_VISUAL_INTELLIGENCE_PLAN.md). |
 | Dashboard design (Stitch) | 🟡 Mostly fixed | 11 screens reviewed against [the design doc](Explivio_Dashboard_Design_Document_v1.docx). Two Stitch edit passes (2026-10-31) removed invented credits, quotas, plans, expiry periods and unsupported options, added mobile layouts, and fixed contrast and labels. Stitch keeps each edit as a new screen version. QA: 6 of 11 screens pass every check. Outstanding: Progress screen still contains "Synthesizing frame…" text, List view scrolls sideways by 188px at phone width, three secondary labels at 4.30–4.46:1 contrast (target 4.5). |
 | Dashboard frontend — F1 foundation | ✅ Done | `web/`: Next.js 16, React 19, TypeScript strict, Tailwind 4. Design tokens, 13 UI primitives, app shell (desktop sidebar, tablet icon sidebar, mobile drawer), 7 placeholder routes, mock service layer. `lint`, `tsc` and `build` pass. Live QA at 1440/820/390px: no overflow, contrast, label or small-text issues. See [web/README.md](../web/README.md). |
 | Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
@@ -82,20 +83,25 @@ Decisions needed from you:
 - Confirm F4 as the next phase, or tell me to do authentication first.
 - For authentication later: a hosted service (Clerk, Auth0, Supabase Auth) or our own backend.
 
+## Decisions (2026-11-01)
+
+- **Gemini model:** `GEMINI_MODEL=gemini-3.6-flash` applied to the local `.env` (only that line changed).
+- **Next milestone:** M7 Visual Intelligence, with a limited AI illustration experiment first; no image generation in the pipeline until the experiment is reviewed.
+- **Deferred:** the 90 s and remaining 7-topic evaluation, until ElevenLabs credits reset on 2026-11-26 (unless more credits are added).
+- **Authentication:** Clerk is the preferred direction for future real authentication, subject to a pricing and integration review.
+
 ## Next steps
 
-1. **Set `GEMINI_MODEL=gemini-3.6-flash`** in the root `.env` (3.8 is still unresponsive; the pipeline skips it, but each new 30-minute window costs one 45 s wait).
-2. **Visual quality (next milestone candidate):** topic-aware programmatic scenes (orbits, cycles, layers, flows) and a trial of selective AI illustrations with measured cost; a character-based narration budget; storyboard relation hints for layouts.
-2. **Decide the authentication approach** (hosted service or own backend), then implement real auth and protect the dashboard.
-3. **Merge `dev` into `main`** through a pull request once you've reviewed it.
-4. Finish the remaining Stitch fixes (Progress "frame" text, List view at phone width, three contrast misses).
-5. Run the M1/M5 acceptance tests on the 6 starter prompts, and record the results.
-6. Integrate the director prompt and update the storyboard schema to match.
-7. Turn the API video's animated scenes into reusable templates (title, analogy, flow diagram, process, examples, summary).
-8. Use per-scene narration timing in the generic `generate` path.
-9. Start the M6 evaluation scorecard (`evaluations/`).
+1. **M7 — Visual Intelligence** (approved; plan ready for review): storyboard v2 schema → six animated templates → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
+2. **AI illustration experiment** (3 topics, at most 18 images) with measured quality, time and cost; integration decision after you review the report.
+3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
+4. **Real authentication with Clerk**, after a pricing and integration review.
+5. **Merge `dev` into `main`** through a pull request once you've reviewed it.
+6. Remaining UI: My Videos search, filters and list view; the Settings page; the leftover Stitch fixes.
 
 ## Changelog
+
+- **2026-11-01** — Set `GEMINI_MODEL=gemini-3.6-flash` in the local `.env` (approved). Recorded decisions. Wrote the M7 Visual Intelligence implementation plan.
 
 - **2026-11-01** — M6 evaluation: 10 real videos scored (baseline 69.2 → after fixes 82.8). Added the word budget, narration-aligned scene timing, storyboard-driven concept diagrams, Gemini timeout/skip/retry with per-call metrics, the M6 validator, batch runner and report builder, and 16 regression tests. Reports in `docs/quality/`.
 
