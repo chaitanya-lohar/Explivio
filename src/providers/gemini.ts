@@ -136,7 +136,7 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
         const next = afterTransientFailure({model, fallback, switched, retriedModels, callsLeft: MAX_CALLS - calls.length});
         if (next.action === 'switch') { model = next.model; switched = true; continue; }
         if (next.action === 'retry') { retriedModels.add(model); continue; }
-        throw new Error(`Gemini request failed before a usable response was received (${outcome} on ${model}).`);
+        throw new Error(`Gemini request failed before a usable response was received (${outcome} on ${model}${note ? `: ${note}` : ''}).`);
       }
       if (outcome === 'invalid_output') {
         // At most one correction per storyboard: if it was already used, stop instead of asking again.
