@@ -23,7 +23,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | M4 — Captions / timing | 🟡 Partial | Word-level captions and scene cuts follow measured audio in the API video. The generic `generate` path still times scene changes from storyboard estimates. |
 | M5 — End-to-end | 🟡 Built, not evaluated | `npm run generate -- "<topic>" --duration 60` runs prompt → storyboard → narration → MP4 with a manifest. The "8/10 runs succeed" target has not been measured. |
 | M6 — Evaluation | ✅ Done (subset) | 10 real videos evaluated (5 baseline, 5 after fixes) with automated checks and a 100-point scorecard. Average score 69.2 → **82.8**, pass rate 2/5 → **5/5**. Fixed: duration (word budget), scene sync (narration-aligned, drift 4.0 s → 0.9 s), visuals (storyboard-driven diagrams, no production notes or demo copy), Gemini timeouts/skip/retry. All four caption/music configs verified in the MP4. 16 regression tests (`npm test`). 7 longer topics (60–90 s) not run: ElevenLabs credits. Reports: [docs/quality/](quality/). |
-| M7 — Visual Intelligence | 🟡 In progress (steps 1–4 of 8 done) | Reusable animated templates (orbit, cycle, layers, flow, timeline, comparison) chosen and filled from a backward-compatible storyboard v2; reveal-on-mention timing; script quality (character budget, hooks, endings); a 3-topic AI illustration experiment before any integration; silent evaluation mode to save ElevenLabs credits. Plan: [docs/plans/M7_VISUAL_INTELLIGENCE_PLAN.md](plans/M7_VISUAL_INTELLIGENCE_PLAN.md). |
+| M7 — Visual Intelligence | 🟡 In progress (steps 1–5 of 8 done) | Reusable animated templates (orbit, cycle, layers, flow, timeline, comparison) chosen and filled from a backward-compatible storyboard v2; reveal-on-mention timing; script quality (character budget, hooks, endings); a 3-topic AI illustration experiment before any integration; silent evaluation mode to save ElevenLabs credits. Plan: [docs/plans/M7_VISUAL_INTELLIGENCE_PLAN.md](plans/M7_VISUAL_INTELLIGENCE_PLAN.md). |
 | Dashboard design (Stitch) | 🟡 Mostly fixed | 11 screens reviewed against [the design doc](Explivio_Dashboard_Design_Document_v1.docx). Two Stitch edit passes (2026-10-31) removed invented credits, quotas, plans, expiry periods and unsupported options, added mobile layouts, and fixed contrast and labels. Stitch keeps each edit as a new screen version. QA: 6 of 11 screens pass every check. Outstanding: Progress screen still contains "Synthesizing frame…" text, List view scrolls sideways by 188px at phone width, three secondary labels at 4.30–4.46:1 contrast (target 4.5). |
 | Dashboard frontend — F1 foundation | ✅ Done | `web/`: Next.js 16, React 19, TypeScript strict, Tailwind 4. Design tokens, 13 UI primitives, app shell (desktop sidebar, tablet icon sidebar, mobile drawer), 7 placeholder routes, mock service layer. `lint`, `tsc` and `build` pass. Live QA at 1440/820/390px: no overflow, contrast, label or small-text issues. See [web/README.md](../web/README.md). |
 | Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
@@ -108,7 +108,7 @@ Decisions needed from you:
 
 ## Next steps
 
-1. **M7 — Visual Intelligence** (approved, in progress). **Next: step 5**: script quality (character budget, hook, ending, relevance). Overall: storyboard v2 schema ✅ → six animated templates ✅ → template selection ✅ → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
+1. **M7 — Visual Intelligence** (approved, in progress). **Next: step 6**: silent evaluation mode, then the 10–12 topic run. Overall: storyboard v2 schema ✅ → six animated templates ✅ → template selection ✅ → script quality ✅ → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
 2. **Zero-cost illustration investigation:** programmatic scene art plus an options report on local/open-source models (hardware and licences checked). Optional local trial only with your go-ahead.
 3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
 4. **Real authentication with Clerk**, after a pricing and integration review.
@@ -117,6 +117,17 @@ Decisions needed from you:
 
 ## Changelog
 
+- **2026-11-02** — M7 step 5: script quality checks (`pipeline/script-checks.ts`, pure).
+  - **Length:** judged by estimated speech time instead of word count.
+    - The model is 0.0635 s per letter + 0.65 s per sentence end + 0.5 s per clause break, fitted on 12 real ElevenLabs runs. Mean error 2.8%, worst 9.2% (`npx tsx scripts/m7/speech-model-check.mjs`); characters alone give 4.6% / 13.6%.
+    - Measured speech is about 15 characters per second, not the 17.5 the plan assumed.
+    - Gemini gets a character target: 30 s → about 435 characters, 60 s → 885, 90 s → 1,335, each ±10%, aiming 1 s under the requested length for the end tail.
+  - **Hook:** scene 1 must open with a concrete question or a specific fact. Greetings, "in this video", "today we will" and "let's dive in / break it down" are rejected.
+  - **Ending:** one clear takeaway of at least 10 words that names the topic, with no sign-off or call to action, and not cut off.
+  - **Relevance and structure:** topic terms (request words like "explain" and "beginners" ignored) must appear in the script. Scenes must be numbered 1..n, not trivially short, and not repeated, and their estimates must add up to roughly the length.
+  - **Repair:** all failures join the single repair together with the visual problems. Leftovers are recorded as warnings in `manifest.storyboard.scriptChecks`. A script still off-topic fails with a clear message rather than rendering.
+  - **Calibration on 10 past real storyboards:** 3 length misses, 2 generic hooks ("Let's break it down simply!", which M6 flagged by hand) and 2 weak endings were caught.
+  - **Tests:** 9 new (56 total). $0, no API calls.
 - **2026-11-02** — M7 step 4: Gemini now plans each scene's visual, and plans that contradict their narration are caught.
   - **Prompt** (`pipeline/visual-guide.ts`): every scene gets a `visual` and a `purpose`. The template is chosen from the relationship the scene explains:
     - one-way sequence → flow; repeating loop → cycle; body around body → orbit, with the orbited body as center;
