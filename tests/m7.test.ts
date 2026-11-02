@@ -4,6 +4,7 @@ import {VisualSchema, TEMPLATE_NAMES} from '../src/schemas/visual.js';
 import {StoryboardSchema} from '../src/schemas/storyboard.js';
 import {fallbackVisual, resolveVisual, revealLabels} from '../src/pipeline/visual-plan.js';
 import {keywords, mentionTimes, stem} from '../src/pipeline/mention-timing.js';
+import {bodyKind, forwardTo, markerAngle, orbitPoint, orbiterAngle} from '../src/pipeline/orbit-geometry.js';
 
 const scene = (extra: Record<string, unknown> = {}) => ({scene_id: 1, narration_text: 'n', on_screen_text: 'Title', visual_type: 'process', visual_description: 'd', key_elements: ['First', 'Second', 'Third'], estimated_duration_seconds: 5, ...extra});
 
@@ -78,4 +79,45 @@ test('a label is timed where most of its words are said together', () => {
   const [blood, water] = mentionTimes(['Pushes blood', 'Pushes water'], words, 10, 20, false);
   assert.equal(+blood.toFixed(1), 11.2, 'push blood = words 3-4');
   assert.equal(+water.toFixed(1), 13.6, 'pushes water = words 9-10, not the earlier lone "push"');
+});
+
+// WS1 step 3 — orbit, layers, timeline.
+test('all six M7 templates (and the M6 layouts) have a renderer', async () => {
+  const {RENDERED_TEMPLATES} = await import('../src/video/templates/index.js');
+  for (const name of TEMPLATE_NAMES) assert.ok(RENDERED_TEMPLATES.includes(name), name);
+});
+test('orbit: with a light source, marker 1 faces it (new moon between Earth and Sun); markers go counterclockwise', () => {
+  assert.equal(markerAngle(0, 4, true), Math.PI, 'first marker on the lit (left) side');
+  assert.equal(+markerAngle(2, 4, true).toFixed(4), +(2 * Math.PI).toFixed(4), 'full moon opposite the light (right)');
+  const firstQuarter = orbitPoint(markerAngle(1, 4, true), 0, 0, 10, 10);
+  assert.ok(firstQuarter.y > 9, 'counterclockwise from the left goes down on screen');
+  assert.equal(markerAngle(0, 2, false), Math.PI / 2, 'unlit orbits start at the top');
+});
+test('orbit: the orbiter glides forward to each mentioned marker and never moves backwards', () => {
+  const opts = {startFrame: 10, startAngle: 0, turnFrames: 240, markerFrames: [60, 120], markerAngles: [Math.PI, Math.PI / 2], glideFrames: 20, holdFrames: 30};
+  let previous = -Infinity;
+  for (let f = 0; f < 260; f++) { const a = orbiterAngle(f, opts); assert.ok(a >= previous - 1e-9, `frame ${f}`); previous = a; }
+  assert.equal(+(orbiterAngle(85, opts) % (2 * Math.PI)).toFixed(4), +Math.PI.toFixed(4), 'waits at marker 1 after gliding');
+  assert.equal(+(orbiterAngle(145, opts) % (2 * Math.PI)).toFixed(4), +(Math.PI / 2).toFixed(4), 'then at marker 2 (forward, a full lap if needed)');
+  assert.equal(orbiterAngle(5, opts), 0, 'still before it appears');
+  assert.equal(forwardTo(3, 1), 1 + 2 * Math.PI);
+});
+test('orbit: body colours come from the label only', () => {
+  assert.equal(bodyKind('The Sun'), 'star');
+  assert.equal(bodyKind('Earth'), 'earth');
+  assert.equal(bodyKind('Moon'), 'moon');
+  assert.equal(bodyKind('Jupiter'), 'planet');
+  assert.equal(bodyKind('Electron'), 'other');
+});
+test('layers: stack is the default, nested is accepted; colours are hex (alpha suffix safe)', async () => {
+  const stack = VisualSchema.parse({template: 'layers', layers: [{label: 'Crust'}, {label: 'Mantle'}]});
+  assert.equal(stack.template === 'layers' && stack.arrangement, 'stack');
+  assert.equal(VisualSchema.safeParse({template: 'layers', arrangement: 'nested', layers: [{label: 'A'}, {label: 'B'}]}).success, true);
+  assert.equal(VisualSchema.safeParse({template: 'layers', arrangement: 'spiral', layers: [{label: 'A'}, {label: 'B'}]}).success, false);
+  const {layerColor} = await import('../src/video/templates/layers.js');
+  for (let i = 0; i < 6; i++) assert.match(layerColor(i, 6), /^#[0-9a-f]{6}$/);
+});
+test('timeline: dates are optional (never forced); reveal labels include a date only when given', () => {
+  const v = VisualSchema.parse({template: 'timeline', events: [{label: 'Gas cloud collapses'}, {when: '1991', label: 'Web goes public'}]});
+  assert.deepEqual(revealLabels(v), {labels: ['Gas cloud collapses', 'Web goes public 1991'], ordered: true});
 });

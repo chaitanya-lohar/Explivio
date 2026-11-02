@@ -46,7 +46,7 @@ export function revealLabels(visual: Visual): {labels: string[]; ordered: boolea
     case 'flow': return {labels: visual.nodes, ordered: true};
     case 'cycle': return {labels: visual.stages, ordered: true};
     case 'steps': return {labels: visual.steps, ordered: true};
-    case 'timeline': return {labels: visual.events.map((e) => `${e.label} ${e.when}`), ordered: true};
+    case 'timeline': return {labels: visual.events.map((e) => (e.when ? `${e.label} ${e.when}` : e.label)), ordered: true};
     case 'layers': return {labels: visual.layers.map((l) => l.label), ordered: false};
     case 'comparison': return {labels: [visual.left.title, ...visual.left.points, visual.right.title, ...visual.right.points], ordered: false};
     case 'orbit': return {labels: [visual.center, visual.orbiter, ...(visual.light ? [visual.light] : []), ...visual.markers], ordered: false};
