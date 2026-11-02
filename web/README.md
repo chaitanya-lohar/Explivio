@@ -97,6 +97,13 @@ Conventions:
 - **`GET /api/videos/<id>/file`:** streams the MP4 with HTTP Range support, so the player can seek. `?download=1` makes the browser save it.
 - **Mock service:** keeps its store on `globalThis`, so route handlers, server actions and pages share it, and steps new jobs through the stages on a timer. Server-side status reads use `connection()` so they run per request, not at build time.
 
+## My Videos (F6)
+
+- **`/videos`:** the library over `listVideos()` (web and CLI runs). Search (title and original prompt), status chips with counts, sort and grid/list all run in the browser over the loaded list; the state is kept in the URL (`?q=&status=&sort=&view=`). Logic: `features/video-library/library-query.ts` (unit-tested in `tests/`, run `npm test`).
+- **Actions:** open (details, or progress for generating/failed), Preview (dialog with the shared `VideoPlayer`) and Download MP4. The last two appear only for ready videos with a file.
+- **States:** empty library, no results with Clear filters, skeleton while loading, error with Retry (`catchError` boundary), unavailable/expired. The list refreshes every 5s while a video is generating.
+- **List layout:** a table from 1280px; below that each row stacks (thumbnail beside title, meta and actions).
+
 ## Authentication screens (demo only)
 
 - **Routes:** `(auth)` route group with its own layout (brand bar, centred content, no dashboard sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`. The layout isn't a security boundary.

@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-01
+Last updated: 2026-11-02
 
 Tracks progress against the milestones in [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx). Newest entries go at the top of the changelog.
 
@@ -29,6 +29,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
 | Dashboard frontend — F3 progress, failure, video ready | ✅ Done | `/generating` follows real status from `GET /api/videos/[id]` every 2s: four pipeline stages (plan, narration, render, finishing), an indeterminate bar (no fake percentages), a failure view with saved settings, Try again and Edit settings. When the video is ready it opens `/videos/[id]`: native 9:16 player and Download MP4 (streamed with HTTP Range support), plus Regenerate. Expired videos show saved settings and Regenerate. The mock service steps jobs through stages on a timer; the "How APIs work" sample streams the real MP4 from `runs/`. Tests: file route (200/206/416, download header, bytes identical, no path leak), browser flow 18/18. |
 | Dashboard frontend — F4 real pipeline | ✅ Done | Generate starts the CLI (`src/cli.ts`) for each video, in its own process, with a web-chosen run id. Status comes from the run's `manifest.json` (real stages: storyboard → narration → render). The MP4 streams from `runs/<id>/video.mp4`. Voice, captions and music reach the render (new CLI flags `--prompt-file`, `--run-id`, `--no-captions`, `--music`). One video at a time, with a clear message if busy. Failures show the real reason (cleaned of paths and keys) with Try again. Existing CLI runs appear in My Videos. `VIDEO_SERVICE=mock` keeps the sample data for UI work. Real test 2026-11-01: "Why the Moon has phases" (30s, male voice, music) rendered end to end in 272s, via Try again on a run that had failed on a Gemini timeout. |
+| Dashboard frontend — F6 My Videos | ✅ Done | `/videos` is a full library over the real run list (web and CLI runs, nothing invented). Search by title or original prompt (case-insensitive, every word must match; no separate topic field exists), status chips with counts (Ready, Generating, Failed; Expired/Draft only when such videos exist), sort (newest default, oldest, title A–Z/Z–A), grid/list toggle. All of it combines, runs in the browser (no request per keystroke) and is kept in the URL, so Back from a video restores it. Cards and rows show a real frame from the MP4, title, prompt, measured length (or target when not rendered), date and status. Preview opens the existing player in a dialog; Download MP4 uses the existing file route. Neither appears for failed, generating or unavailable videos. States: empty library, no results with Clear filters, loading skeleton, error with Retry (header stays), unavailable/expired. While a video generates the list refreshes every 5s. Tests: 9 unit tests (`web: npm test`) and 53/53 browser checks at 1440/1280/768/375 (real, empty, failing and mock libraries). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -105,10 +106,32 @@ Decisions needed from you:
 3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
 4. **Real authentication with Clerk**, after a pricing and integration review.
 5. **Merge `dev` into `main`** through a pull request once you've reviewed it.
-6. Remaining UI: My Videos search, filters and list view; the Settings page; the leftover Stitch fixes.
+6. Remaining UI: the Settings page and the leftover Stitch fixes.
 
 ## Changelog
 
+- **2026-11-02** — F6 My Videos module (web).
+  - **New in `web/src/features/video-library/`:**
+    - `library-query.ts`: pure search, filter and sort logic, plus URL state.
+    - `video-library.tsx`: toolbar, status chips, view toggle, grid/list, empty and no-results states, refresh while generating.
+    - `video-list-item.tsx`, `video-preview-button.tsx` (dialog that reuses `VideoPlayer`), `video-library-skeleton.tsx`, `video-library-error.tsx` (Next 16 `catchError` with Retry).
+  - **Changed:**
+    - `video-card.tsx`: prompt, length, Preview and MP4 actions, unavailable note.
+    - `video-thumbnail.tsx`: real frame from the MP4; the caller sets the width.
+    - `video-player.tsx`: optional `autoPlay` and `className`.
+    - `TextInput` and `Select`: `hideLabel` pass-through.
+    - `lib/format.ts`: `formatVideoLength`.
+  - **Backend:** no changes. The existing `listVideos()` already lists web and CLI runs without exposing paths.
+  - **Tests:**
+    - New `web/tests/library-query.test.ts`, run with `npm test` in `web/` (Node's built-in runner; no new dependency). 9/9 pass.
+    - Browser QA: 53/53 checks against four production servers (real runs, empty, unreadable library, mock with an expired video).
+    - `lint`, `tsc` and `build` pass; the pipeline's tests pass 28/28.
+  - **Known limitations:**
+    - Thumbnails load a little of each MP4 in the browser; no thumbnail images are stored.
+    - Search covers title and prompt only (there is no separate topic field).
+    - Live refresh while a video generates was not exercised end to end, because that needs a paid-quota generation run.
+    - A ready run whose MP4 is missing appears as Failed ("video file is missing"), as before.
+  - $0.
 - **2026-11-02** — M7 step 2: flow, cycle and comparison templates in `src/video/templates/`. The M6 layouts (steps, hub, checklist, focus) moved there too. `ConceptVisual` now draws each scene's v2 `visual` when it is valid and drawable, and the M6 layout otherwise. New runs pass narration word timings (`wordTimes`) to the render, so diagram items appear as they are spoken; older runs keep the M6 stagger (checked by rendering a still from a saved run). Mention matching improved: simple plural and verb endings are stemmed ("rests" ~ "Rest"), and a label is timed where most of its words are said together. New `npm run m7:gallery` renders stills of every template locally, with no API calls (24 stills reviewed). 3 new tests (28 total). $0.
 - **2026-11-01** — M7 step 2 (started): `revealLabels()` in `src/pipeline/visual-plan.ts` lists the labels each template reveals and whether their order matters, for reveal-on-mention timing. 1 new test (26 total). Work paused here; template rendering starts next session. $0.
 - **2026-11-01** — M7 step 1: storyboard v2 scene-planning format (`src/schemas/visual.ts`): validated data for orbit, cycle, layers, flow, timeline and comparison plus the four M6 layouts. Lenient per-scene parsing with deterministic fallback (`src/pipeline/visual-plan.ts`) and the reveal-on-mention timing helper (`src/pipeline/mention-timing.ts`). 9 new tests (25 total). No API calls, $0.

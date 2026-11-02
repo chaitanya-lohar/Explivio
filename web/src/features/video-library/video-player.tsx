@@ -4,9 +4,9 @@ import { cn } from "@/lib/cn";
 const frame = "mx-auto aspect-[9/16] w-full max-w-sm overflow-hidden rounded-card border border-border bg-black";
 
 /** 9:16 player using native controls (keyboard and screen-reader accessible). Captions are burned into the video. */
-export function VideoPlayer({ src, title }: { src: string; title: string }) {
+export function VideoPlayer({ src, title, autoPlay = false, className }: { src: string; title: string; autoPlay?: boolean; className?: string }) {
   return (
-    <video className={cn(frame, "object-contain")} src={src} controls playsInline preload="metadata" aria-label={`Video: ${title}`}>
+    <video className={cn(frame, "object-contain", className)} src={src} controls playsInline autoPlay={autoPlay} preload="metadata" aria-label={`Video: ${title}`}>
       Your browser can&apos;t play this video. Use the Download button instead.
     </video>
   );

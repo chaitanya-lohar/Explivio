@@ -14,11 +14,13 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   options: readonly SelectOption[];
   description?: ReactNode;
   error?: ReactNode;
+  /** Keeps the label for assistive tech but hides it visually. */
+  hideLabel?: boolean;
 }
 
-export function Select({ id, label, options, description, error, className, required, ...props }: SelectProps) {
+export function Select({ id, label, options, description, error, hideLabel, className, required, ...props }: SelectProps) {
   return (
-    <Field id={id} label={label} description={description} error={error} required={required}>
+    <Field id={id} label={label} description={description} error={error} required={required} hideLabel={hideLabel}>
       <div className="relative">
         <select
           id={id}

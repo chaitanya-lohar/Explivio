@@ -6,24 +6,17 @@ import { Plus } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/shared/page-header";
 import { buttonStyles } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { VideoCard } from "@/features/video-library/video-card";
+import { VideoLibrary } from "@/features/video-library/video-library";
+import { VideoLibraryErrorBoundary } from "@/features/video-library/video-library-error";
+import { VideoLibrarySkeleton } from "@/features/video-library/video-library-skeleton";
 import { listVideos } from "@/services";
 
 export const metadata: Metadata = { title: "My Videos" };
 
-async function VideoList() {
+async function LibraryContent() {
+  // Statuses change while videos generate, so read the library per request.
   await connection();
-  const videos = await listVideos();
-  return (
-    <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {videos.map((video) => (
-        <li key={video.id}>
-          <VideoCard video={video} />
-        </li>
-      ))}
-    </ul>
-  );
+  return <VideoLibrary videos={await listVideos()} />;
 }
 
 export default function VideosPage() {
@@ -31,7 +24,7 @@ export default function VideosPage() {
     <PageContainer>
       <PageHeader
         title="My Videos"
-        description="Preview and download the videos you've created."
+        description="Manage and access your generated educational videos."
         actions={
           <Link href="/create" className={buttonStyles()}>
             <Plus aria-hidden="true" className="size-5" />
@@ -39,15 +32,11 @@ export default function VideosPage() {
           </Link>
         }
       />
-      <section aria-labelledby="all-videos">
-        <h2 id="all-videos" className="text-section text-foreground">
-          Your projects
-        </h2>
-        <p className="mt-1 text-meta text-muted">Search, filters and a list view come in a later milestone.</p>
-        <Suspense fallback={<Skeleton className="mt-4 h-80 rounded-card" />}>
-          <VideoList />
+      <VideoLibraryErrorBoundary>
+        <Suspense fallback={<VideoLibrarySkeleton />}>
+          <LibraryContent />
         </Suspense>
-      </section>
+      </VideoLibraryErrorBoundary>
     </PageContainer>
   );
 }
