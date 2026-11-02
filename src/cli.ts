@@ -25,6 +25,8 @@ const musicEnabled = args.includes('--music');
 // Development only (never used by the web app): SILENT EVALUATION renders the real storyboard and templates without
 // narration, so visuals can be reviewed without ElevenLabs credits. Runs go to runs/m7-silent/, outside My Videos.
 const silent = args.includes('--silent');
+// Development only: narrate an already generated, validated storyboard (e.g. from a silent run) without calling Gemini.
+const storyboardFile = flagValue('storyboard-file');
 // Tests only: stop before the (slow) render.
 const skipRender = args.includes('--skip-render');
 const demoName = args.find((arg) => ['photosynthesis', 'rain', 'api'].includes(arg.toLowerCase()))?.toLowerCase();
@@ -78,6 +80,9 @@ try {
       {scene_id: 4, narration_text: 'Indexes take extra storage and can slow down updates because the index must also be maintained. They are useful when faster lookups are worth that tradeoff.', on_screen_text: 'Faster reads, extra work', visual_type: 'summary', visual_description: 'A balanced scale weighs quicker searches against storage and update work.', key_elements: ['search speed', 'storage', 'updates'], estimated_duration_seconds: 10}
     ]});
     scriptMeta = {provider: 'demo', attempts: 0};
+  } else if (storyboardFile) {
+    storyboard = StoryboardSchema.parse(JSON.parse(await readFile(storyboardFile, 'utf8')));
+    scriptMeta = {provider: 'file', source: path.relative(process.cwd(), path.resolve(storyboardFile)), note: 'Storyboard reused from an earlier Gemini run; no Gemini call in this run.'};
   } else {
     const result = await stage('storyboard', () => createStoryboard(topic, seconds)); storyboard = result.storyboard; scriptMeta = result;
   }

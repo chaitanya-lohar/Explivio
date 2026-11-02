@@ -1,5 +1,5 @@
 // Minimal PNG decoder (8-bit greyscale, RGB or RGBA, non-interlaced: what Remotion and ffmpeg write). No dependencies.
-import {inflateSync} from 'node:zlib';
+import {deflateSync, inflateSync} from 'node:zlib';
 
 const CHANNELS = {0: 1, 2: 3, 6: 4};
 
@@ -51,4 +51,34 @@ export function litShare(png, {x0, y0, x1, y1}, threshold = 110) {
     if (lum > threshold) lit++;
   }
   return lit / total;
+}
+
+const CRC_TABLE = Array.from({length: 256}, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+const crc32 = (buf) => { let c = 0xffffffff; for (const b of buf) c = CRC_TABLE[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const body = Buffer.concat([Buffer.from(type, 'ascii'), data]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body)); return Buffer.concat([len, body, crc]); };
+
+/** Encodes 8-bit RGB pixel data (row by row) as a PNG. */
+export function encodeRgbPng(width, height, rgb) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4); ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y++) rgb.copy(raw, y * (width * 3 + 1) + 1, y * width * 3, (y + 1) * width * 3);
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+/** Places decoded images side by side (same height), with a gap, as one RGB PNG. */
+export function hstackPngs(pngs, gap = 8) {
+  const height = Math.max(...pngs.map((p) => p.height));
+  const width = pngs.reduce((w, p) => w + p.width, 0) + gap * (pngs.length - 1);
+  const out = Buffer.alloc(width * height * 3, 40);
+  let x0 = 0;
+  for (const p of pngs) {
+    for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
+      const i = (y * p.width + x) * p.channels;
+      const o = (y * width + x0 + x) * 3;
+      if (p.channels === 1) { out[o] = out[o + 1] = out[o + 2] = p.pixels[i]; } else { out[o] = p.pixels[i]; out[o + 1] = p.pixels[i + 1]; out[o + 2] = p.pixels[i + 2]; }
+    }
+    x0 += p.width + gap;
+  }
+  return encodeRgbPng(width, height, out);
 }

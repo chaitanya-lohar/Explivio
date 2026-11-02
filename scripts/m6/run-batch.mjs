@@ -1,6 +1,6 @@
 // Runs M6 test cases through the real pipeline CLI (the same entry point the web app uses), one at a time.
 // Records each run and the ACTUAL ElevenLabs characters used (account usage before/after), and stops before the credit reserve.
-// Usage: node scripts/m6/run-batch.mjs <phase|caseId,...>
+// Usage: node scripts/m6/run-batch.mjs <phase|caseId,...> [--matrix=path] [--results=path]   (defaults: the M6 files)
 import 'dotenv/config';
 import {spawn} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
@@ -9,8 +9,9 @@ import path from 'node:path';
 
 const RESERVE_CHARS = 700; // keep a buffer for one failed/retried short video
 const CHARS_PER_SECOND = 17.5; // measured: ~2.9 words/s × ~6 characters per word (estimate, used only for the guard)
-const matrix = JSON.parse(readFileSync('scripts/m6/matrix.json', 'utf8'));
-const resultsFile = path.resolve('docs', 'quality', 'm6-runs.json');
+const option = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
+const matrix = JSON.parse(readFileSync(option('matrix') ?? 'scripts/m6/matrix.json', 'utf8'));
+const resultsFile = path.resolve(option('results') ?? path.join('docs', 'quality', 'm6-runs.json'));
 const results = existsSync(resultsFile) ? JSON.parse(readFileSync(resultsFile, 'utf8')) : {};
 const save = () => writeFileSync(resultsFile, JSON.stringify(results, null, 2) + '\n');
 
@@ -28,7 +29,10 @@ async function remainingChars() {
 for (const testCase of cases) {
   if (results[testCase.id]?.ok) { console.log(`${testCase.id}: already done (${results[testCase.id].runId}), skipping`); continue; }
   const before = await remainingChars();
-  const estimate = Math.ceil(testCase.durationSeconds * CHARS_PER_SECOND * 1.15);
+  // A reused storyboard has a known narration length (ElevenLabs bills the submitted text); otherwise estimate it.
+  const estimate = testCase.storyboardFile
+    ? JSON.parse(readFileSync(testCase.storyboardFile, 'utf8')).scenes.map((s) => s.narration_text).join('\n\n').length
+    : Math.ceil(testCase.durationSeconds * CHARS_PER_SECOND * 1.15);
   if (before.remaining - estimate < RESERVE_CHARS) { console.log(`${testCase.id}: stopping, ${before.remaining} characters left (needs ~${estimate} + ${RESERVE_CHARS} reserve)`); break; }
 
   const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
@@ -40,6 +44,7 @@ for (const testCase of cases) {
   const args = [path.resolve('node_modules', 'tsx', 'dist', 'cli.mjs'), 'src/cli.ts', `--prompt-file=${path.join(dir, 'prompt.txt')}`, '--duration', String(testCase.durationSeconds), `--voice=${testCase.voice}`, `--run-id=${runId}`];
   if (!testCase.captions) args.push('--no-captions');
   if (testCase.music) args.push('--music');
+  if (testCase.storyboardFile) args.push(`--storyboard-file=${path.resolve(testCase.storyboardFile)}`);
 
   console.log(`${testCase.id}: ${testCase.topic} (${testCase.durationSeconds}s, ${testCase.voice}, captions ${testCase.captions ? 'on' : 'off'}, music ${testCase.music ? 'on' : 'off'}) -> ${runId}`);
   const started = Date.now();

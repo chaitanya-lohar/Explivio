@@ -1,0 +1,33 @@
+{
+  "note": "M7 narrated validation (real ElevenLabs narration, existing free-tier credits only; 1,623 characters left on 2026-11-02, reset 2026-11-26). Gemini free-tier quota was exhausted (429) on 2026-11-02, so these reuse the real Gemini storyboards of silent runs S1 and S3 (no new Gemini call). Run: node scripts/m6/run-batch.mjs m7 --matrix=scripts/m7/narrated-matrix.json --results=docs/quality/m7-narrated-runs.json",
+  "cases": [
+    {
+      "id": "N1",
+      "phase": "m7",
+      "config": "A",
+      "topic": "Why the Moon Has Phases",
+      "category": "Astronomy",
+      "durationSeconds": 30,
+      "voice": "female",
+      "captions": true,
+      "music": true,
+      "prompt": "Why does the Moon have phases? Explain it for complete beginners.",
+      "storyboardFile": "runs/m7-silent/2026-11-02T17-25-07-640Z-14ffd0ca/storyboard.json",
+      "reusesSilentRun": "S1"
+    },
+    {
+      "id": "N2",
+      "phase": "m7",
+      "config": "C",
+      "topic": "How the Water Cycle Works",
+      "category": "Earth science",
+      "durationSeconds": 30,
+      "voice": "male",
+      "captions": true,
+      "music": false,
+      "prompt": "How does the water cycle work? Explain it for complete beginners.",
+      "storyboardFile": "runs/m7-silent/2026-11-02T17-29-44-157Z-eff42008/storyboard.json",
+      "reusesSilentRun": "S3"
+    }
+  ]
+}
