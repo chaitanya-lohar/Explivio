@@ -23,7 +23,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | M4 — Captions / timing | 🟡 Partial | Word-level captions and scene cuts follow measured audio in the API video. The generic `generate` path still times scene changes from storyboard estimates. |
 | M5 — End-to-end | 🟡 Built, not evaluated | `npm run generate -- "<topic>" --duration 60` runs prompt → storyboard → narration → MP4 with a manifest. The "8/10 runs succeed" target has not been measured. |
 | M6 — Evaluation | ✅ Done (subset) | 10 real videos evaluated (5 baseline, 5 after fixes) with automated checks and a 100-point scorecard. Average score 69.2 → **82.8**, pass rate 2/5 → **5/5**. Fixed: duration (word budget), scene sync (narration-aligned, drift 4.0 s → 0.9 s), visuals (storyboard-driven diagrams, no production notes or demo copy), Gemini timeouts/skip/retry. All four caption/music configs verified in the MP4. 16 regression tests (`npm test`). 7 longer topics (60–90 s) not run: ElevenLabs credits. Reports: [docs/quality/](quality/). |
-| M7 — Visual Intelligence | 🟡 In progress (steps 1–5 and 7 done; 6 running) | Reusable animated templates (orbit, cycle, layers, flow, timeline, comparison) chosen and filled from a backward-compatible storyboard v2; reveal-on-mention timing; script quality (character budget, hooks, endings); a 3-topic AI illustration experiment before any integration; silent evaluation mode to save ElevenLabs credits. Plan: [docs/plans/M7_VISUAL_INTELLIGENCE_PLAN.md](plans/M7_VISUAL_INTELLIGENCE_PLAN.md). |
+| M7 — Visual Intelligence | ✅ Implemented (evaluation 7/12 topics; 5 pending Gemini quota) | **Results:** visual 16.3/20 on 7 silent topics and 16.5 on 2 narrated videos (M6 12.2); overall 88.5/100 on 2 narrated videos (M6 82.8); sync drift 0.00 s; every automated check passes. Scored by Claude's frame review plus measurement, not a human review. Report: [M7_EVALUATION.md](quality/M7_EVALUATION.md). | Reusable animated templates (orbit, cycle, layers, flow, timeline, comparison) chosen and filled from a backward-compatible storyboard v2; reveal-on-mention timing; script quality (character budget, hooks, endings); a 3-topic AI illustration experiment before any integration; silent evaluation mode to save ElevenLabs credits. Plan: [docs/plans/M7_VISUAL_INTELLIGENCE_PLAN.md](plans/M7_VISUAL_INTELLIGENCE_PLAN.md). |
 | Dashboard design (Stitch) | 🟡 Mostly fixed | 11 screens reviewed against [the design doc](Explivio_Dashboard_Design_Document_v1.docx). Two Stitch edit passes (2026-10-31) removed invented credits, quotas, plans, expiry periods and unsupported options, added mobile layouts, and fixed contrast and labels. Stitch keeps each edit as a new screen version. QA: 6 of 11 screens pass every check. Outstanding: Progress screen still contains "Synthesizing frame…" text, List view scrolls sideways by 188px at phone width, three secondary labels at 4.30–4.46:1 contrast (target 4.5). |
 | Dashboard frontend — F1 foundation | ✅ Done | `web/`: Next.js 16, React 19, TypeScript strict, Tailwind 4. Design tokens, 13 UI primitives, app shell (desktop sidebar, tablet icon sidebar, mobile drawer), 7 placeholder routes, mock service layer. `lint`, `tsc` and `build` pass. Live QA at 1440/820/390px: no overflow, contrast, label or small-text issues. See [web/README.md](../web/README.md). |
 | Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
@@ -108,8 +108,8 @@ Decisions needed from you:
 
 ## Next steps
 
-1. **M7 — Visual Intelligence** (approved, in progress). **Next:** the 10–12 topic silent evaluation run (Gemini free tier), the illustration options report, then narrated validation if credits allow. Overall: storyboard v2 schema ✅ → six animated templates ✅ → template selection ✅ → script quality ✅ → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
-2. **Zero-cost illustration investigation:** programmatic scene art plus an options report on local/open-source models (hardware and licences checked). Optional local trial only with your go-ahead.
+1. **Finish the M7 evaluation:** run the 5 pending silent topics (S8 prime numbers, S9 photosynthesis, S10 vaccines, S11 sky blue, S12 Roman Empire) with `npm run m7:silent S8,S9,S10,S11,S12` after the Gemini free-tier daily reset. It stops by itself on a quota error. Then fix the known issues K1–K5 in [M7_EVALUATION.md](quality/M7_EVALUATION.md): hook template, scaling small diagrams, the whole structure in one scene, a flow naming lint, and captions split at scene changes.
+2. **Illustrations (decision needed):** the report recommends programmatic visuals. The optional local image-model trial (at most 9 images, about 3 GB on D:) waits for your yes/no. See [M7_ILLUSTRATION_OPTIONS.md](quality/M7_ILLUSTRATION_OPTIONS.md).
 3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
 4. **Real authentication with Clerk**, after a pricing and integration review.
 5. **Merge `dev` into `main`** through a pull request once you've reviewed it.
@@ -117,6 +117,22 @@ Decisions needed from you:
 
 ## Changelog
 
+- **2026-11-02** — M7 evaluation and report, [docs/quality/M7_EVALUATION.md](quality/M7_EVALUATION.md).
+  - **Silent run:** 7 of 12 topics with real Gemini planning and renders, no narration. Areas: astronomy, earth science, geology, history/technology, technology.
+    - All 7 succeeded, within duration, and passed every script check.
+    - 27 of 28 scenes used a template; all six M7 templates were chosen where appropriate.
+    - Visual average 16.3/20 (review).
+  - **Gemini quota:** the free-tier quota was hit (429) on topic S8. The batch paused itself and S8–S12 are pending.
+  - **Narrated:** 2 videos (Moon phases, water cycle) reusing those real storyboards, using 918 of the remaining ElevenLabs characters.
+    - Every automated check passes, scene drift is 0.00 s, and totals are 90 and 87 (average 88.5, target 85).
+  - **Scoring:** Claude's review of the frames plus automated measurement; not a human review, and narration is provisional.
+  - **Fixed during the evaluation:**
+    - two runs had used two corrections (an unknown `visual_type` now falls back, and a second invalid output fails);
+    - hub spokes crossed the centre label;
+    - the orbiter glide was too slow for late mentions.
+  - **Tooling:** `--storyboard-file`, `rerender.mjs`, `contact-sheet.mjs`, `npm run m7:silent`, and the batch runner's exact credit estimate.
+  - **Known issues K1–K8** are listed in the report.
+  - $0.
 - **2026-11-02** — M7 step 7: zero-cost illustration options report, [docs/quality/M7_ILLUSTRATION_OPTIONS.md](quality/M7_ILLUSTRATION_OPTIONS.md).
   - **Hardware re-checked:** Ryzen 5 5625U, integrated Radeon (512 MB reserved, no CUDA), 15.3 GB RAM, D: 157 GB free, no real Python.
   - **Compared** on image quality, educational accuracy, hardware fit, speed, storage, licence and complexity: programmatic SVG; SD 1.5-class and few-step models (ONNX DirectML or stable-diffusion.cpp Vulkan); SDXL/FLUX (don't fit); free-licence photo libraries; paid APIs (skipped).

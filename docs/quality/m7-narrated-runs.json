@@ -1,0 +1,20 @@
+{
+  "N1": {
+    "runId": "2026-11-02T17-55-22-894Z-27a193a5",
+    "phase": "m7",
+    "config": "A",
+    "ok": true,
+    "totalMs": 53320,
+    "elevenLabsCharsUsedActual": 471,
+    "error": null
+  },
+  "N2": {
+    "runId": "2026-11-02T17-56-16-976Z-32cb5874",
+    "phase": "m7",
+    "config": "C",
+    "ok": true,
+    "totalMs": 64644,
+    "elevenLabsCharsUsedActual": 447,
+    "error": null
+  }
+}

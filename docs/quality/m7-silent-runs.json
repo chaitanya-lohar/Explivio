@@ -1,0 +1,666 @@
+{
+  "S1": {
+    "runId": "2026-11-02T17-25-07-640Z-14ffd0ca",
+    "area": "Astronomy",
+    "prompt": "Why does the Moon have phases? Explain it for complete beginners.",
+    "expect": "orbit",
+    "seconds": 30,
+    "mode": "silent-evaluation",
+    "ok": true,
+    "error": null,
+    "totalMs": 105543,
+    "gemini": {
+      "model": "gemini-3.6-flash",
+      "calls": 2,
+      "repairs": 1,
+      "ms": [
+        21952,
+        27047
+      ],
+      "outcomes": [
+        "invalid_output",
+        "ok"
+      ]
+    },
+    "scenes": 4,
+    "templates": [
+      "focus",
+      "hub",
+      "orbit",
+      "checklist"
+    ],
+    "fallbackScenes": 0,
+    "visualProblems": [],
+    "scriptChecks": {
+      "estimatedSeconds": 29.1,
+      "lengthPass": true,
+      "hook": true,
+      "ending": true,
+      "relevance": true,
+      "structure": true
+    },
+    "renderMs": 53038,
+    "videoSeconds": 30,
+    "outputBytes": 3274093,
+    "checks": [
+      {
+        "name": "mp4 exists and is non-empty",
+        "pass": true,
+        "detail": "3.3 MB"
+      },
+      {
+        "name": "video codec h264",
+        "pass": true,
+        "detail": "h264"
+      },
+      {
+        "name": "resolution 1080x1920 (9:16)",
+        "pass": true,
+        "detail": "1080x1920"
+      },
+      {
+        "name": "silent evaluation run (no narration; timings estimated)",
+        "pass": null,
+        "detail": "audio checks skipped"
+      },
+      {
+        "name": "duration within ±5s of 30s",
+        "pass": true,
+        "detail": "30.0s (+0s)"
+      },
+      {
+        "name": "narration ends before the video does",
+        "pass": true,
+        "detail": "speech ends 28.96s, video 30.00s, tail 1.04s"
+      },
+      {
+        "name": "caption setting recorded in render input",
+        "pass": true,
+        "detail": "captions on"
+      },
+      {
+        "name": "caption cues valid and inside the video",
+        "pass": true,
+        "detail": "19 cues"
+      },
+      {
+        "name": "no blank frames in samples",
+        "pass": true,
+        "detail": "ok"
+      }
+    ]
+  },
+  "S2": {
+    "runId": "2026-11-02T17-27-09-492Z-44d5d128",
+    "area": "Earth science",
+    "prompt": "Why do we have seasons? Explain it for complete beginners.",
+    "expect": "orbit or comparison",
+    "seconds": 30,
+    "mode": "silent-evaluation",
+    "ok": true,
+    "error": null,
+    "totalMs": 154658,
+    "gemini": {
+      "model": "gemini-3.6-flash",
+      "calls": 3,
+      "repairs": 2,
+      "ms": [
+        22807,
+        24282,
+        22896
+      ],
+      "outcomes": [
+        "invalid_output",
+        "invalid_output",
+        "ok"
+      ]
+    },
+    "scenes": 3,
+    "templates": [
+      "focus",
+      "comparison",
+      "checklist"
+    ],
+    "fallbackScenes": 0,
+    "visualProblems": [],
+    "scriptChecks": {
+      "estimatedSeconds": 29.2,
+      "lengthPass": true,
+      "hook": true,
+      "ending": true,
+      "relevance": true,
+      "structure": true
+    },
+    "renderMs": 80413,
+    "videoSeconds": 30,
+    "outputBytes": 2419674,
+    "checks": [
+      {
+        "name": "mp4 exists and is non-empty",
+        "pass": true,
+        "detail": "2.4 MB"
+      },
+      {
+        "name": "video codec h264",
+        "pass": true,
+        "detail": "h264"
+      },
+      {
+        "name": "resolution 1080x1920 (9:16)",
+        "pass": true,
+        "detail": "1080x1920"
+      },
+      {
+        "name": "silent evaluation run (no narration; timings estimated)",
+        "pass": null,
+        "detail": "audio checks skipped"
+      },
+      {
+        "name": "duration within ±5s of 30s",
+        "pass": true,
+        "detail": "30.0s (+0s)"
+      },
+      {
+        "name": "narration ends before the video does",
+        "pass": true,
+        "detail": "speech ends 29.00s, video 30.00s, tail 1.00s"
+      },
+      {
+        "name": "caption setting recorded in render input",
+        "pass": true,
+        "detail": "captions on"
+      },
+      {
+        "name": "caption cues valid and inside the video",
+        "pass": true,
+        "detail": "17 cues"
+      },
+      {
+        "name": "no blank frames in samples",
+        "pass": true,
+        "detail": "ok"
+      }
+    ]
+  },
+  "S3": {
+    "runId": "2026-11-02T17-29-44-157Z-eff42008",
+    "area": "Earth science",
+    "prompt": "How does the water cycle work? Explain it for complete beginners.",
+    "expect": "cycle",
+    "seconds": 30,
+    "mode": "silent-evaluation",
+    "ok": true,
+    "error": null,
+    "totalMs": 192310,
+    "gemini": {
+      "model": "gemini-3.6-flash",
+      "calls": 3,
+      "repairs": 2,
+      "ms": [
+        25112,
+        28148,
+        38524
+      ],
+      "outcomes": [
+        "invalid_output",
+        "invalid_output",
+        "ok"
+      ]
+    },
+    "scenes": 4,
+    "templates": [
+      "focus",
+      "flow",
+      "flow",
+      "cycle"
+    ],
+    "fallbackScenes": 0,
+    "visualProblems": [],
+    "scriptChecks": {
+      "estimatedSeconds": 28.7,
+      "lengthPass": true,
+      "hook": true,
+      "ending": true,
+      "relevance": true,
+      "structure": true
+    },
+    "renderMs": 94202,
+    "videoSeconds": 30,
+    "outputBytes": 34197412,
+    "checks": [
+      {
+        "name": "mp4 exists and is non-empty",
+        "pass": true,
+        "detail": "34.2 MB"
+      },
+      {
+        "name": "video codec h264",
+        "pass": true,
+        "detail": "h264"
+      },
+      {
+        "name": "resolution 1080x1920 (9:16)",
+        "pass": true,
+        "detail": "1080x1920"
+      },
+      {
+        "name": "silent evaluation run (no narration; timings estimated)",
+        "pass": null,
+        "detail": "audio checks skipped"
+      },
+      {
+        "name": "duration within ±5s of 30s",
+        "pass": true,
+        "detail": "30.0s (+0s)"
+      },
+      {
+        "name": "narration ends before the video does",
+        "pass": true,
+        "detail": "speech ends 28.55s, video 30.00s, tail 1.45s"
+      },
+      {
+        "name": "caption setting recorded in render input",
+        "pass": true,
+        "detail": "captions on"
+      },
+      {
+        "name": "caption cues valid and inside the video",
+        "pass": true,
+        "detail": "16 cues"
+      },
+      {
+        "name": "no blank frames in samples",
+        "pass": true,
+        "detail": "ok"
+      }
+    ]
+  },
+  "S4": {
+    "runId": "2026-11-02T17-32-56-469Z-40e60808",
+    "area": "Earth science",
+    "prompt": "What are the layers of Earth's atmosphere? Explain them for complete beginners.",
+    "expect": "layers (stack)",
+    "seconds": 30,
+    "mode": "silent-evaluation",
+    "ok": true,
+    "error": null,
+    "totalMs": 133931,
+    "gemini": {
+      "model": "gemini-3.6-flash",
+      "calls": 2,
+      "repairs": 1,
+      "ms": [
+        39445,
+        24172
+      ],
+      "outcomes": [
+        "invalid_output",
+        "ok"
+      ]
+    },
+    "scenes": 4,
+    "templates": [
+      "focus",
+      "layers",
+      "layers",
+      "checklist"
+    ],
+    "fallbackScenes": 0,
+    "visualProblems": [],
+    "scriptChecks": {
+      "estimatedSeconds": 28,
+      "lengthPass": true,
+      "hook": true,
+      "ending": true,
+      "relevance": true,
+      "structure": true
+    },
+    "renderMs": 66281,
+    "videoSeconds": 29,
+    "outputBytes": 2861714,
+    "checks": [
+      {
+        "name": "mp4 exists and is non-empty",
+        "pass": true,
+        "detail": "2.9 MB"
+      },
+      {
+        "name": "video codec h264",
+        "pass": true,
+        "detail": "h264"
+      },
+      {
+        "name": "resolution 1080x1920 (9:16)",
+        "pass": true,
+        "detail": "1080x1920"
+      },
+      {
+        "name": "silent evaluation run (no narration; timings estimated)",
+        "pass": null,
+        "detail": "audio checks skipped"
+      },
+      {
+        "name": "duration within ±5s of 30s",
+        "pass": true,
+        "detail": "29.0s (-1s)"
+      },
+      {
+        "name": "narration ends before the video does",
+        "pass": true,
+        "detail": "speech ends 27.84s, video 29.00s, tail 1.16s"
+      },
+      {
+        "name": "caption setting recorded in render input",
+        "pass": true,
+        "detail": "captions on"
+      },
+      {
+        "name": "caption cues valid and inside the video",
+        "pass": true,
+        "detail": "16 cues"
+      },
+      {
+        "name": "no blank frames in samples",
+        "pass": true,
+        "detail": "ok"
+      }
+    ]
+  },
+  "S5": {
+    "runId": "2026-11-02T17-35-10-402Z-bcc0fd6f",
+    "area": "Geology",
+    "prompt": "What is inside the Earth? Explain its layers for complete beginners.",
+    "expect": "layers (nested)",
+    "seconds": 30,
+    "mode": "silent-evaluation",
+    "ok": true,
+    "error": null,
+    "totalMs": 124727,
+    "gemini": {
+      "model": "gemini-3.6-flash",
+      "calls": 2,
+      "repairs": 1,
+      "ms": [
+        22104,
+        29918
+      ],
+      "outcomes": [
+        "invalid_output",
+        "ok"
+      ]
+    },
+    "scenes": 4,
+    "templates": [
+      "focus",
+      "layers",
+      "layers",
+      "checklist"
+    ],
+    "fallbackScenes": 0,
+    "visualProblems": [],
+    "scriptChecks": {
+      "estimatedSeconds": 27.6,
+      "lengthPass": true,
+      "hook": true,
+      "ending": true,
+      "relevance": true,
+      "structure": true
+    },
+    "renderMs": 68625,
+    "videoSeconds": 29,
+    "outputBytes": 3167678,
+    "checks": [
+      {
+        "name": "mp4 exists and is non-empty",
+        "pass": true,
+        "detail": "3.2 MB"
+      },
+      {
+        "name": "video codec h264",
+        "pass": true,
+        "detail": "h264"
+      },
+      {
+        "name": "resolution 1080x1920 (9:16)",
+        "pass": true,
+        "detail": "1080x1920"
+      },
+      {
+        "name": "silent evaluation run (no narration; timings estimated)",
+        "pass": null,
+        "detail": "audio checks skipped"
+      },
+      {
+        "name": "duration within ±5s of 30s",
+        "pass": true,
+        "detail": "29.0s (-1s)"
+      },
+      {
+        "name": "narration ends before the video does",
+        "pass": true,
+        "detail": "speech ends 27.46s, video 29.00s, tail 1.54s"
+      },
+      {
+        "name": "caption setting recorded in render input",
+        "pass": true,
+        "detail": "captions on"
+      },
+      {
+        "name": "caption cues valid and inside the video",
+        "pass": true,
+        "detail": "16 cues"
+      },
+      {
+        "name": "no blank frames in samples",
+        "pass": true,
+        "detail": "ok"
+      }
+    ]
+  },
+  "S6": {
+    "runId": "2026-11-02T17-37-15-168Z-d112ef43",
+    "area": "History / technology",
+    "prompt": "Give a short history of the internet, from its beginnings to smartphones, for complete beginners.",
+    "expect": "timeline",
+    "seconds": 60,
+    "mode": "silent-evaluation",
+    "ok": true,
+    "error": null,
+    "totalMs": 210868,
+    "gemini": {
+      "model": "gemini-3.6-flash",
+      "calls": 2,
+      "repairs": 1,
+      "ms": [
+        28157,
+        41685
+      ],
+      "outcomes": [
+        "invalid_output",
+        "ok"
+      ]
+    },
+    "scenes": 5,
+    "templates": [
+      "focus",
+      "timeline",
+      "flow",
+      "hub",
+      "checklist*"
+    ],
+    "fallbackScenes": 1,
+    "visualProblems": [
+      "scene 5: most labels are never said in this scene's narration (\"ARPANET origins\", \"TCP/IP standard\", \"World Wide Web\"); use the words the narration uses"
+    ],
+    "scriptChecks": {
+      "estimatedSeconds": 59.6,
+      "lengthPass": true,
+      "hook": true,
+      "ending": true,
+      "relevance": true,
+      "structure": true
+    },
+    "renderMs": 134432,
+    "videoSeconds": 61,
+    "outputBytes": 5991942,
+    "checks": [
+      {
+        "name": "mp4 exists and is non-empty",
+        "pass": true,
+        "detail": "6.0 MB"
+      },
+      {
+        "name": "video codec h264",
+        "pass": true,
+        "detail": "h264"
+      },
+      {
+        "name": "resolution 1080x1920 (9:16)",
+        "pass": true,
+        "detail": "1080x1920"
+      },
+      {
+        "name": "silent evaluation run (no narration; timings estimated)",
+        "pass": null,
+        "detail": "audio checks skipped"
+      },
+      {
+        "name": "duration within ±8s of 60s",
+        "pass": true,
+        "detail": "61.0s (+1s)"
+      },
+      {
+        "name": "narration ends before the video does",
+        "pass": true,
+        "detail": "speech ends 59.37s, video 61.00s, tail 1.63s"
+      },
+      {
+        "name": "caption setting recorded in render input",
+        "pass": true,
+        "detail": "captions on"
+      },
+      {
+        "name": "caption cues valid and inside the video",
+        "pass": true,
+        "detail": "29 cues"
+      },
+      {
+        "name": "no blank frames in samples",
+        "pass": true,
+        "detail": "ok"
+      }
+    ]
+  },
+  "S7": {
+    "runId": "2026-11-02T17-40-46-038Z-5ed951df",
+    "area": "Technology",
+    "prompt": "How does a web page get from a server to your phone? Explain it for complete beginners.",
+    "expect": "flow",
+    "seconds": 30,
+    "mode": "silent-evaluation",
+    "ok": true,
+    "error": null,
+    "totalMs": 129497,
+    "gemini": {
+      "model": "gemini-3.6-flash",
+      "calls": 2,
+      "repairs": 1,
+      "ms": [
+        20524,
+        32527
+      ],
+      "outcomes": [
+        "invalid_output",
+        "ok"
+      ]
+    },
+    "scenes": 4,
+    "templates": [
+      "focus",
+      "flow",
+      "hub",
+      "checklist"
+    ],
+    "fallbackScenes": 0,
+    "visualProblems": [],
+    "scriptChecks": {
+      "estimatedSeconds": 29,
+      "lengthPass": true,
+      "hook": true,
+      "ending": true,
+      "relevance": true,
+      "structure": true
+    },
+    "renderMs": 72494,
+    "videoSeconds": 30,
+    "outputBytes": 3456213,
+    "checks": [
+      {
+        "name": "mp4 exists and is non-empty",
+        "pass": true,
+        "detail": "3.5 MB"
+      },
+      {
+        "name": "video codec h264",
+        "pass": true,
+        "detail": "h264"
+      },
+      {
+        "name": "resolution 1080x1920 (9:16)",
+        "pass": true,
+        "detail": "1080x1920"
+      },
+      {
+        "name": "silent evaluation run (no narration; timings estimated)",
+        "pass": null,
+        "detail": "audio checks skipped"
+      },
+      {
+        "name": "duration within ±5s of 30s",
+        "pass": true,
+        "detail": "30.0s (+0s)"
+      },
+      {
+        "name": "narration ends before the video does",
+        "pass": true,
+        "detail": "speech ends 28.78s, video 30.00s, tail 1.22s"
+      },
+      {
+        "name": "caption setting recorded in render input",
+        "pass": true,
+        "detail": "captions on"
+      },
+      {
+        "name": "caption cues valid and inside the video",
+        "pass": true,
+        "detail": "18 cues"
+      },
+      {
+        "name": "no blank frames in samples",
+        "pass": true,
+        "detail": "ok"
+      }
+    ]
+  },
+  "S8": {
+    "runId": "2026-11-02T17-53-04-766Z-33edfa6d",
+    "area": "Mathematics",
+    "prompt": "What is a prime number? Explain it for complete beginners with a simple example.",
+    "expect": "comparison",
+    "seconds": 30,
+    "mode": "silent-evaluation",
+    "ok": false,
+    "error": "Gemini request failed before a usable response was received (overloaded on gemini-3.6-flash: quota or rate limit (429)).",
+    "totalMs": 71602,
+    "gemini": null,
+    "scenes": null,
+    "templates": null,
+    "fallbackScenes": null,
+    "visualProblems": null,
+    "scriptChecks": null,
+    "renderMs": null,
+    "videoSeconds": null,
+    "outputBytes": null,
+    "checks": null
+  }
+}
