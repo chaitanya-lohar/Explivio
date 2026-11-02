@@ -17,15 +17,22 @@ export function parseDuration(value: unknown): VideoDuration {
   return video.durations.find((d) => d.value === n)?.value ?? video.defaultDuration;
 }
 
+/** A duration from the URL only if one was explicitly chosen and is valid; null means "use the saved default". */
+export function parseDurationParam(value: string | null | undefined): VideoDuration | null {
+  const n = Number(value);
+  return value ? (video.durations.find((d) => d.value === n)?.value ?? null) : null;
+}
+
 export function parseVoice(value: unknown): VoiceId {
   return video.voices.find((v) => v.value === value)?.value ?? video.defaultVoice;
 }
 
-/** URL for a creation step, carrying the prompt and duration between pages. */
+/** URL for a creation step, carrying the prompt and the duration chosen so far (absent = use the saved default). */
 export function creationHref(path: "/create" | "/configure", draft: { prompt?: string; durationSeconds?: VideoDuration }): string {
   const params = new URLSearchParams();
   if (draft.prompt?.trim()) params.set("prompt", draft.prompt.trim());
-  if (draft.durationSeconds && draft.durationSeconds !== video.defaultDuration) params.set("duration", String(draft.durationSeconds));
+  // Always kept when given: dropping the product default (60) would let a different saved default replace an explicit choice.
+  if (draft.durationSeconds) params.set("duration", String(draft.durationSeconds));
   const query = params.toString();
   return query ? `${path}?${query}` : path;
 }

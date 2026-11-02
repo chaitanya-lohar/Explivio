@@ -104,6 +104,12 @@ Conventions:
 - **States:** empty library, no results with Clear filters, skeleton while loading, error with Retry (`catchError` boundary), unavailable/expired. The list refreshes every 5s while a video is generating.
 - **List layout:** a table from 1280px; below that each row stacks (thumbnail beside title, meta and actions).
 
+## Settings (F7)
+
+- **`/settings`:** defaults for new videos: duration, voice, captions and music. Language (English) and format (9:16) are shown as fixed. Changes save automatically; Reset to defaults asks first.
+- **Storage:** `features/settings/use-preferences.ts` keeps one versioned JSON record in `localStorage` (`explivio.preferences`); `lib/preferences.ts` validates it field by field (unit-tested). Swap the hook's storage for an API when accounts exist.
+- **Use in the creation flow:** Home, Create and Configure start from the saved values; anything the user picks for one video wins for that video. The `duration` URL parameter always carries an explicit choice.
+
 ## Authentication screens (demo only)
 
 - **Routes:** `(auth)` route group with its own layout (brand bar, centred content, no dashboard sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`. The layout isn't a security boundary.

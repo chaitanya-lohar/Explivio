@@ -30,6 +30,13 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | Dashboard frontend — F3 progress, failure, video ready | ✅ Done | `/generating` follows real status from `GET /api/videos/[id]` every 2s: four pipeline stages (plan, narration, render, finishing), an indeterminate bar (no fake percentages), a failure view with saved settings, Try again and Edit settings. When the video is ready it opens `/videos/[id]`: native 9:16 player and Download MP4 (streamed with HTTP Range support), plus Regenerate. Expired videos show saved settings and Regenerate. The mock service steps jobs through stages on a timer; the "How APIs work" sample streams the real MP4 from `runs/`. Tests: file route (200/206/416, download header, bytes identical, no path leak), browser flow 18/18. |
 | Dashboard frontend — F4 real pipeline | ✅ Done | Generate starts the CLI (`src/cli.ts`) for each video, in its own process, with a web-chosen run id. Status comes from the run's `manifest.json` (real stages: storyboard → narration → render). The MP4 streams from `runs/<id>/video.mp4`. Voice, captions and music reach the render (new CLI flags `--prompt-file`, `--run-id`, `--no-captions`, `--music`). One video at a time, with a clear message if busy. Failures show the real reason (cleaned of paths and keys) with Try again. Existing CLI runs appear in My Videos. `VIDEO_SERVICE=mock` keeps the sample data for UI work. Real test 2026-11-01: "Why the Moon has phases" (30s, male voice, music) rendered end to end in 272s, via Try again on a run that had failed on a Gemini timeout. |
 | Dashboard frontend — F6 My Videos | ✅ Done | `/videos` is a full library over the real run list (web and CLI runs, nothing invented). Search by title or original prompt (case-insensitive, every word must match; no separate topic field exists), status chips with counts (Ready, Generating, Failed; Expired/Draft only when such videos exist), sort (newest default, oldest, title A–Z/Z–A), grid/list toggle. All of it combines, runs in the browser (no request per keystroke) and is kept in the URL, so Back from a video restores it. Cards and rows show a real frame from the MP4, title, prompt, measured length (or target when not rendered), date and status. Preview opens the existing player in a dialog; Download MP4 uses the existing file route. Neither appears for failed, generating or unavailable videos. States: empty library, no results with Clear filters, loading skeleton, error with Retry (header stays), unavailable/expired. While a video generates the list refreshes every 5s. Tests: 9 unit tests (`web: npm test`) and 53/53 browser checks at 1440/1280/768/375 (real, empty, failing and mock libraries). |
+| Dashboard frontend — F7 Settings | ✅ Done | `/settings` sets the defaults for new videos, and the creation flow really uses them.
+  - **Editable:** duration (30/60/90), narration voice (Female/Male, the pipeline's two voices; IDs stay in the server `.env`), captions and background music.
+  - **Fixed, shown as such:** language (English) and format (9:16).
+  - **Saving:** automatic, confirmed with a toast. Reset to defaults asks for confirmation.
+  - **Storage:** one versioned record in this browser's `localStorage`, read safely field by field, behind `usePreferences()`. It syncs across tabs and can later be replaced by a backend.
+  - **Creation flow:** Home, Create and Configure start from the saved defaults. A choice made for one video wins for that video only. The generation request is unchanged.
+  - **Tests:** 8 unit tests; 41/41 browser checks (the Generate payload verified through the mock service, so no paid calls). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -106,10 +113,32 @@ Decisions needed from you:
 3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
 4. **Real authentication with Clerk**, after a pricing and integration review.
 5. **Merge `dev` into `main`** through a pull request once you've reviewed it.
-6. Remaining UI: the Settings page and the leftover Stitch fixes.
+6. Remaining UI: the leftover Stitch fixes.
 
 ## Changelog
 
+- **2026-11-02** — F7 Settings module (web).
+  - **Preferences** `{durationSeconds, voice, captions, music}`, stored as `{version: 1, ...}` under `explivio.preferences`:
+    - `lib/preferences.ts`: defaults that equal `appConfig` (60s, female, captions on, music off); a parser that never throws and falls back field by field for missing, corrupt, outdated or hand-edited data; `chosenOr`.
+    - `features/settings/use-preferences.ts`: a `useSyncExternalStore` hook (server-safe, cross-tab, survives blocked storage).
+  - **Settings page:**
+    - `settings-form.tsx`: General (fixed language and format), Narration, Video, and Saved settings (what is stored, and Reset).
+    - `settings-section.tsx`, `reset-preferences-dialog.tsx` (confirmation).
+    - Reuses `RadioCard`, `Switch`, `Dialog`, and `FixedOption` and `IconLabel` (both moved out of the Configure form to be shared).
+  - **Creation flow:**
+    - Home, Create and Configure keep "explicit choice for this video, else saved default".
+    - Configure waits for the saved values before enabling Generate and links to Settings.
+    - Fixed `creationHref`: it used to drop `duration=60`, which would have let a saved 30s replace an explicit 60s choice.
+    - The generation request and pipeline are unchanged, and saved videos keep their own settings.
+  - **Not added:** voice preview (it would need ElevenLabs calls) and more languages or formats (the pipeline can't honour them).
+  - **Tests:**
+    - Web unit tests 17/17 (`npm test` in `web/`).
+    - Browser QA 41/41: defaults; each change; refresh; Home, Create and Configure pick up saved values; payload with defaults; explicit override; explicit 60s; existing video unchanged; reset with cancel and confirm; corrupt, partly invalid and old-version storage; cross-tab update; real-service Configure; no overflow at 1440/1280/768/375; 44px targets; keyboard.
+    - `lint`, `tsc` and `build` pass; the pipeline's tests pass 28/28.
+  - **Known limitations:**
+    - Preferences are per browser and device (no account yet).
+    - A real narrated render with the chosen settings wasn't run (paid quota); the request → CLI flags mapping it relies on is unchanged since F4.
+  - $0.
 - **2026-11-02** — F6 My Videos module (web).
   - **New in `web/src/features/video-library/`:**
     - `library-query.ts`: pure search, filter and sort logic, plus URL state.

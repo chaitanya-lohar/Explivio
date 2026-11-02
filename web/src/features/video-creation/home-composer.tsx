@@ -9,6 +9,8 @@ import { Divider } from "@/components/ui/divider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { appConfig, formatLabel } from "@/config/app";
 import type { VideoIdea } from "@/config/ideas";
+import { usePreferences } from "@/features/settings/use-preferences";
+import { chosenOr } from "@/lib/preferences";
 import { creationHref, validatePrompt } from "@/lib/video-request";
 import type { VideoDuration } from "@/types/video";
 import { IdeaGrid } from "./idea-grid";
@@ -21,7 +23,10 @@ export function HomeComposer() {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [prompt, setPrompt] = useState("");
-  const [duration, setDuration] = useState<VideoDuration>(appConfig.video.defaultDuration);
+  const { preferences } = usePreferences();
+  // Starts at the saved default; a choice made here wins for this video.
+  const [chosenDuration, setDuration] = useState<VideoDuration | null>(null);
+  const duration = chosenOr(chosenDuration, preferences.durationSeconds);
   const [error, setError] = useState<string | null>(null);
   const [navigating, setNavigating] = useState(false);
 

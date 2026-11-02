@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Captions, CircleAlert, Music, Pencil, Shapes, Smartphone, Sparkles, UserRound } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { RadioCard } from "@/components/ui/radio-card";
@@ -13,21 +12,33 @@ import { Switch } from "@/components/ui/switch";
 import { appConfig, formatLabel } from "@/config/app";
 import { cn } from "@/lib/cn";
 import { progressHref } from "@/lib/routes";
-import { creationHref, parseDuration, validatePrompt } from "@/lib/video-request";
+import { usePreferences } from "@/features/settings/use-preferences";
+import { chosenOr } from "@/lib/preferences";
+import { creationHref, parseDurationParam, validatePrompt } from "@/lib/video-request";
 import type { VideoDuration, VoiceId } from "@/types/video";
 import { generateVideo } from "./actions";
+import { FixedOption } from "./fixed-option";
+import { IconLabel } from "./icon-label";
 
 const { video } = appConfig;
 
-/** Step 2: choose settings and start generation. Reads the prompt and duration from the URL. */
+/**
+ * Step 2: choose settings and start generation. Reads the prompt (and any duration already chosen) from the URL.
+ * Every option starts at the saved default from Settings; a choice made here wins for this video only.
+ */
 export function ConfigureForm() {
   const router = useRouter();
   const params = useSearchParams();
   const prompt = (params.get("prompt") ?? "").trim();
-  const [duration, setDuration] = useState<VideoDuration>(() => parseDuration(params.get("duration")));
-  const [voice, setVoice] = useState<VoiceId>(video.defaultVoice);
-  const [captions, setCaptions] = useState<boolean>(video.captionsEnabled);
-  const [music, setMusic] = useState<boolean>(video.musicEnabled);
+  const { preferences, ready } = usePreferences();
+  const [chosenDuration, setDuration] = useState<VideoDuration | null>(() => parseDurationParam(params.get("duration")));
+  const [chosenVoice, setVoice] = useState<VoiceId | null>(null);
+  const [chosenCaptions, setCaptions] = useState<boolean | null>(null);
+  const [chosenMusic, setMusic] = useState<boolean | null>(null);
+  const duration = chosenOr(chosenDuration, preferences.durationSeconds);
+  const voice = chosenOr(chosenVoice, preferences.voice);
+  const captions = chosenOr(chosenCaptions, preferences.captions);
+  const music = chosenOr(chosenMusic, preferences.music);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -65,7 +76,7 @@ export function ConfigureForm() {
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        if (!pending) generate();
+        if (!pending && ready) generate();
       }}
       className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]"
     >
@@ -150,6 +161,13 @@ export function ConfigureForm() {
             <SummaryRow label="Captions" value={captions ? "On" : "Off"} />
             <SummaryRow label="Music" value={music ? "On" : "Off"} last />
           </dl>
+          <p className="text-meta text-muted">
+            Starting choices come from your{" "}
+            <Link href="/settings" className="font-semibold text-[#c7bfff] underline-offset-2 hover:underline">
+              Settings
+            </Link>
+            . Changes here apply to this video only.
+          </p>
           {submitError ? (
             <p role="alert" className="flex items-start gap-2 text-meta text-error">
               <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
@@ -157,7 +175,8 @@ export function ConfigureForm() {
             </p>
           ) : null}
           <div className="flex flex-col gap-3">
-            <Button type="submit" fullWidth loading={pending} loadingText="Starting…" icon={<Sparkles className="size-5" />}>
+            {/* Waits for the saved defaults to load, so a click can't send the product defaults by mistake. */}
+            <Button type="submit" fullWidth disabled={!ready} loading={pending} loadingText="Starting…" icon={<Sparkles className="size-5" />}>
               Generate video
             </Button>
             <Link href={editHref} className={buttonStyles({ variant: "outline", fullWidth: true })}>
@@ -168,32 +187,6 @@ export function ConfigureForm() {
         </Card>
       </aside>
     </form>
-  );
-}
-
-function IconLabel({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span aria-hidden="true" className="inline-flex text-secondary [&_svg]:size-4">
-        {icon}
-      </span>
-      {children}
-    </span>
-  );
-}
-
-function FixedOption({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
-  return (
-    <div className="flex items-center gap-3 rounded-card border border-border bg-background p-4">
-      <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-control bg-surface-raised text-[#c7bfff] [&_svg]:size-5">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-title text-foreground">{title}</p>
-        <p className="text-meta text-muted">{description}</p>
-      </div>
-      <Badge icon={null}>Fixed</Badge>
-    </div>
   );
 }
 
