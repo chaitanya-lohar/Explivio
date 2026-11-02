@@ -3,12 +3,16 @@ import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
 import path from 'node:path';
 import {StoryboardSchema, type Storyboard} from '../schemas/storyboard.js';
 import {budgetInstruction, budgetProblem, narrationWords, wordBudget} from '../pipeline/word-budget.js';
+import {VISUAL_GUIDE} from '../pipeline/visual-guide.js';
+import {dropFlaggedVisuals, lintVisualPlan, visualRepairNote, type SceneVisualReport} from '../pipeline/visual-lint.js';
 
-const INSTRUCTIONS = `Create a concise, accurate educational video storyboard for a beginner. Return only JSON matching this shape: {"title":string,"target_audience":string,"learning_objective":string,"scenes":[{"scene_id":number,"narration_text":string,"on_screen_text":string,"visual_type":"title|diagram|process|analogy|illustration|example|summary","visual_description":string,"key_elements":string[],"estimated_duration_seconds":number,"caption_text":string?}]}. Use 3-8 scenes, speak naturally, keep on-screen text short, ensure scene durations add up near the target duration, and flag uncertainty instead of inventing facts. key_elements are shown to the viewer as labels in an animated diagram: give 2-4 short learner-facing concept labels (max 5 words each, e.g. "Axis tilted 23.5°", "Direct sunlight = summer"), never descriptions of graphics or production notes. For process scenes list the steps in order.`;
+const INSTRUCTIONS = `Create a concise, accurate educational video storyboard for a beginner. Return only JSON matching this shape: {"title":string,"target_audience":string,"learning_objective":string,"scenes":[{"scene_id":number,"narration_text":string,"on_screen_text":string,"visual_type":"title|diagram|process|analogy|illustration|example|summary","visual_description":string,"key_elements":string[],"estimated_duration_seconds":number,"caption_text":string?,"visual":object}]}. Use 3-8 scenes, speak naturally, keep on-screen text short, ensure scene durations add up near the target duration, and flag uncertainty instead of inventing facts. key_elements are shown to the viewer as labels in an animated diagram: give 2-4 short learner-facing concept labels (max 5 words each, e.g. "Axis tilted 23.5°", "Direct sunlight = summer"), never descriptions of graphics or production notes. For process scenes list the steps in order.
+
+${VISUAL_GUIDE}`;
 
 /** One request to Gemini, as recorded in the run manifest (no prompt text, no keys). */
 export type GeminiCall = {model: string; ms: number; outcome: 'ok' | 'timeout' | 'overloaded' | 'invalid_output' | 'error'; note?: string};
-export type StoryboardResult = {storyboard: Storyboard; model: string; attempts: number; calls: GeminiCall[]; skippedModel?: string; wordBudget: {target: number; min: number; max: number; actual: number; withinBudget: boolean}};
+export type StoryboardResult = {storyboard: Storyboard; model: string; attempts: number; calls: GeminiCall[]; skippedModel?: string; wordBudget: {target: number; min: number; max: number; actual: number; withinBudget: boolean}; visualPlan: {scenes: SceneVisualReport[]; problems: string[]; templateScenes: number; fallbackScenes: number}};
 
 // Storyboards for 60–90 s videos took up to ~30 s in M6 testing, so 30 s was too tight (run A4).
 const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45_000;
@@ -88,16 +92,23 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
       if (raw.length > 100_000) throw new Error('Gemini response exceeded the 100 KB storyboard limit.');
       const storyboard = StoryboardSchema.parse(JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')));
       markHealth(model, false);
-      // Narration length decides video length: one targeted repair if the script is outside the word budget.
+      // Narration length decides video length; the visual plan must fit what each scene says. Everything found goes
+      // into ONE repair request; whatever is still wrong after it is accepted with warnings (never an open loop).
       const problem = budgetProblem(storyboard, seconds);
       const budget = {...wordBudget(seconds), actual: narrationWords(storyboard), withinBudget: !problem};
-      if (problem && !repairNote && calls.length + 1 < MAX_CALLS) {
-        calls.push({model, ms: Date.now() - started, outcome: 'invalid_output', note: `word budget: ${budget.actual} words (target ${budget.target})`});
-        repairNote = `${problem} Return the complete corrected JSON.`;
+      const visualReport = lintVisualPlan(storyboard);
+      const visualProblem = visualRepairNote(visualReport);
+      if ((problem || visualProblem) && !repairNote && calls.length + 1 < MAX_CALLS) {
+        calls.push({model, ms: Date.now() - started, outcome: 'invalid_output', note: [problem ? `word budget: ${budget.actual} words (target ${budget.target})` : '', visualProblem ? `visual plan: ${visualReport.scenes.filter((x) => x.problems.length).length} scene(s)` : ''].filter(Boolean).join('; ')});
+        repairNote = `${[problem, visualProblem].filter(Boolean).join(' ')} Return the complete corrected JSON.`;
         continue;
       }
-      calls.push({model, ms: Date.now() - started, outcome: 'ok', note: problem ? `accepted outside word budget: ${budget.actual} words` : undefined});
-      return {storyboard, model, attempts: calls.length, calls, skippedModel, wordBudget: budget};
+      calls.push({model, ms: Date.now() - started, outcome: 'ok', note: [problem ? `accepted outside word budget: ${budget.actual} words` : '', visualProblem ? 'visual problems left after repair: those scenes use the fallback layout' : ''].filter(Boolean).join('; ') || undefined});
+      // Scenes whose plan is still wrong render the M6 fallback; the record keeps why.
+      const accepted = dropFlaggedVisuals(storyboard, visualReport);
+      const scenes = lintVisualPlan(accepted).scenes.map((scene, i) => ({...scene, problems: visualReport.scenes[i].problems}));
+      const templateScenes = scenes.filter((x) => x.source === 'template').length;
+      return {storyboard: accepted, model, attempts: calls.length, calls, skippedModel, wordBudget: budget, visualPlan: {scenes, problems: visualReport.problems, templateScenes, fallbackScenes: scenes.length - templateScenes}};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const outcome = classify(message, error);
