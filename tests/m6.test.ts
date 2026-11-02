@@ -101,10 +101,11 @@ test('only the rain/photosynthesis demos get hand-made themes; other topics get 
   assert.equal(themeFor('How Rain Forms').themed, true);
 });
 
-// Regression (M6 run A2): a schema error on an invalid visual_type must be repaired, not treated as fatal.
+// Regression (M6 run A2): a schema error must be repaired, not treated as fatal. (Since M7 an unknown visual_type is
+// coerced to "diagram", so this uses another invalid field.)
 test('schema validation errors are repairable (invalid_output)', async () => {
   const {StoryboardSchema} = await import('../src/schemas/storyboard.js');
-  const bad = {title: 't', target_audience: 'a', learning_objective: 'o', scenes: [1, 2, 3].map((i) => ({scene_id: i, narration_text: 'x', on_screen_text: 'y', visual_type: 'chart', visual_description: 'z', key_elements: [], estimated_duration_seconds: 5}))};
+  const bad = {title: 't', target_audience: 'a', learning_objective: 'o', scenes: [1, 2, 3].map((i) => ({scene_id: i, narration_text: '', on_screen_text: 'y', visual_type: 'diagram', visual_description: 'z', key_elements: [], estimated_duration_seconds: 5}))};
   let caught: unknown;
   try { StoryboardSchema.parse(bad); } catch (error) { caught = error; }
   assert.ok(caught);

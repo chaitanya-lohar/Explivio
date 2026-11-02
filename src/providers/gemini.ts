@@ -128,7 +128,9 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
       if (error instanceof ScriptRejectedError) throw error; // already recorded; a clear message for the user
       const message = error instanceof Error ? error.message : String(error);
       const outcome = classify(message, error);
-      calls.push({model, ms: Date.now() - started, outcome, note: outcome === 'invalid_output' ? message.slice(0, 160) : undefined});
+      // For "overloaded", record which kind (free-tier quota vs. temporary server load) without the raw error text.
+      const note = outcome === 'invalid_output' ? message.slice(0, 160) : outcome === 'overloaded' ? (/429|quota|rate.?limit|exhaust/i.test(message) ? 'quota or rate limit (429)' : 'server busy (503)') : undefined;
+      calls.push({model, ms: Date.now() - started, outcome, note});
       if (outcome === 'timeout' || outcome === 'overloaded') {
         markHealth(model, true, outcome);
         const next = afterTransientFailure({model, fallback, switched, retriedModels, callsLeft: MAX_CALLS - calls.length});
@@ -136,7 +138,12 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
         if (next.action === 'retry') { retriedModels.add(model); continue; }
         throw new Error(`Gemini request failed before a usable response was received (${outcome} on ${model}).`);
       }
-      if (outcome === 'invalid_output') { repairNote = message.slice(0, 500); continue; }
+      if (outcome === 'invalid_output') {
+        // At most one correction per storyboard: if it was already used, stop instead of asking again.
+        if (repairNote) throw new Error(`Gemini storyboard still failed validation after its one correction: ${message.slice(0, 200)}`);
+        repairNote = message.slice(0, 500);
+        continue;
+      }
       throw new Error(`Gemini request failed: ${message.slice(0, 300)}`);
     }
   }

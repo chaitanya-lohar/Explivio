@@ -39,7 +39,7 @@ export const OrbitTemplate: React.FC<TemplateProps<Orbit>> = ({visual, reveal}) 
   const markers = visual.markers.map((m, i) => ({text: shortLabel(m, visual.markers.length > 3 ? 22 : 36), at: delay(markerBase + i), angle: markerAngle(i, visual.markers.length, lit)}));
   const markerFrames = markers.map((m) => m.at);
   const active = lastRevealed(frame, markerFrames);
-  const angle = orbiterAngle(frame, {startFrame: orbiterAt, startAngle: lit ? Math.PI * 0.75 : Math.PI / 2 + 0.6, turnFrames: fps * 8, markerFrames, markerAngles: markers.map((m) => m.angle)});
+  const angle = orbiterAngle(frame, {startFrame: orbiterAt, startAngle: lit ? Math.PI * 0.75 : Math.PI / 2 + 0.6, turnFrames: fps * 8, markerFrames, markerAngles: markers.map((m) => m.angle), glideFrames: 14});
   const pos = orbitPoint(angle, CX, CY, RX, RY);
   const centerIn = useReveal(centerAt);
   const orbiterIn = useReveal(orbiterAt);

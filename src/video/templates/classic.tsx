@@ -49,7 +49,11 @@ export const Hub: React.FC<TemplateProps<Of<'hub'>>> = ({visual, reveal}) => {
 
 const Spoke: React.FC<{delay: number; x2: number; y2: number}> = ({delay, x2, y2}) => {
   const reveal = useReveal(delay);
-  return <line x1={470} y1={380} x2={470 + (x2 - 470) * reveal} y2={380 + (y2 - 380) * reveal} stroke={TEAL} strokeWidth={5} strokeLinecap="round" opacity={0.85} />;
+  // Starts at the centre circle's edge (radius 170), so the line never crosses the centre label.
+  const length = Math.hypot(x2 - 470, y2 - 380);
+  const x1 = 470 + ((x2 - 470) / length) * 172;
+  const y1 = 380 + ((y2 - 380) / length) * 172;
+  return <line x1={x1} y1={y1} x2={x1 + (x2 - x1) * reveal} y2={y1 + (y2 - y1) * reveal} stroke={TEAL} strokeWidth={5} strokeLinecap="round" opacity={0.85} />;
 };
 
 const Satellite: React.FC<{delay: number; text: string; x: number; y: number}> = ({delay, text, x, y}) => {

@@ -85,3 +85,14 @@ test('the prompt guide describes every template and the key relationship rules',
   assert.match(VISUAL_GUIDE, /never invent dates/);
   assert.match(VISUAL_GUIDE, /only when the narration says it repeats/);
 });
+
+test('an unknown visual_type no longer rejects the storyboard (it only picks the fallback layout)', () => {
+  const sb = board(scene(1, 'a b c'), {...scene(2, 'd e f'), visual_type: 'comparison'} as never, scene(3, 'g h i'));
+  assert.equal(sb.scenes[1].visual_type, 'diagram');
+});
+test('the storyboard request allows at most one correction', async () => {
+  const {readFileSync} = await import('node:fs');
+  const src = readFileSync('src/providers/gemini.ts', 'utf8');
+  assert.match(src, /if \(repairNote\) throw new Error\(`Gemini storyboard still failed validation after its one correction/);
+  assert.match(src, /\(problem \|\| visualProblem\) && !repairNote/);
+});
