@@ -39,7 +39,7 @@ export function usesHandwrittenCards(theme: Theme, handwrittenSteps: boolean | u
   return theme.themed && handwrittenSteps === true;
 }
 
-export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = '', sceneStarts, handwrittenSteps, wordTimes}) => {
+export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = '', sceneStarts, handwrittenSteps, wordTimes, badge}) => {
   const {fps, durationInFrames} = useVideoConfig();
   const scenes = storyboard.scenes;
   const theme = themeFor(storyboard.title);
@@ -70,6 +70,9 @@ export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, sec
       return (speaking ? 0.055 : 0.13) * Math.min(1, time / 1.2) * Math.min(1, Math.max(0, (total - time) / 1.5));
     }} /> : null}
     {captions ? <EditorialCaptions scenes={scenes} seconds={seconds} cues={captionCues} accent={theme.accent} /> : null}
+    {badge ? <div style={{position: 'absolute', top: 28, left: 0, right: 0, display: 'flex', justifyContent: 'center'}}>
+      <div style={{padding: '8px 18px', borderRadius: 999, background: 'rgba(245,199,122,.16)', border: '2px solid #f5c77a', color: '#f5c77a', fontFamily: 'Arial, sans-serif', fontSize: 20, fontWeight: 800, letterSpacing: 2}}>{badge}</div>
+    </div> : null}
   </AbsoluteFill>;
 };
 

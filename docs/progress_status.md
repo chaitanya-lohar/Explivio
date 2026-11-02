@@ -108,7 +108,7 @@ Decisions needed from you:
 
 ## Next steps
 
-1. **M7 — Visual Intelligence** (approved, in progress). **Next: step 6**: silent evaluation mode, then the 10–12 topic run. Overall: storyboard v2 schema ✅ → six animated templates ✅ → template selection ✅ → script quality ✅ → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
+1. **M7 — Visual Intelligence** (approved, in progress). **Next:** the 10–12 topic silent evaluation run (Gemini free tier), the illustration options report, then narrated validation if credits allow. Overall: storyboard v2 schema ✅ → six animated templates ✅ → template selection ✅ → script quality ✅ → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
 2. **Zero-cost illustration investigation:** programmatic scene art plus an options report on local/open-source models (hardware and licences checked). Optional local trial only with your go-ahead.
 3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
 4. **Real authentication with Clerk**, after a pricing and integration review.
@@ -117,6 +117,18 @@ Decisions needed from you:
 
 ## Changelog
 
+- **2026-11-02** — M7 step 6 (mode): silent evaluation.
+  - **Usage:** `npx tsx src/cli.ts "<topic>" --duration 30 --silent` runs the real pipeline (Gemini storyboard, script and visual checks, templates, Remotion render) without any narration call.
+  - **Timing:** deterministic and labelled `estimated` (`pipeline/silent-timing.ts`). Each scene lasts its estimated speech time; inside a scene, words are spaced by letters plus sentence and clause pauses. Captions are built from those estimates.
+  - **Separation from user-facing generation:**
+    - Runs go to `runs/m7-silent/<id>`, so they never appear in My Videos.
+    - Every frame shows a "SILENT EVALUATION · estimated timing" badge, and the manifest records `mode: "silent-evaluation"`.
+    - The web app never passes `--silent`.
+  - **Provider loading:** the narration provider is now loaded only on the narrated path.
+  - **Validator:** `validate-run` accepts `m7-silent/<id>` and skips the audio checks for these runs.
+  - **Tests:** 4 new (60 total), including a CLI run with a network guard that proves no ElevenLabs request is made.
+  - **Smoke render:** the rain demo, rendered silently in 71 s, passed the validator's video, caption and blank-frame checks.
+  - $0.
 - **2026-11-02** — M7 step 5: script quality checks (`pipeline/script-checks.ts`, pure).
   - **Length:** judged by estimated speech time instead of word count.
     - The model is 0.0635 s per letter + 0.65 s per sentence end + 0.5 s per clause break, fitted on 12 real ElevenLabs runs. Mean error 2.8%, worst 9.2% (`npx tsx scripts/m7/speech-model-check.mjs`); characters alone give 4.6% / 13.6%.

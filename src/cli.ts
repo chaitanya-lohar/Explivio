@@ -5,10 +5,10 @@ import path from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createStoryboard} from './providers/gemini.js';
-import {createNarration} from './providers/elevenlabs.js';
 import {StoryboardSchema, type Storyboard} from './schemas/storyboard.js';
 import {apiStoryboard, buildApiVideo} from './api-explainer.js';
 import {sceneStartsFromWords} from './pipeline/scene-timing.js';
+import {silentTiming} from './pipeline/silent-timing.js';
 
 const execFileAsync = promisify(execFile);
 const args = process.argv.slice(2);
@@ -22,6 +22,11 @@ const requestedRunId = flagValue('run-id');
 const promptFile = flagValue('prompt-file');
 const captionsEnabled = !args.includes('--no-captions');
 const musicEnabled = args.includes('--music');
+// Development only (never used by the web app): SILENT EVALUATION renders the real storyboard and templates without
+// narration, so visuals can be reviewed without ElevenLabs credits. Runs go to runs/m7-silent/, outside My Videos.
+const silent = args.includes('--silent');
+// Tests only: stop before the (slow) render.
+const skipRender = args.includes('--skip-render');
 const demoName = args.find((arg) => ['photosynthesis', 'rain', 'api'].includes(arg.toLowerCase()))?.toLowerCase();
 const durationIndex = args.indexOf('--duration');
 const positionalArgs = args.filter((arg, index) => !arg.startsWith('--') && index !== durationIndex + 1 && arg.toLowerCase() !== demoName);
@@ -31,11 +36,12 @@ const durationArg = Number(args[args.indexOf('--duration') + 1]);
 const seconds = ([30, 60, 90].includes(durationArg) ? durationArg : 60) as 30 | 60 | 90;
 if (requestedRunId && !/^[A-Za-z0-9_-]{1,80}$/.test(requestedRunId)) throw new Error('--run-id may only contain letters, numbers, - and _.');
 const runId = requestedRunId || `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
-const runDir = path.resolve('runs', runId);
+if (silent && demoName === 'api') throw new Error('--silent does not apply to the API demo, which has its own narration.');
+const runDir = silent ? path.resolve('runs', 'm7-silent', runId) : path.resolve('runs', runId);
 const publicRunDir = path.resolve('public', 'runs', runId);
-await mkdir(runDir, {recursive: true}); await mkdir(publicRunDir, {recursive: true});
+await mkdir(runDir, {recursive: true}); if (!silent) await mkdir(publicRunDir, {recursive: true});
 const started = Date.now();
-const manifest: Record<string, unknown> = {runId, prompt: topic, targetDurationSeconds: seconds, voice: voiceGender || 'default', captions: captionsEnabled, music: musicEnabled, language: 'English', aspectRatio: '9:16', status: 'running', startedAt: new Date().toISOString(), stages: {}};
+const manifest: Record<string, unknown> = {runId, mode: silent ? 'silent-evaluation' : 'standard', prompt: topic, targetDurationSeconds: seconds, voice: voiceGender || 'default', captions: captionsEnabled, music: musicEnabled, language: 'English', aspectRatio: '9:16', status: 'running', startedAt: new Date().toISOString(), stages: {}};
 const saveManifest = async () => writeFile(path.join(runDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 const stage = async <T,>(name: string, fn: () => Promise<T>): Promise<T> => {
   const begin = Date.now(); const stages = manifest.stages as Record<string, unknown>;
@@ -90,11 +96,18 @@ try {
   if (demoName === 'api') {
     const {props, meta} = await stage('narration', () => buildApiVideo(storyboard, runDir, publicRunDir, runId, seconds, voiceGender));
     manifest.narration = meta; composition = 'ApiExplainer'; renderProps = props; actualSeconds = props.seconds;
+  } else if (silent) {
+    // No narration call at all. Timings are estimated from the text and labelled as such (see pipeline/silent-timing).
+    const timing = silentTiming(storyboard.scenes.map((scene) => scene.narration_text));
+    captionCues = timing.captionCues; sceneStarts = timing.sceneStarts; wordTimes = timing.words; actualSeconds = timing.seconds;
+    manifest.narration = {provider: 'none', mode: 'silent-evaluation', sceneTiming: 'estimated', wordTiming: 'estimated', note: 'No narration audio. Scene and word timings are estimated from the text with the M7 speech model, not measured.'};
   } else if (demo && !demoWithSpeech) {
     audioPath = '';
     manifest.narration = {provider: 'none', note: 'Demo render contains captions and visuals only.'};
   } else {
     const localAudio = path.join(runDir, 'narration.mp3');
+    // Loaded only on this path, so silent and demo runs never touch the narration provider.
+    const {createNarration} = await import('./providers/elevenlabs.js');
     const audio = await stage('narration', () => createNarration(narrationText, localAudio, voiceGender));
     await copyFile(localAudio, path.join(publicRunDir, 'narration.mp3'));
     // Keep at least 0.4 s after the last word so speech never ends exactly on the final frame.
@@ -108,9 +121,15 @@ try {
   manifest.durationDifferenceSeconds = actualSeconds - seconds;
   manifest.status = 'rendering'; await saveManifest();
   const outputPath = path.join(runDir, 'video.mp4');
+  const propsPath = path.join(runDir, 'render-props.json');
+  await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, wordTimes, handwrittenSteps: demo, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : '', ...(silent ? {badge: 'SILENT EVALUATION · estimated timing'} : {})}));
+  if (skipRender) {
+    manifest.renderSkipped = true; manifest.status = 'succeeded'; manifest.elapsedMs = Date.now() - started; manifest.finishedAt = new Date().toISOString(); await saveManifest();
+    console.log(`
+Render skipped. Run manifest: ${path.join(runDir, 'manifest.json')}`);
+    process.exit(0);
+  }
   await stage('render', async () => {
-    const propsPath = path.join(runDir, 'render-props.json');
-    await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, wordTimes, handwrittenSteps: demo, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : ''}));
     const cli = path.resolve('node_modules', '@remotion', 'cli', 'remotion-cli.js');
     await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', '--crf=18', '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
   });
