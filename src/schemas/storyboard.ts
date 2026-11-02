@@ -8,7 +8,9 @@ export const SceneSchema = z.object({
   visual_description: z.string().min(1),
   key_elements: z.array(z.string()).default([]),
   estimated_duration_seconds: z.number().positive(),
-  caption_text: z.string().optional()
+  caption_text: z.string().optional(),
+  // Storyboard v2 (optional): template + data, validated separately in pipeline/visual-plan so a bad scene falls back.
+  visual: z.unknown().optional()
 });
 
 export const StoryboardSchema = z.object({

@@ -141,7 +141,7 @@ function GeneratingView({ video, now }: { video: VideoProject; now: number }) {
         <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-start gap-2 text-meta text-muted">
             <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-secondary" />
-            Please keep this page open until your video is ready.
+            This usually takes a few minutes. You can leave this page: your video keeps rendering and will appear in My Videos.
           </p>
           <Link href="/videos" className={buttonStyles({ variant: "outline" })}>
             <ArrowLeft aria-hidden="true" className="size-4" />
@@ -165,6 +165,12 @@ function FailedView({ video }: { video: VideoProject }) {
         <p className="text-body text-muted">
           Something went wrong{stageLabel ? ` while ${stageLabel}` : ""}. Your prompt and settings are saved, so you can try again.
         </p>
+        {video.errorDetail ? (
+          <details className="rounded-control border border-border bg-background p-3 text-meta text-muted">
+            <summary className="cursor-pointer font-medium text-foreground">Technical details</summary>
+            <p className="mt-2 font-mono break-words">{video.errorDetail}</p>
+          </details>
+        ) : null}
       </div>
       <SavedSettings request={video.request} />
       <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-start sm:justify-between">

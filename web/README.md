@@ -97,6 +97,19 @@ Conventions:
 - **`GET /api/videos/<id>/file`:** streams the MP4 with HTTP Range support, so the player can seek. `?download=1` makes the browser save it.
 - **Mock service:** keeps its store on `globalThis`, so route handlers, server actions and pages share it, and steps new jobs through the stages on a timer. Server-side status reads use `connection()` so they run per request, not at build time.
 
+## My Videos (F6)
+
+- **`/videos`:** the library over `listVideos()` (web and CLI runs). Search (title and original prompt), status chips with counts, sort and grid/list all run in the browser over the loaded list; the state is kept in the URL (`?q=&status=&sort=&view=`). Logic: `features/video-library/library-query.ts` (unit-tested in `tests/`, run `npm test`).
+- **Actions:** open (details, or progress for generating/failed), Preview (dialog with the shared `VideoPlayer`) and Download MP4. The last two appear only for ready videos with a file.
+- **States:** empty library, no results with Clear filters, skeleton while loading, error with Retry (`catchError` boundary), unavailable/expired. The list refreshes every 5s while a video is generating.
+- **List layout:** a table from 1280px; below that each row stacks (thumbnail beside title, meta and actions).
+
+## Settings (F7)
+
+- **`/settings`:** defaults for new videos: duration, voice, captions and music. Language (English) and format (9:16) are shown as fixed. Changes save automatically; Reset to defaults asks first.
+- **Storage:** `features/settings/use-preferences.ts` keeps one versioned JSON record in `localStorage` (`explivio.preferences`); `lib/preferences.ts` validates it field by field (unit-tested). Swap the hook's storage for an API when accounts exist.
+- **Use in the creation flow:** Home, Create and Configure start from the saved values; anything the user picks for one video wins for that video. The `duration` URL parameter always carries an explicit choice.
+
 ## Authentication screens (demo only)
 
 - **Routes:** `(auth)` route group with its own layout (brand bar, centred content, no dashboard sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`. The layout isn't a security boundary.
@@ -104,6 +117,13 @@ Conventions:
 - **Feature code:** `features/authentication/` holds the types, validation (email, required fields, password rules: 8+ characters and a number or symbol, confirmation, terms), server actions, and the form components (including PasswordChecklist and PasswordStrengthIndicator).
 - **Data flow:** forms validate on the client, then call server actions that re-validate and call `@/services`, which today re-exports `services/mock/auth.ts`. The mock checks nothing, stores nothing and sends no email, and every success message says it's a demo. To add real auth, replace those re-exports and add sessions and route protection.
 - **Navigation:** sign-up goes to `/verify-email?to=<masked email>`; the full address never goes in the URL. Reset goes to `/login?reset=1`.
+
+## Real video pipeline (F4)
+
+- **How it works:** by default (`VIDEO_SERVICE=pipeline`) each video is a run of the repo-root CLI. `services/pipeline/videos.ts` writes `runs/<id>/request.json` and `prompt.txt`, then starts `src/cli.ts` in its own process, with `--prompt-file`, `--run-id`, `--duration`, `--voice` and optionally `--no-captions` / `--music`. The prompt never goes through a shell. Status, stages and errors are read from `runs/<id>/manifest.json`; the file route streams `runs/<id>/video.mp4`.
+- **Needs:** `npm install` and API keys in the repo-root `.env` (Gemini and ElevenLabs). Generation takes a few minutes, one video at a time.
+- **Logs:** `runs/<id>/pipeline.log` holds the CLI output for debugging.
+- **UI work without keys:** set `VIDEO_SERVICE=mock` in `web/.env.local` (see `.env.example`).
 
 ## Notes
 

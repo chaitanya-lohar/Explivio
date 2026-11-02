@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import {mkdir, writeFile, copyFile} from 'node:fs/promises';
+import {mkdir, writeFile, copyFile, readFile, stat} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {execFile} from 'node:child_process';
@@ -8,24 +8,34 @@ import {createStoryboard} from './providers/gemini.js';
 import {createNarration} from './providers/elevenlabs.js';
 import {StoryboardSchema, type Storyboard} from './schemas/storyboard.js';
 import {apiStoryboard, buildApiVideo} from './api-explainer.js';
+import {sceneStartsFromWords} from './pipeline/scene-timing.js';
 
 const execFileAsync = promisify(execFile);
 const args = process.argv.slice(2);
 const demo = args.includes('--demo');
 const demoWithSpeech = args.includes('--speak');
 const voiceGender = args.find((arg) => arg.startsWith('--voice='))?.split('=')[1];
+const flagValue = (name: string) => args.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
+// Used by the web app: a caller-chosen run id (so it knows the folder up front), the prompt in a file
+// (no quoting or length issues, and it can't be mistaken for a flag), and the captions/music choices.
+const requestedRunId = flagValue('run-id');
+const promptFile = flagValue('prompt-file');
+const captionsEnabled = !args.includes('--no-captions');
+const musicEnabled = args.includes('--music');
 const demoName = args.find((arg) => ['photosynthesis', 'rain', 'api'].includes(arg.toLowerCase()))?.toLowerCase();
 const durationIndex = args.indexOf('--duration');
 const positionalArgs = args.filter((arg, index) => !arg.startsWith('--') && index !== durationIndex + 1 && arg.toLowerCase() !== demoName);
-const topic = demoName === 'photosynthesis' ? 'How photosynthesis works' : demoName === 'rain' ? 'How rain forms' : demoName === 'api' ? 'How APIs work' : positionalArgs[0] || 'How a database index makes searches faster';
+const promptFromFile = promptFile ? (await readFile(promptFile, 'utf8')).trim() : '';
+const topic = promptFromFile || (demoName === 'photosynthesis' ? 'How photosynthesis works' : demoName === 'rain' ? 'How rain forms' : demoName === 'api' ? 'How APIs work' : positionalArgs[0] || 'How a database index makes searches faster');
 const durationArg = Number(args[args.indexOf('--duration') + 1]);
 const seconds = ([30, 60, 90].includes(durationArg) ? durationArg : 60) as 30 | 60 | 90;
-const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
+if (requestedRunId && !/^[A-Za-z0-9_-]{1,80}$/.test(requestedRunId)) throw new Error('--run-id may only contain letters, numbers, - and _.');
+const runId = requestedRunId || `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
 const runDir = path.resolve('runs', runId);
 const publicRunDir = path.resolve('public', 'runs', runId);
 await mkdir(runDir, {recursive: true}); await mkdir(publicRunDir, {recursive: true});
 const started = Date.now();
-const manifest: Record<string, unknown> = {runId, prompt: topic, targetDurationSeconds: seconds, language: 'English', aspectRatio: '9:16', status: 'running', startedAt: new Date().toISOString(), stages: {}};
+const manifest: Record<string, unknown> = {runId, prompt: topic, targetDurationSeconds: seconds, voice: voiceGender || 'default', captions: captionsEnabled, music: musicEnabled, language: 'English', aspectRatio: '9:16', status: 'running', startedAt: new Date().toISOString(), stages: {}};
 const saveManifest = async () => writeFile(path.join(runDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 const stage = async <T,>(name: string, fn: () => Promise<T>): Promise<T> => {
   const begin = Date.now(); const stages = manifest.stages as Record<string, unknown>;
@@ -68,11 +78,15 @@ try {
   await writeFile(path.join(runDir, 'storyboard.json'), JSON.stringify(storyboard, null, 2));
   manifest.storyboard = scriptMeta;
   const narrationText = storyboard.scenes.map((scene) => scene.narration_text).join('\n\n');
+  // ElevenLabs bills by characters of submitted text.
+  manifest.metrics = {narrationCharacters: narrationText.length, narrationWords: narrationText.split(/\s+/).filter(Boolean).length};
   let audioPath = '';
   let captionCues: {start: number; end: number; text: string}[] = [];
   let actualSeconds: number = seconds;
   let composition = 'ExplainerVideo';
   let renderProps: unknown;
+  let sceneStarts: number[] | undefined;
+  let wordTimes: {text: string; start: number; end: number}[] | undefined;
   if (demoName === 'api') {
     const {props, meta} = await stage('narration', () => buildApiVideo(storyboard, runDir, publicRunDir, runId, seconds, voiceGender));
     manifest.narration = meta; composition = 'ApiExplainer'; renderProps = props; actualSeconds = props.seconds;
@@ -83,8 +97,12 @@ try {
     const localAudio = path.join(runDir, 'narration.mp3');
     const audio = await stage('narration', () => createNarration(narrationText, localAudio, voiceGender));
     await copyFile(localAudio, path.join(publicRunDir, 'narration.mp3'));
-    audioPath = `runs/${runId}/narration.mp3`; captionCues = audio.captionCues; actualSeconds = Math.max(1, Math.ceil(audio.durationSeconds));
-    const {captionCues: _cues, words: _words, ...audioMeta} = audio; manifest.narration = audioMeta;
+    // Keep at least 0.4 s after the last word so speech never ends exactly on the final frame.
+    audioPath = `runs/${runId}/narration.mp3`; captionCues = audio.captionCues; actualSeconds = Math.max(1, Math.ceil(audio.durationSeconds + 0.4));
+    // Scene changes follow when each scene's first word is actually spoken (falls back to estimates if timings don't line up).
+    sceneStarts = sceneStartsFromWords(storyboard.scenes.map((scene) => scene.narration_text), audio.words) ?? undefined;
+    wordTimes = audio.words;
+    const {captionCues: _cues, words: _words, ...audioMeta} = audio; manifest.narration = {...audioMeta, sceneTiming: sceneStarts ? 'narration-aligned' : 'estimated'};
   }
   manifest.actualDurationSeconds = actualSeconds;
   manifest.durationDifferenceSeconds = actualSeconds - seconds;
@@ -92,10 +110,11 @@ try {
   const outputPath = path.join(runDir, 'video.mp4');
   await stage('render', async () => {
     const propsPath = path.join(runDir, 'render-props.json');
-    await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues}));
+    await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, wordTimes, handwrittenSteps: demo, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : ''}));
     const cli = path.resolve('node_modules', '@remotion', 'cli', 'remotion-cli.js');
     await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', '--crf=18', '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
   });
+  manifest.metrics = {...(manifest.metrics as object), outputBytes: (await stat(outputPath)).size};
   manifest.status = 'succeeded'; manifest.output = path.relative(process.cwd(), outputPath); manifest.elapsedMs = Date.now() - started; manifest.finishedAt = new Date().toISOString();
   await saveManifest();
   console.log(`\nVideo saved: ${outputPath}\nRun manifest: ${path.join(runDir, 'manifest.json')}`);

@@ -1,13 +1,13 @@
 # Explivio — Progress Status
 
-Last updated: 2026-10-31
+Last updated: 2026-11-02
 
 Tracks progress against the milestones in [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx). Newest entries go at the top of the changelog.
 
 ## At a glance
 
 - **Video pipeline (repo root):** generates real narrated, captioned 9:16 MP4s. The "How APIs work" video is complete.
-- **Web app (`web/`):** the full dashboard journey works in the browser on mock data: Home → Create → Settings → Generate → progress → Video ready (plays and downloads the real sample MP4). It isn't connected to the real pipeline yet.
+- **Web app (`web/`):** connected to the real pipeline (F4). A prompt typed in the browser generates a real narrated, captioned MP4 with real progress, real errors and retry. It plays and downloads on the Video ready page. Generation takes about 2–5 minutes.
 - **Login and sign-up:** screens and form behaviour only. No real accounts, sign-in, sessions or emails, and the dashboard opens without logging in.
 - **Run the web app:** `cd web`, `npm install`, `npm run dev`, then open http://localhost:3000 (login at /login, sign-up at /signup).
 - **Git:** work is committed to `dev` (ahead of `main`). `main` changes only through a pull request: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
@@ -22,11 +22,21 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | M3 — Visual renderer | 🟡 Partial | Generic renderer (`video.tsx`), editorial renderer with science themes (`editorial.tsx`), and a fully animated, hand-built API explainer (`api.tsx`). Its scenes are specific to that topic, not yet reusable templates. |
 | M4 — Captions / timing | 🟡 Partial | Word-level captions and scene cuts follow measured audio in the API video. The generic `generate` path still times scene changes from storyboard estimates. |
 | M5 — End-to-end | 🟡 Built, not evaluated | `npm run generate -- "<topic>" --duration 60` runs prompt → storyboard → narration → MP4 with a manifest. The "8/10 runs succeed" target has not been measured. |
-| M6 — Evaluation | ⬜ Not started | No `evaluations/` scorecard yet. Starter prompts are listed in the implementation plan. |
+| M6 — Evaluation | ✅ Done (subset) | 10 real videos evaluated (5 baseline, 5 after fixes) with automated checks and a 100-point scorecard. Average score 69.2 → **82.8**, pass rate 2/5 → **5/5**. Fixed: duration (word budget), scene sync (narration-aligned, drift 4.0 s → 0.9 s), visuals (storyboard-driven diagrams, no production notes or demo copy), Gemini timeouts/skip/retry. All four caption/music configs verified in the MP4. 16 regression tests (`npm test`). 7 longer topics (60–90 s) not run: ElevenLabs credits. Reports: [docs/quality/](quality/). |
+| M7 — Visual Intelligence | 🟡 In progress (steps 1–2 of 8 done) | Reusable animated templates (orbit, cycle, layers, flow, timeline, comparison) chosen and filled from a backward-compatible storyboard v2; reveal-on-mention timing; script quality (character budget, hooks, endings); a 3-topic AI illustration experiment before any integration; silent evaluation mode to save ElevenLabs credits. Plan: [docs/plans/M7_VISUAL_INTELLIGENCE_PLAN.md](plans/M7_VISUAL_INTELLIGENCE_PLAN.md). |
 | Dashboard design (Stitch) | 🟡 Mostly fixed | 11 screens reviewed against [the design doc](Explivio_Dashboard_Design_Document_v1.docx). Two Stitch edit passes (2026-10-31) removed invented credits, quotas, plans, expiry periods and unsupported options, added mobile layouts, and fixed contrast and labels. Stitch keeps each edit as a new screen version. QA: 6 of 11 screens pass every check. Outstanding: Progress screen still contains "Synthesizing frame…" text, List view scrolls sideways by 188px at phone width, three secondary labels at 4.30–4.46:1 contrast (target 4.5). |
 | Dashboard frontend — F1 foundation | ✅ Done | `web/`: Next.js 16, React 19, TypeScript strict, Tailwind 4. Design tokens, 13 UI primitives, app shell (desktop sidebar, tablet icon sidebar, mobile drawer), 7 placeholder routes, mock service layer. `lint`, `tsc` and `build` pass. Live QA at 1440/820/390px: no overflow, contrast, label or small-text issues. See [web/README.md](../web/README.md). |
 | Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
 | Dashboard frontend — F3 progress, failure, video ready | ✅ Done | `/generating` follows real status from `GET /api/videos/[id]` every 2s: four pipeline stages (plan, narration, render, finishing), an indeterminate bar (no fake percentages), a failure view with saved settings, Try again and Edit settings. When the video is ready it opens `/videos/[id]`: native 9:16 player and Download MP4 (streamed with HTTP Range support), plus Regenerate. Expired videos show saved settings and Regenerate. The mock service steps jobs through stages on a timer; the "How APIs work" sample streams the real MP4 from `runs/`. Tests: file route (200/206/416, download header, bytes identical, no path leak), browser flow 18/18. |
+| Dashboard frontend — F4 real pipeline | ✅ Done | Generate starts the CLI (`src/cli.ts`) for each video, in its own process, with a web-chosen run id. Status comes from the run's `manifest.json` (real stages: storyboard → narration → render). The MP4 streams from `runs/<id>/video.mp4`. Voice, captions and music reach the render (new CLI flags `--prompt-file`, `--run-id`, `--no-captions`, `--music`). One video at a time, with a clear message if busy. Failures show the real reason (cleaned of paths and keys) with Try again. Existing CLI runs appear in My Videos. `VIDEO_SERVICE=mock` keeps the sample data for UI work. Real test 2026-11-01: "Why the Moon has phases" (30s, male voice, music) rendered end to end in 272s, via Try again on a run that had failed on a Gemini timeout. |
+| Dashboard frontend — F6 My Videos | ✅ Done | `/videos` is a full library over the real run list (web and CLI runs, nothing invented). Search by title or original prompt (case-insensitive, every word must match; no separate topic field exists), status chips with counts (Ready, Generating, Failed; Expired/Draft only when such videos exist), sort (newest default, oldest, title A–Z/Z–A), grid/list toggle. All of it combines, runs in the browser (no request per keystroke) and is kept in the URL, so Back from a video restores it. Cards and rows show a real frame from the MP4, title, prompt, measured length (or target when not rendered), date and status. Preview opens the existing player in a dialog; Download MP4 uses the existing file route. Neither appears for failed, generating or unavailable videos. States: empty library, no results with Clear filters, loading skeleton, error with Retry (header stays), unavailable/expired. While a video generates the list refreshes every 5s. Tests: 9 unit tests (`web: npm test`) and 53/53 browser checks at 1440/1280/768/375 (real, empty, failing and mock libraries). |
+| Dashboard frontend — F7 Settings | ✅ Done | `/settings` sets the defaults for new videos, and the creation flow really uses them.
+  - **Editable:** duration (30/60/90), narration voice (Female/Male, the pipeline's two voices; IDs stay in the server `.env`), captions and background music.
+  - **Fixed, shown as such:** language (English) and format (9:16).
+  - **Saving:** automatic, confirmed with a toast. Reset to defaults asks for confirmation.
+  - **Storage:** one versioned record in this browser's `localStorage`, read safely field by field, behind `usePreferences()`. It syncs across tabs and can later be replaced by a backend.
+  - **Creation flow:** Home, Create and Configure start from the saved defaults. A choice made for one video wins for that video only. The generation request is unchanged.
+  - **Tests:** 8 unit tests; 41/41 browser checks (the Generate payload verified through the mock service, so no paid calls). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -38,6 +48,14 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | 2026-10-28 | `runs/2026-10-28T18-36-24-897Z-4a4ab22c/video.mp4` | Earlier render of the same video, 57.7 s. |
 
 ## Known issues and constraints
+
+- **Visuals are diagrams, not illustrations (M6 O1):** relevant and synced now, but no real imagery. Biggest remaining quality gap.
+- **ElevenLabs credits nearly used:** about 1,500 characters left until 2026-11-26 (M6 used about 5,000). 90-second videos are still untested.
+
+- **Gemini 3.8 Flash is hanging (2026-11-01):** `gemini-3.8-flash` (and 3.7, flash-latest) didn't respond, even to a one-word prompt, while `gemini-3.6-flash` answered in about 2s. The pipeline now falls back to 3.6 on timeouts, but the wait cost about 170s per video. Recommended: set `GEMINI_MODEL=gemini-3.6-flash` in the root `.env` until 3.8 recovers.
+- **Generic video visuals are basic:** topics other than the rain and photosynthesis demos get a neutral background and storyboard-based step cards. That's correct but plain, with no illustrations. Before 2026-11-01 they wrongly reused the rain photo and rain text. Reusable visual templates (M3) are the fix.
+- **Captions-off and music-off renders not yet visually checked:** the flags are wired and verified in the render input; the real test used captions on and music on.
+- **One video at a time:** rendering is CPU-heavy on this machine. Restarting the web server while a video renders loses its live process tracking. The render continues, and a run silent for 15 minutes is marked failed.
 
 - **Auth is demo-only:** the auth screens don't sign anyone in, and the dashboard isn't protected. The sign-up terms checkbox refers to a Terms of Service and Privacy Policy that don't exist yet.
 
@@ -52,7 +70,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 
 ## Next phase
 
-**Phase F4 — Connect the web app to the real video pipeline** (recommended next).
+**Phase F4 — Connect the web app to the real video pipeline** — ✅ done 2026-11-01. Next: M6 evaluation, then real authentication (see below).
 
 Why this comes first: the prototype plan defers authentication until the core question is answered: can a prompt reliably become a useful video? Today the web app runs on mock data, so connecting it to the real pipeline is the step that proves the product.
 
@@ -73,19 +91,87 @@ Decisions needed from you:
 - Confirm F4 as the next phase, or tell me to do authentication first.
 - For authentication later: a hosted service (Clerk, Auth0, Supabase Auth) or our own backend.
 
+## Zero-cost policy (2026-11-01, non-negotiable for now)
+
+**Budget: $0.** No billing on any provider, no credit purchases, no upgrades, no paid API calls. Only free tiers within their quotas; when a quota runs out, that work pauses. Paid services are reconsidered only when we decide to prepare for public launch.
+
+- **Gemini:** free tier only. The billing status of the Google Cloud project behind the key **must be confirmed by you** in AI Studio (it isn't visible to the API key).
+- **ElevenLabs:** existing free allowance only (about 1,600 characters until 2026-11-26).
+- **Paused / skipped:** Gemini image-generation experiments (free availability can't be verified). A local image-model trial needs your go-ahead (Python install + model download).
+
+## Decisions (2026-11-01)
+
+- **Gemini model:** `GEMINI_MODEL=gemini-3.6-flash` applied to the local `.env` (only that line changed).
+- **Next milestone:** M7 Visual Intelligence: six programmatic templates first, then planning, script quality and silent evaluation. Illustrations are investigated at zero cost only (the earlier paid budget was withdrawn); no generated images in production until you review.
+- **Deferred:** the 90 s and remaining 7-topic evaluation, until ElevenLabs credits reset on 2026-11-26 (unless more credits are added).
+- **Authentication:** Clerk is the preferred direction for future real authentication, subject to a pricing and integration review.
+
 ## Next steps
 
-1. **F4 — Connect the real pipeline** (see Next phase above).
-2. **Decide the authentication approach** (hosted service or own backend), then implement real auth and protect the dashboard.
-3. **Merge `dev` into `main`** through a pull request once you've reviewed it.
-4. Finish the remaining Stitch fixes (Progress "frame" text, List view at phone width, three contrast misses).
-5. Run the M1/M5 acceptance tests on the 6 starter prompts, and record the results.
-6. Integrate the director prompt and update the storyboard schema to match.
-7. Turn the API video's animated scenes into reusable templates (title, analogy, flow diagram, process, examples, summary).
-8. Use per-scene narration timing in the generic `generate` path.
-9. Start the M6 evaluation scorecard (`evaluations/`).
+1. **M7 — Visual Intelligence** (approved, in progress). **Next: step 3**: orbit, layers and timeline templates (then remove the fallback for them in `RENDERED_TEMPLATES`), followed by step 4: teach the Gemini prompt to fill `visual`. Overall: storyboard v2 schema ✅ → six animated templates (flow, cycle, comparison ✅; orbit, layers, timeline next) → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
+2. **Zero-cost illustration investigation:** programmatic scene art plus an options report on local/open-source models (hardware and licences checked). Optional local trial only with your go-ahead.
+3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
+4. **Real authentication with Clerk**, after a pricing and integration review.
+5. **Merge `dev` into `main`** through a pull request once you've reviewed it.
+6. Remaining UI: the leftover Stitch fixes.
 
 ## Changelog
+
+- **2026-11-02** — F7 Settings module (web).
+  - **Preferences** `{durationSeconds, voice, captions, music}`, stored as `{version: 1, ...}` under `explivio.preferences`:
+    - `lib/preferences.ts`: defaults that equal `appConfig` (60s, female, captions on, music off); a parser that never throws and falls back field by field for missing, corrupt, outdated or hand-edited data; `chosenOr`.
+    - `features/settings/use-preferences.ts`: a `useSyncExternalStore` hook (server-safe, cross-tab, survives blocked storage).
+  - **Settings page:**
+    - `settings-form.tsx`: General (fixed language and format), Narration, Video, and Saved settings (what is stored, and Reset).
+    - `settings-section.tsx`, `reset-preferences-dialog.tsx` (confirmation).
+    - Reuses `RadioCard`, `Switch`, `Dialog`, and `FixedOption` and `IconLabel` (both moved out of the Configure form to be shared).
+  - **Creation flow:**
+    - Home, Create and Configure keep "explicit choice for this video, else saved default".
+    - Configure waits for the saved values before enabling Generate and links to Settings.
+    - Fixed `creationHref`: it used to drop `duration=60`, which would have let a saved 30s replace an explicit 60s choice.
+    - The generation request and pipeline are unchanged, and saved videos keep their own settings.
+  - **Not added:** voice preview (it would need ElevenLabs calls) and more languages or formats (the pipeline can't honour them).
+  - **Tests:**
+    - Web unit tests 17/17 (`npm test` in `web/`).
+    - Browser QA 41/41: defaults; each change; refresh; Home, Create and Configure pick up saved values; payload with defaults; explicit override; explicit 60s; existing video unchanged; reset with cancel and confirm; corrupt, partly invalid and old-version storage; cross-tab update; real-service Configure; no overflow at 1440/1280/768/375; 44px targets; keyboard.
+    - `lint`, `tsc` and `build` pass; the pipeline's tests pass 28/28.
+  - **Known limitations:**
+    - Preferences are per browser and device (no account yet).
+    - A real narrated render with the chosen settings wasn't run (paid quota); the request → CLI flags mapping it relies on is unchanged since F4.
+  - $0.
+- **2026-11-02** — F6 My Videos module (web).
+  - **New in `web/src/features/video-library/`:**
+    - `library-query.ts`: pure search, filter and sort logic, plus URL state.
+    - `video-library.tsx`: toolbar, status chips, view toggle, grid/list, empty and no-results states, refresh while generating.
+    - `video-list-item.tsx`, `video-preview-button.tsx` (dialog that reuses `VideoPlayer`), `video-library-skeleton.tsx`, `video-library-error.tsx` (Next 16 `catchError` with Retry).
+  - **Changed:**
+    - `video-card.tsx`: prompt, length, Preview and MP4 actions, unavailable note.
+    - `video-thumbnail.tsx`: real frame from the MP4; the caller sets the width.
+    - `video-player.tsx`: optional `autoPlay` and `className`.
+    - `TextInput` and `Select`: `hideLabel` pass-through.
+    - `lib/format.ts`: `formatVideoLength`.
+  - **Backend:** no changes. The existing `listVideos()` already lists web and CLI runs without exposing paths.
+  - **Tests:**
+    - New `web/tests/library-query.test.ts`, run with `npm test` in `web/` (Node's built-in runner; no new dependency). 9/9 pass.
+    - Browser QA: 53/53 checks against four production servers (real runs, empty, unreadable library, mock with an expired video).
+    - `lint`, `tsc` and `build` pass; the pipeline's tests pass 28/28.
+  - **Known limitations:**
+    - Thumbnails load a little of each MP4 in the browser; no thumbnail images are stored.
+    - Search covers title and prompt only (there is no separate topic field).
+    - Live refresh while a video generates was not exercised end to end, because that needs a paid-quota generation run.
+    - A ready run whose MP4 is missing appears as Failed ("video file is missing"), as before.
+  - $0.
+- **2026-11-02** — M7 step 2: flow, cycle and comparison templates in `src/video/templates/`. The M6 layouts (steps, hub, checklist, focus) moved there too. `ConceptVisual` now draws each scene's v2 `visual` when it is valid and drawable, and the M6 layout otherwise. New runs pass narration word timings (`wordTimes`) to the render, so diagram items appear as they are spoken; older runs keep the M6 stagger (checked by rendering a still from a saved run). Mention matching improved: simple plural and verb endings are stemmed ("rests" ~ "Rest"), and a label is timed where most of its words are said together. New `npm run m7:gallery` renders stills of every template locally, with no API calls (24 stills reviewed). 3 new tests (28 total). $0.
+- **2026-11-01** — M7 step 2 (started): `revealLabels()` in `src/pipeline/visual-plan.ts` lists the labels each template reveals and whether their order matters, for reveal-on-mention timing. 1 new test (26 total). Work paused here; template rendering starts next session. $0.
+- **2026-11-01** — M7 step 1: storyboard v2 scene-planning format (`src/schemas/visual.ts`): validated data for orbit, cycle, layers, flow, timeline and comparison plus the four M6 layouts. Lenient per-scene parsing with deterministic fallback (`src/pipeline/visual-plan.ts`) and the reveal-on-mention timing helper (`src/pipeline/mention-timing.ts`). 9 new tests (25 total). No API calls, $0.
+
+- **2026-11-01** — Adopted the strict $0 policy: withdrew the earlier paid illustration budget, skipped paid/billing-gated image APIs, recorded free-tier limits, and checked hardware for local image generation (integrated AMD GPU, no CUDA, no Python).
+
+- **2026-11-01** — Set `GEMINI_MODEL=gemini-3.6-flash` in the local `.env` (approved). Recorded decisions. Wrote the M7 Visual Intelligence implementation plan.
+
+- **2026-11-01** — M6 evaluation: 10 real videos scored (baseline 69.2 → after fixes 82.8). Added the word budget, narration-aligned scene timing, storyboard-driven concept diagrams, Gemini timeout/skip/retry with per-call metrics, the M6 validator, batch runner and report builder, and 16 regression tests. Reports in `docs/quality/`.
+
+- **2026-11-01** — F4: the web app now runs the real pipeline. Added `services/pipeline/videos.ts`, the CLI flags `--prompt-file`/`--run-id`/`--no-captions`/`--music`, and captions/music support in the editorial renderer. Gemini now falls back to the second model on timeouts. Fixed generic videos showing rain visuals for unrelated topics. Real end-to-end video generated from the browser.
 
 - **2026-10-31** — Added the "Next phase" plan: F4, connecting the web app to the real video pipeline, then M6 evaluation and real authentication. Clarified status: login and sign-up are screens only (no real accounts or protection yet); added a "Real authentication" milestone, an "At a glance" summary and branch/PR status.
 - **2026-10-31** — Reviewed the 5 Stitch auth screens. Implemented them in `web/` as an `(auth)` route group with shared components (AuthLayout, AuthCard, AuthHeader, AuthFooter, AuthMessage, PasswordInput, PasswordChecklist, PasswordStrengthIndicator), typed validation, server actions and a clearly labelled mock auth service.

@@ -9,3 +9,4 @@ dist/
 mcp.json
 .mcp.json
 *.log
+runs/.gemini-health.json

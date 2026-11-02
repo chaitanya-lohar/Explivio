@@ -9,7 +9,7 @@ import { regenerateVideo } from "@/features/video-generation/actions";
 import { SavedSettings } from "@/features/video-generation/saved-settings";
 import { VideoActionButton } from "@/features/video-generation/video-action-button";
 import { cn } from "@/lib/cn";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatLength } from "@/lib/format";
 import type { VideoProject } from "@/types/video";
 import { VideoPlaceholder, VideoPlayer } from "./video-player";
 import { VideoStatusBadge } from "./video-status-badge";
@@ -41,7 +41,7 @@ export function VideoDetail({ video }: { video: VideoProject }) {
           {!expired && !video.videoUrl ? (
             <p className="flex items-start gap-2 rounded-card border border-warning/40 bg-warning/10 p-4 text-meta text-warning">
               <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              This project comes from the prototype&apos;s mock service, so no video file was rendered. Real files arrive when the video pipeline is connected.
+              No video file is available for this project. Try Regenerate to create it again.
             </p>
           ) : null}
 
@@ -54,7 +54,7 @@ export function VideoDetail({ video }: { video: VideoProject }) {
               </h2>
               <p className="mt-2 text-body text-muted">{video.prompt}</p>
               <dl className="mt-4 flex flex-col text-body">
-                <DetailRow label="Length" value={`${video.durationSeconds}s target`} />
+                <DetailRow label="Length" value={video.actualDurationSeconds ? `${formatLength(video.actualDurationSeconds)} (target ${video.durationSeconds}s)` : `${video.durationSeconds}s target`} />
                 <DetailRow label="Format" value={`${appConfig.video.aspectRatio} vertical MP4 (${appConfig.video.width} × ${appConfig.video.height})`} />
                 <DetailRow label="Voice" value={voice} />
                 <DetailRow label="Captions" value={video.request.captions ? "Burned in" : "Off"} />

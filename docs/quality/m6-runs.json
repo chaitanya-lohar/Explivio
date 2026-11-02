@@ -1,0 +1,97 @@
+{
+  "B1": {
+    "runId": "2026-11-01T16-18-42-037Z-5bc06ac6",
+    "phase": "baseline",
+    "config": "A",
+    "ok": true,
+    "totalMs": 132449,
+    "elevenLabsCharsUsedActual": 408,
+    "error": null
+  },
+  "B2": {
+    "runId": "2026-11-01T16-20-55-242Z-7815a21a",
+    "phase": "baseline",
+    "config": "B",
+    "ok": true,
+    "totalMs": 109895,
+    "elevenLabsCharsUsedActual": 423,
+    "error": null
+  },
+  "B3": {
+    "runId": "2026-11-01T16-22-46-046Z-c90d3ed0",
+    "phase": "baseline",
+    "config": "C",
+    "ok": true,
+    "totalMs": 115407,
+    "elevenLabsCharsUsedActual": 472,
+    "error": null
+  },
+  "B4": {
+    "runId": "2026-11-01T16-24-42-325Z-9709a3ec",
+    "phase": "baseline",
+    "config": "D",
+    "ok": true,
+    "totalMs": 93361,
+    "elevenLabsCharsUsedActual": 397,
+    "error": null
+  },
+  "A1": {
+    "runId": "2026-11-01T16-32-12-240Z-186df64f",
+    "phase": "after",
+    "config": "A",
+    "ok": true,
+    "totalMs": 64546,
+    "elevenLabsCharsUsedActual": 418,
+    "error": null
+  },
+  "A2": {
+    "runId": "2026-11-01T16-38-54-390Z-87fb7dbe",
+    "phase": "after",
+    "config": "A",
+    "ok": true,
+    "totalMs": 69114,
+    "elevenLabsCharsUsedActual": 439,
+    "error": null,
+    "failedAttempts": [
+      {
+        "runId": "2026-11-01T16-33-17-542Z-4aef2e92",
+        "error": "Gemini request failed: [\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"title\",\n      \"diagram\",\n      \"process\",\n      \"analogy\",\n      \"illustration\",\n      \"example\",\n      \"summary\"\n    ],\n    \"path\": [\n      \"scenes\",\n      1,\n      \"visual_type\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"title",
+        "elevenLabsCharsUsedActual": 0
+      }
+    ]
+  },
+  "A3": {
+    "runId": "2026-11-01T16-33-39-403Z-cb641b9b",
+    "phase": "after",
+    "config": "C",
+    "ok": true,
+    "totalMs": 126439,
+    "elevenLabsCharsUsedActual": 936,
+    "error": null
+  },
+  "A4": {
+    "runId": "2026-11-01T16-40-04-249Z-d61e4d01",
+    "phase": "after",
+    "config": "A",
+    "ok": true,
+    "totalMs": 119377,
+    "elevenLabsCharsUsedActual": 1031,
+    "error": null,
+    "failedAttempts": [
+      {
+        "runId": "2026-11-01T16-35-46-590Z-99316527",
+        "error": "Gemini request failed before a usable response was received (timeout on gemini-3.6-flash).",
+        "elevenLabsCharsUsedActual": 0
+      }
+    ]
+  },
+  "A5": {
+    "runId": "2026-11-01T16-36-47-395Z-e1ee642f",
+    "phase": "after",
+    "config": "A",
+    "ok": true,
+    "totalMs": 68615,
+    "elevenLabsCharsUsedActual": 482,
+    "error": null
+  }
+}

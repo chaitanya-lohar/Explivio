@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { VideoIdea } from "@/config/ideas";
-import { creationHref, parseDuration, validatePrompt } from "@/lib/video-request";
+import { creationHref, parseDurationParam, validatePrompt } from "@/lib/video-request";
 import { IdeaGrid } from "./idea-grid";
 import { PromptField } from "./prompt-field";
 
@@ -17,7 +17,8 @@ export function CreatePromptForm() {
   const params = useSearchParams();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [prompt, setPrompt] = useState(() => params.get("prompt") ?? "");
-  const [duration, setDuration] = useState(() => parseDuration(params.get("duration")));
+  // Only an explicit choice (from the URL or an idea) is carried forward; otherwise Configure applies the saved default.
+  const [duration, setDuration] = useState(() => parseDurationParam(params.get("duration")));
   const [error, setError] = useState<string | null>(null);
   const [navigating, setNavigating] = useState(false);
 
@@ -29,7 +30,7 @@ export function CreatePromptForm() {
       return;
     }
     setNavigating(true);
-    router.push(creationHref("/configure", { prompt, durationSeconds: duration }));
+    router.push(creationHref("/configure", { prompt, durationSeconds: duration ?? undefined }));
   }
 
   function applyIdea(idea: VideoIdea) {
