@@ -3,7 +3,7 @@ import {AbsoluteFill, Audio, Img, Sequence, Easing, interpolate, spring, staticF
 import type {Storyboard} from '../schemas/storyboard.js';
 import type {VideoProps} from './video.js';
 import {sceneFramesFromStarts} from '../pipeline/scene-timing';
-import {ConceptVisual} from './concept-visual';
+import {ConceptVisual, type SceneTiming} from './concept-visual';
 
 type Scene = Storyboard['scenes'][number];
 const TRANSITION = 16;
@@ -39,7 +39,7 @@ export function usesHandwrittenCards(theme: Theme, handwrittenSteps: boolean | u
   return theme.themed && handwrittenSteps === true;
 }
 
-export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = '', sceneStarts, handwrittenSteps}) => {
+export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = '', sceneStarts, handwrittenSteps, wordTimes}) => {
   const {fps, durationInFrames} = useVideoConfig();
   const scenes = storyboard.scenes;
   const theme = themeFor(storyboard.title);
@@ -50,11 +50,14 @@ export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, sec
   const cores = sceneStarts?.length === scenes.length
     ? sceneFramesFromStarts(sceneStarts, seconds, fps)
     : scenes.map((scene) => { const duration = Math.max(1, Math.round((scene.estimated_duration_seconds / totalEstimated) * timelineFrames)); const from = cursor; cursor += duration; return {from, duration}; });
+  const aligned = sceneStarts?.length === scenes.length;
   const sequences = scenes.map((scene, index) => {
     const from = Math.max(0, cores[index].from - (index > 0 ? TRANSITION : 0));
     const duration = cores[index].duration + (index > 0 ? TRANSITION : 0) + (index < scenes.length - 1 ? TRANSITION : 0);
+    // Mention-timed reveals need both word timings and narration-aligned scene windows.
+    const timing: SceneTiming | undefined = aligned && wordTimes?.length ? {words: wordTimes, start: sceneStarts[index], end: sceneStarts[index + 1] ?? seconds, sequenceFrom: from} : undefined;
     return <Sequence key={scene.scene_id} from={from} durationInFrames={duration} premountFor={fps}>
-      <EditorialScene scene={scene} index={index} total={scenes.length} duration={duration} topic={storyboard.title} section={theme.section} accent={theme.accent} warm={theme.warm} image={theme.image} themed={usesHandwrittenCards(theme, handwrittenSteps)} step={theme.steps[index] || theme.steps[theme.steps.length - 1] || {label: '', title: '', detail: ''}} />
+      <EditorialScene scene={scene} index={index} total={scenes.length} duration={duration} topic={storyboard.title} section={theme.section} accent={theme.accent} warm={theme.warm} image={theme.image} themed={usesHandwrittenCards(theme, handwrittenSteps)} timing={timing} step={theme.steps[index] || theme.steps[theme.steps.length - 1] || {label: '', title: '', detail: ''}} />
     </Sequence>;
   });
   return <AbsoluteFill style={{backgroundColor: '#071017'}}>
@@ -70,7 +73,7 @@ export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, sec
   </AbsoluteFill>;
 };
 
-const EditorialScene: React.FC<{scene: Scene; index: number; total: number; duration: number; topic: string; section: string; accent: string; warm: string; image: string; themed: boolean; step: {label: string; title: string; detail: string}}> = ({scene, index, total, duration, topic, section, accent, warm, image, themed, step}) => {
+const EditorialScene: React.FC<{scene: Scene; index: number; total: number; duration: number; topic: string; section: string; accent: string; warm: string; image: string; themed: boolean; timing?: SceneTiming; step: {label: string; title: string; detail: string}}> = ({scene, index, total, duration, topic, section, accent, warm, image, themed, timing, step}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const isFirst = index === 0;
@@ -102,7 +105,7 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
     </div>
 
     {/* Topics without a hand-made theme: an animated diagram built from this scene's storyboard (no production notes on screen). */}
-    {themed ? null : <ConceptVisual scene={scene} durationInFrames={duration} />}
+    {themed ? null : <ConceptVisual scene={scene} durationInFrames={duration} timing={timing} />}
     {themed ? <div style={{position: 'absolute', left: 76, right: 76, bottom: 513, transform: `translateY(${(1 - callout) * 22}px) scale(${0.985 + callout * 0.015})`, opacity: callout}}>
       <div style={{borderRadius: 18, padding: '24px 31px 24px', background: 'rgba(5,13,18,.76)', border: '1px solid rgba(247,245,236,.24)', boxShadow: '0 22px 65px rgba(0,0,0,.32)', backdropFilter: 'blur(18px)'}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14}}>

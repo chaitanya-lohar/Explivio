@@ -17,7 +17,8 @@
     "make:music": "node scripts/make-music.mjs",
     "test": "tsx --test tests/*.test.ts",
     "m6:batch": "node scripts/m6/run-batch.mjs",
-    "m6:validate": "node scripts/m6/validate-run.mjs"
+    "m6:validate": "node scripts/m6/validate-run.mjs",
+    "m7:gallery": "node scripts/m7/gallery.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.31.0",

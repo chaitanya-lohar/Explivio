@@ -86,6 +86,7 @@ try {
   let composition = 'ExplainerVideo';
   let renderProps: unknown;
   let sceneStarts: number[] | undefined;
+  let wordTimes: {text: string; start: number; end: number}[] | undefined;
   if (demoName === 'api') {
     const {props, meta} = await stage('narration', () => buildApiVideo(storyboard, runDir, publicRunDir, runId, seconds, voiceGender));
     manifest.narration = meta; composition = 'ApiExplainer'; renderProps = props; actualSeconds = props.seconds;
@@ -100,6 +101,7 @@ try {
     audioPath = `runs/${runId}/narration.mp3`; captionCues = audio.captionCues; actualSeconds = Math.max(1, Math.ceil(audio.durationSeconds + 0.4));
     // Scene changes follow when each scene's first word is actually spoken (falls back to estimates if timings don't line up).
     sceneStarts = sceneStartsFromWords(storyboard.scenes.map((scene) => scene.narration_text), audio.words) ?? undefined;
+    wordTimes = audio.words;
     const {captionCues: _cues, words: _words, ...audioMeta} = audio; manifest.narration = {...audioMeta, sceneTiming: sceneStarts ? 'narration-aligned' : 'estimated'};
   }
   manifest.actualDurationSeconds = actualSeconds;
@@ -108,7 +110,7 @@ try {
   const outputPath = path.join(runDir, 'video.mp4');
   await stage('render', async () => {
     const propsPath = path.join(runDir, 'render-props.json');
-    await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, handwrittenSteps: demo, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : ''}));
+    await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, wordTimes, handwrittenSteps: demo, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : ''}));
     const cli = path.resolve('node_modules', '@remotion', 'cli', 'remotion-cli.js');
     await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', '--crf=18', '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
   });

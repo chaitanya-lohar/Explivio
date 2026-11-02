@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {VisualSchema, TEMPLATE_NAMES} from '../src/schemas/visual.js';
 import {StoryboardSchema} from '../src/schemas/storyboard.js';
 import {fallbackVisual, resolveVisual, revealLabels} from '../src/pipeline/visual-plan.js';
-import {keywords, mentionTimes} from '../src/pipeline/mention-timing.js';
+import {keywords, mentionTimes, stem} from '../src/pipeline/mention-timing.js';
 
 const scene = (extra: Record<string, unknown> = {}) => ({scene_id: 1, narration_text: 'n', on_screen_text: 'Title', visual_type: 'process', visual_description: 'd', key_elements: ['First', 'Second', 'Third'], estimated_duration_seconds: 5, ...extra});
 
@@ -68,4 +68,14 @@ test('reveal labels follow each template, with order only where it matters', () 
   assert.deepEqual(revealLabels({template: 'flow', nodes: ['A', 'B']}), {labels: ['A', 'B'], ordered: true});
   assert.deepEqual(revealLabels({template: 'comparison', left: {title: 'L', points: ['l1']}, right: {title: 'R', points: []}, relation: 'vs'}), {labels: ['L', 'l1', 'R'], ordered: false});
   assert.equal(revealLabels({template: 'cycle', stages: ['a', 'b', 'c']}).ordered, true);
+});
+test('stems match short words and their plural or verb forms', () => {
+  for (const [a, b] of [['rests', 'Rest'], ['cables', 'Cable'], ['growing', 'grow'], ['batteries', 'battery'], ['orbits', 'orbit'], ['pushes', 'push'], ['boxes', 'box']]) assert.equal(stem(a), stem(b), `${a} ~ ${b}`);
+  assert.notEqual(stem('bus'), stem('bud'));
+});
+test('a label is timed where most of its words are said together', () => {
+  const words = spoken('it squeezes to push blood just as a pump pushes water through pipes');
+  const [blood, water] = mentionTimes(['Pushes blood', 'Pushes water'], words, 10, 20, false);
+  assert.equal(+blood.toFixed(1), 11.2, 'push blood = words 3-4');
+  assert.equal(+water.toFixed(1), 13.6, 'pushes water = words 9-10, not the earlier lone "push"');
 });
