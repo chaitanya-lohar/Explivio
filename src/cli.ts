@@ -7,7 +7,7 @@ import {promisify} from 'node:util';
 import {createStoryboard} from './providers/gemini.js';
 import {StoryboardSchema, type Storyboard} from './schemas/storyboard.js';
 import {apiStoryboard, buildApiVideo} from './api-explainer.js';
-import {sceneStartsFromWords} from './pipeline/scene-timing.js';
+import {sceneStartsFromWords, splitCuesAtScenes} from './pipeline/scene-timing.js';
 import {silentTiming} from './pipeline/silent-timing.js';
 
 const execFileAsync = promisify(execFile);
@@ -104,7 +104,7 @@ try {
   } else if (silent) {
     // No narration call at all. Timings are estimated from the text and labelled as such (see pipeline/silent-timing).
     const timing = silentTiming(storyboard.scenes.map((scene) => scene.narration_text));
-    captionCues = timing.captionCues; sceneStarts = timing.sceneStarts; wordTimes = timing.words; actualSeconds = timing.seconds;
+    captionCues = splitCuesAtScenes(timing.captionCues, timing.words, timing.sceneStarts); sceneStarts = timing.sceneStarts; wordTimes = timing.words; actualSeconds = timing.seconds;
     manifest.narration = {provider: 'none', mode: 'silent-evaluation', sceneTiming: 'estimated', wordTiming: 'estimated', note: 'No narration audio. Scene and word timings are estimated from the text with the M7 speech model, not measured.'};
   } else if (demo && !demoWithSpeech) {
     audioPath = '';
@@ -120,6 +120,8 @@ try {
     // Scene changes follow when each scene's first word is actually spoken (falls back to estimates if timings don't line up).
     sceneStarts = sceneStartsFromWords(storyboard.scenes.map((scene) => scene.narration_text), audio.words) ?? undefined;
     wordTimes = audio.words;
+    // A caption never spans a scene change (it would show the next scene's words under the previous diagram).
+    captionCues = splitCuesAtScenes(captionCues, audio.words, sceneStarts);
     const {captionCues: _cues, words: _words, ...audioMeta} = audio; manifest.narration = {...audioMeta, sceneTiming: sceneStarts ? 'narration-aligned' : 'estimated'};
   }
   manifest.actualDurationSeconds = actualSeconds;

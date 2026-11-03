@@ -121,3 +121,13 @@ test('timeline: dates are optional (never forced); reveal labels include a date 
   const v = VisualSchema.parse({template: 'timeline', events: [{label: 'Gas cloud collapses'}, {when: '1991', label: 'Web goes public'}]});
   assert.deepEqual(revealLabels(v), {labels: ['Gas cloud collapses', 'Web goes public 1991'], ordered: true});
 });
+
+// F9 — known issue K5: captions must not span a scene change.
+test('caption cues that straddle a scene change are split at it; others are untouched', async () => {
+  const {splitCuesAtScenes} = await import('../src/pipeline/scene-timing.js');
+  const words = [{text: 'night', start: 0, end: 0.3}, {text: 'sky?', start: 0.4, end: 0.8}, {text: 'The', start: 1.2, end: 1.3}, {text: 'Moon', start: 1.4, end: 1.7}, {text: 'shines.', start: 1.8, end: 2.2}];
+  const cues = [{start: 0, end: 1.7, text: 'night sky? The Moon'}, {start: 1.8, end: 2.2, text: 'shines.'}];
+  assert.deepEqual(splitCuesAtScenes(cues, words, [0, 1.2]), [{start: 0, end: 0.8, text: 'night sky?'}, {start: 1.2, end: 1.7, text: 'The Moon'}, {start: 1.8, end: 2.2, text: 'shines.'}]);
+  assert.deepEqual(splitCuesAtScenes(cues, words, undefined), cues, 'no scene timing: unchanged');
+  assert.deepEqual(splitCuesAtScenes(cues, words, [0, 5]), cues, 'no straddling cue: unchanged');
+});
