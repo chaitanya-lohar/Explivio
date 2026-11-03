@@ -42,7 +42,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
   - **Fixed:** a duplicate-render race; path leaks in error details; under-44 px touch targets on phones; captions spanning scene changes (K5).
   - **Blocked or not tested:** new narrated runs (credits preserved), S8–S12 (Gemini quota), human listening, other browsers.
   - **Readiness:** ready for F10. Report: [F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md). |
-| F10 — Real authentication | 🟡 Architecture proposed, awaiting approval | Recommended: self-managed auth on the Next.js server (built-in SQLite and crypto, no new dependency, $0, no account or keys); the existing Stitch screens kept; link-based verification; DB-backed HttpOnly sessions; per-user ownership of runs and settings. Real email needs a domain or SMTP sender, so a development outbox is used meanwhile (stated honestly in the UI). Provider facts verified on official pages 2026-11-03. Proposal: [F10_AUTHENTICATION_ARCHITECTURE.md](auth/F10_AUTHENTICATION_ARCHITECTURE.md). |
+| F10 — Real authentication | 🟡 Database foundation built; Atlas not yet configured; auth awaiting approval | MongoDB Atlas is the single application database (your decision; the earlier SQLite proposal was withdrawn, nothing of it committed). Done: official `mongodb` driver, one cached client, config validation and redaction, collections/indexes/validators (`db:init`), health check, legacy-ownership dry run (20 runs, not executed). **Needs you:** create the free Atlas cluster and put `MONGODB_URI` in `web/.env.local`, then run `npm run db:check`. Next (after approval): self-managed auth on the same database. Docs: [architecture](auth/F10_AUTHENTICATION_ARCHITECTURE.md), [foundation report](auth/F10_DATABASE_FOUNDATION_REPORT.md). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -123,6 +123,18 @@ Decisions needed from you:
 
 ## Changelog
 
+- **2026-11-03** — F10 MongoDB Atlas foundation, commit `cc36dad`.
+  - **Decision change:** MongoDB Atlas is the single database, replacing the SQLite proposal (withdrawn, never committed).
+  - **Built:**
+    - the official `mongodb` 7.8 driver (no Mongoose);
+    - `lib/db`: config validation, credential redaction, one shared client, safe errors;
+    - six collections with indexes (unique email, ownership, TTL) and `$jsonSchema` validators;
+    - `/api/health/db` and a startup configuration warning;
+    - scripts `db:check`, `db:init` and `db:legacy-ownership` (dry run: 20 runs without an owner; not executed).
+  - **Tests:** 13 new (12 pass offline, 1 live-Atlas test skipped). Web suite 38 pass / 1 skipped; typecheck, lint and build pass.
+  - **Atlas free tier verified on official pages:** 0.5 GB, 100 ops/s, 500 connections, paused after 30 idle days.
+  - **Not done:** no cluster is configured yet (your action); the authentication flows wait for approval.
+  - $0.
 - **2026-11-03** — F10 phase 1–2: architecture inspection and provider evaluation, [docs/auth/F10_AUTHENTICATION_ARCHITECTURE.md](auth/F10_AUTHENTICATION_ARCHITECTURE.md).
   - **Inspected:** the five Stitch screens (backed by a demo mock), no database (run folders), no sessions or ownership, F7 settings in localStorage, and the design docs (`users` / `ownerUserId` model).
   - **Verified on official pages:**

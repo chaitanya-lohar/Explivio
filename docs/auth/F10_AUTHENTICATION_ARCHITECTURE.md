@@ -1,192 +1,154 @@
-# F10 — Authentication architecture (proposal)
+# F10 — Authentication architecture
 
-Status: **proposed, awaiting approval** · Date: 2026-11-03 · Branch: `dev` · Budget: $0
+Status: **foundation built; authentication awaiting approval** · Updated 2026-11-03 · Branch: `dev` · Budget: $0
+
+> **Revision (2026-11-03):** an earlier draft (`d069764`) proposed SQLite. That was withdrawn after your decision that **MongoDB Atlas is the single application database**. No SQLite code was committed, and the drafts were removed from the working tree. This document supersedes the earlier version.
 
 ## 1. Current architecture (inspected)
 
-| Area | Today |
+| Area | State |
 |---|---|
-| Auth screens | `web/src/app/(auth)/`: login, signup, forgot-password, verify-email, reset-password. They're Stitch-built and complete (validation, strength meter, resend cooldown, masked address). They call server actions in `features/authentication/actions.ts`, which re-validate input and then call `services/mock/auth.ts`, a **demo that checks nothing, creates nothing and sends nothing** |
-| Session | None. Every page is public; the sidebar shows a hard-coded "Alex Chen" (`services/mock/user.ts`) |
-| Database | **None.** Videos are run folders (`runs/<id>/request.json` and `manifest.json`) read by `services/pipeline/videos.ts`. The design docs allow this for the prototype ("Use local run manifests … if the database is not yet needed") and list MongoDB only as *provisional* |
-| Ownership | None. Every visitor sees every run; the status, file and retry/regenerate endpoints take any run id |
-| Settings | Browser `localStorage` (F7), shared by everyone on the same browser |
-| Middleware | None (Next.js 16 calls it `proxy`) |
-| Env vars (web) | `EXPLIVIO_PIPELINE_ROOT`, `VIDEO_SERVICE`, both server-only. Pipeline keys live in the root `.env` |
-| Design docs | The Database Design specifies `users` (`authProvider`, `authSubject`, `email`, `emailVerified`, `displayName`, `status`, timestamps), `ownerUserId` on every project, and owner checks "in the application service". The open decision is "managed auth if it fits; users collection stores profile, not credentials" |
+| Auth screens | `web/src/app/(auth)/`: login, signup, forgot-password, verify-email, reset-password. They're complete Stitch screens, wired to server actions that call `services/mock/auth.ts`, a **demo** (checks nothing, sends nothing) |
+| Sessions / protection | None. Every page and API is public; the sidebar user is hard-coded |
+| Database | **MongoDB Atlas foundation added in F10** (`web/src/lib/db/`, commit `cc36dad`). Before that there was none |
+| Video data | Run folders `runs/<id>/` (`request.json`, `manifest.json`, `video.mp4`). Files stay there; MongoDB will hold metadata and ownership |
+| Settings | Browser `localStorage` (F7) |
+| Design docs | `users` (profile and account state), `ownerUserId` on every project, owner checks in the application service, MongoDB as the database |
 
-## 2. Free-tier facts (official pages, fetched 2026-11-03)
+## 2. Chosen architecture
 
-| Provider | Fact | Source |
-|---|---|---|
-| Clerk Hobby (free) | 50,000 monthly *retained* users per app; passwords, email codes and links included; no SMS; "No credit card required"; custom email templates and custom password rules **not** included; fixed 7-day session | clerk.com/pricing |
-| Clerk production | "You will need to have a domain you own" and must add DNS records | clerk.com/docs/deployments/overview |
-| Clerk custom UI | "Custom flows" with `useSignUp` / `useSignIn` are supported but "considered advanced and generally not recommended". The email-password guide verifies with a **code** (links need a separate flow). Password reset isn't covered on that page | clerk.com/docs/custom-flows |
-| Supabase Free | 50,000 MAU; 500 MB DB; **projects paused after 1 week of inactivity**; 2 free projects | supabase.com/pricing |
-| Supabase built-in email | "2 emails per hour"; "will refuse to deliver messages to addresses that are not part of the project's team"; not for production. Custom SMTP required | supabase.com/docs/guides/auth/auth-smtp, /rate-limits |
-| Resend Free | 3,000 emails/month, 100/day; "You must add and verify at least one domain to send emails" (a domain you own) | resend.com/pricing, /docs/dashboard/domains/introduction |
-| Brevo | Pricing page didn't load; **unverified**, not relied on | — |
-
-**What this means:** with no domain of our own, **no option delivers real verification or reset emails to arbitrary people at $0.** Clerk sends its own emails, but a production instance needs a domain. Supabase sends only to team members (2 per hour). Resend needs a verified domain. Whatever is chosen, real-world email delivery becomes possible only once a domain exists (a domain itself is not free) or once a free SMTP sender is configured. Until then the honest option is a **development outbox**, described in §5.
-
-## 3. Options compared
-
-| Criterion | **A. Self-managed (recommended)** | B. Clerk (free) | C. Supabase Auth (free) |
-|---|---|---|---|
-| Free tier | Yes, no account needed | Yes; needs a Clerk account and keys | Yes; needs a Supabase account; pauses after 7 days idle |
-| Email verification | Yes: app-issued hashed, single-use, expiring **links** (matches the existing verify screen) | Yes, Clerk-delivered; custom flow uses **codes**, so the verify screen would change | Built-in mail only to team members; needs custom SMTP |
-| Password reset | Yes, app-managed tokens | Yes (custom flow not documented on the fetched page) | Yes, same email limitation |
-| Real email delivery at $0 without a domain | No (development outbox) | Development instance only (limits not documented); production needs a domain | No |
-| Sessions | HttpOnly cookie, DB-backed, revocable | Clerk session JWT plus cookie, fixed 7 days on free | Supabase JWT; refresh-token handling in the app |
-| Next.js 16 integration | Native (server actions, `proxy`, route handlers) | `@clerk/nextjs` SDK | `@supabase/ssr` SDK |
-| Existing Stitch UI | Kept as is | Kept via custom flows (advanced, "not recommended"); the verify screen becomes code entry | Kept via SDK calls |
-| User data and ownership | Our `users` table; `ownerUserId` on runs | Clerk user id as `authSubject`; profile mirrored | Supabase user id; profile in their DB or ours |
-| Works offline, next to the local pipeline | Yes | No (calls Clerk on every auth) | No |
-| New dependencies | **None** (Node built-ins: `node:sqlite`, `node:crypto`) | `@clerk/nextjs` | `@supabase/supabase-js`, `@supabase/ssr` |
-| Lock-in | None. Fits the design doc's `authProvider` / `authSubject` model, so it can migrate to a managed provider later | Medium | Medium |
-| Security burden on us | **Higher**: hashing, sessions, tokens, rate limits. Mitigated with standard primitives and tests | Low | Low–medium |
-
-**Recommendation: A, self-managed.** It's the only option that works today at $0 with no account or keys. It keeps the existing link-based verification screen unchanged and adds no dependency. It runs on the same machine as the pipeline, and it already follows the design doc's user model, so a later move to a managed provider stays a data migration, not a rewrite.
-
-Its real cost is that the security code is ours. That's why this plan uses only standard primitives (scrypt, 256-bit random tokens stored as SHA-256 hashes, HttpOnly cookies) and tests every rule.
-
-**Why not Clerk now,** despite the earlier preference for it:
-- it needs your Clerk account and keys;
-- production needs a domain, which isn't free;
-- the free plan can't change password rules or email templates;
-- custom flows are "not recommended" by Clerk itself;
-- verification would switch from links to codes, which changes the approved screen.
-
-Clerk remains the natural choice once Explivio has a domain and goes public; §9 shows the migration path.
-
-## 4. Proposed architecture
+**Self-managed authentication in the existing Next.js server, storing everything in the same MongoDB Atlas database.** There's no second database and no external auth provider.
 
 ```
 Browser (existing Stitch screens)
-   │  server actions (Origin-checked by Next.js) · HttpOnly session cookie
+   │  server actions (Next.js checks Origin) · HttpOnly session cookie
    ▼
 Next.js server (web/)
-   ├── proxy.ts ............ quick redirect for signed-out visitors (optimistic, cookie present?)
-   ├── lib/auth/ ........... session (requireUser), passwords (scrypt), tokens, rate limits, email transport
-   ├── services/auth/ ...... signUp, verifyEmail, signIn, signOut, forgot/reset, resend
-   ├── services/pipeline ... + ownerUserId on new runs; every read/write checks the owner
-   └── data/explivio.db .... SQLite via node:sqlite (users, sessions, email_tokens, user_settings)
-   ▼
-Pipeline CLI (unchanged) ── runs/<id>/ (request.json now records ownerUserId)
+   ├── proxy.ts ............. optimistic redirect when there's no session cookie (convenience only)
+   ├── lib/db/ .............. ONE MongoClient per process (done: config, connection, schema, health)
+   ├── lib/auth/ ............ scrypt hashing, tokens, sessions, rate limits, email transport   (next phase)
+   ├── services/auth ........ sign-up, verify, sign-in/out, forgot/reset, settings              (next phase)
+   └── services/pipeline .... every read and write checks ownerUserId                           (next phase)
+   ▼                                   ▼
+MongoDB Atlas (free cluster)          Pipeline CLI (unchanged) → runs/<id>/ (files stay on disk)
+users · sessions · emailTokens · videoProjects · generationAttempts · userSettings
 ```
 
-**Every protected page, server action and API route checks the session on the server.** The `proxy` redirect is only a convenience, never the security boundary.
+**Why self-managed** (official pages checked 2026-11-03; details in §9):
+- **Cost and setup:** it's $0, with no third-party auth account or keys, and no new vendor.
+- **Data in one place:** it uses the same database as the rest of the app, as you required.
+- **No screen changes:** the existing link-based verification screen stays as designed.
+- **Fits the design doc:** it follows the `users` / `ownerUserId` model.
+- **Clerk:** its free plan works, but production needs a domain you own, and its custom-form flow verifies by *code*.
+- **Supabase Auth:** it would add a second (Postgres) database, its built-in email reaches team members only (2/hour), and free projects pause after 7 idle days.
 
-### 4.1 Database (SQLite file, gitignored; migrations versioned in code)
+The cost of self-managing is that the security code is ours. That's handled with standard primitives and a test for every rule (§7).
 
-| Table | Columns (key ones) | Constraints |
+## 3. Database design (implemented in `lib/db/collections.ts`)
+
+| Collection | Key fields | Indexes / constraints |
 |---|---|---|
-| `users` | `id` (`usr_` + 128-bit random), `email` (normalised lowercase), `display_name`, `password_hash` (`scrypt$N$r$p$salt$hash`), `email_verified_at`, `status` (`active` / `disabled`), `auth_provider` (`local`), `created_at`, `updated_at`, `password_changed_at` | PK `id`; **UNIQUE `email` COLLATE NOCASE**; CHECK on `status` |
-| `sessions` | `token_hash` (SHA-256 of a 256-bit cookie token), `user_id`, `created_at`, `expires_at`, `last_seen_at` | FK → users ON DELETE CASCADE; index `user_id` |
-| `email_tokens` | `token_hash`, `user_id`, `purpose` (`verify_email` / `reset_password`), `created_at`, `expires_at`, `used_at` | FK; index (`user_id`, `purpose`) |
-| `user_settings` | `user_id`, `preferences` (validated JSON, same shape as F7), `updated_at` | PK / FK `user_id` |
+| `users` | `_id` (`usr_` + 128-bit hex), `email`, `emailNormalized`, `name`, `passwordHash` (scrypt), `emailVerified`, `emailVerifiedAt`, `status`, `authProvider: "local"`, `createdAt`, `updatedAt`, `passwordChangedAt` | **Unique `emailNormalized`**. `$jsonSchema` requires the fields, checks the id format, and requires `passwordHash` to start with `scrypt$`, so a plaintext password is rejected by the database |
+| `sessions` | `_id` = SHA-256 of the cookie token, `userId`, `createdAt`, `expiresAt`, `lastSeenAt` | `userId`; **TTL on `expiresAt`** |
+| `emailTokens` | `_id` = SHA-256 of the link token, `userId`, `purpose` (`verify_email` / `reset_password`), `expiresAt`, `usedAt` | (`userId`, `purpose`); **TTL on `expiresAt`** |
+| `videoProjects` | `_id` = run id, **`ownerUserId`**, `title`, `prompt`, `durationSeconds`, `status`, `storage: {kind: "local-run", runId}`, `createdAt`, `updatedAt`, `legacyClaimedAt?` | (`ownerUserId`, `createdAt` desc), (`ownerUserId`, `status`, `createdAt` desc). The validator **requires `ownerUserId`** |
+| `generationAttempts` | `_id` = run id of the attempt, `videoId`, **`ownerUserId`**, `status`, `stage`, `safeError`, timestamps | (`videoId`, `createdAt` desc), (`ownerUserId`, `createdAt` desc), (`status`, `updatedAt`) |
+| `userSettings` | `_id` = userId, `preferences` (the F7 shape, validated), timestamps | `_id` (one record per user) |
 
 - **Not stored:** plaintext passwords or tokens, IP addresses, user agents.
-- **Timestamps:** ISO-8601 UTC.
-- **Location:** `EXPLIVIO_DB_PATH`, defaulting to `<pipeline root>/data/explivio.db`.
+- **Timestamps:** BSON dates (UTC).
+- **Setup:** `npm run db:init` creates collections and indexes and can be re-run safely.
 
-### 4.2 Sessions
-
-- **Cookie:** `explivio_session` = 256-bit random token.
-  - `HttpOnly`; `SameSite=Lax`; `Path=/`.
-  - `Secure` when served over HTTPS; it's dropped only on `http://localhost`, which browsers would otherwise reject.
-- **Expiry:** 7 days, or 30 days with "Remember me", with a server-side `expires_at`.
-- **Ending a session:**
-  - Logout deletes the row and clears the cookie.
-  - A password reset deletes **all** of that user's sessions.
-  - An expired or unknown token is treated as signed out.
-- **CSRF:**
-  - Every state change goes through server actions, which Next.js protects by comparing the Origin and Host headers.
-  - `SameSite=Lax` blocks cross-site posts.
-  - GET routes don't change state.
-- **No token in `localStorage`.**
-
-### 4.3 Flows
+## 4. Authentication flows (next phase)
 
 ```
-Sign up ─► validate (server) ─► rate limit ─► create user (unverified, scrypt hash)
-        ─► verify token (24 h, single use, stored hashed) ─► email ─► /verify-email?to=al***@…
-Verify  ─► /verify-email?token=… ─► hash lookup ─► unexpired + unused? ─► mark verified, use token ─► "Email verified" ─► /login
-Sign in ─► rate limit (IP + email) ─► user + scrypt compare (constant time; dummy hash when no user)
-        ─► unverified? "Verify your email first" + resend ─► else create session ─► redirect to the safe ?next=
-Forgot  ─► rate limit ─► always the same generic answer ─► if account: reset token (30 min) + email
-Reset   ─► /reset-password?token=… ─► valid? ─► new hash, token used, ALL sessions revoked ─► /login
+Sign up ─► server validation (existing rules) ─► rate limit ─► email already registered?
+           yes: no new account; email the existing owner; SAME response   (no account enumeration)
+           no : insert user (unverified, scrypt hash) ─► verify token (24 h) ─► email ─► /verify-email?to=al***@…
+Verify  ─► /verify-email?token=… ─► SHA-256 lookup ─► unexpired + unused ─► mark verified + token used ─► sign in
+Sign in ─► rate limit (account+IP, IP) ─► user + scrypt compare (dummy hash when no user: same timing)
+           wrong: "Email or password is incorrect" · right but unverified: "Verify your email first" + resend
+           ok: session (7 days, or 30 with Remember me) ─► redirect to a validated same-site ?next=
+Forgot  ─► rate limit ─► SAME answer always ─► if the account exists: reset token (30 min) + email
+Reset   ─► /reset-password?token=… ─► valid ─► new hash, token used, ALL sessions deleted ─► /login
 Logout  ─► delete session, clear cookie ─► /login
 ```
 
-### 4.4 Email delivery (honest at $0)
+## 5. Sessions, cookies and CSRF
+
+- **Cookie:** `explivio_session` = 256-bit random token.
+  - `HttpOnly`; `SameSite=Lax`; `Path=/`.
+  - `Secure` on HTTPS; it's omitted only on `http://localhost`, which browsers would otherwise reject.
+  - It's never readable by JavaScript and never stored in `localStorage`.
+- **Server side:** `sessions` holds only the token's hash, with `expiresAt`. A TTL index purges expired rows, and lookups also reject expired ones.
+- **Ending sessions:**
+  - Logout deletes the row.
+  - A password reset deletes all of the user's sessions.
+  - A disabled or unverified account has no valid session.
+- **CSRF:**
+  - State changes go only through server actions, which Next.js protects by comparing the Origin and Host headers.
+  - `SameSite=Lax` stops cross-site posts.
+  - GET routes don't change state.
+
+## 6. Email (MongoDB does not send email)
 
 - **Transport interface:**
-  - `outbox` is the default. Each message is written to `data/outbox/` as a file (a local "mailbox" for development, like Mailpit). The UI then says *"No email was sent. This development server saved it to its outbox."* It never says "sent".
-  - `resend` is optional: an HTTP API call via `fetch`, used only when `RESEND_API_KEY` and `EMAIL_FROM` are set. It's **blocked until you own a verified domain**.
-- **Logging:** tokens and links are never written to logs or the console. The outbox file *is* the mailbox and stays gitignored.
+  - **`outbox` (default, development only):** messages are written to `<pipeline root>/data/outbox/` (gitignored). They're readable only on the developer's machine and never returned in an HTTP response. The screens say *"No email was sent. This development server saved it to its outbox."* and never claim delivery.
+  - **`resend` (later):** Resend's HTTP API via `fetch`, enabled by `RESEND_API_KEY` + `EMAIL_FROM`. Resend's free plan (100/day, 3,000/month) **requires a verified domain you own**, so it's blocked until a domain exists.
+  - **Production guard:** when `NODE_ENV=production` and no real transport is configured, sign-up and reset show an honest "email delivery isn't set up" error. They don't fall back to the outbox.
+- **Logging:** links, tokens and bodies are never logged.
 
-### 4.5 Ownership
+## 7. Security design
 
-- **New runs:** the web service writes `ownerUserId` into `request.json`. The CLI and pipeline stay unchanged.
-- **Every service read and write checks the owner:** list, get, status API, file and download, retry, regenerate.
-- **Another user's id gets a 404** (not 403), so the app doesn't reveal that the run exists.
-- **Settings:** move from `localStorage` to `user_settings`, behind the existing `usePreferences()` hook (it was designed for this swap).
-- **Existing runs** (no owner) are **hidden from everyone**. The one exception: you may set `EXPLIVIO_LEGACY_OWNER_EMAIL`, and that account alone then sees them. Run folders aren't rewritten.
-- **Data leak through the build:** `/videos/[id]` currently prerenders ids and titles at build time. That will be removed so no titles end up in static HTML.
-
-### 4.6 Rate limits (in-memory, per server process)
-
-| Action | Limit |
+| Topic | Approach |
 |---|---|
-| Login failures | 5 per 15 min per email+IP, and 20 per 15 min per IP |
-| Sign-up | 5 per hour per IP |
-| Forgot / resend | 3 per hour per email; 60 s between sends |
-| Reset submit | 10 per hour per IP |
+| Password hashing | scrypt N=2^15, r=8, p=1, 16-byte salt, 64-byte key (Node built-in; parameters stored per hash so they can be raised) |
+| Password rules | The existing shared validation (8+ characters plus a number or symbol), enforced on the server too |
+| Tokens | `randomBytes(32)` in base64url; only SHA-256 stored; single use (a `usedAt` check inside an atomic update); verification 24 h, reset 30 min; a newer link retires older ones |
+| Enumeration | Sign-up, forgot and resend answer the same either way; "unverified" is revealed only after a correct password |
+| Brute force | Per account+IP and per IP limits on sign-in (5 and 20 per 15 min); sign-up 5/h per IP; email sends 3/h per account plus a 60 s cooldown |
+| API authorisation | Every protected page, server action and route checks the session on the server; routes return 401 when signed out |
+| Ownership | All video and settings reads and writes filter by `ownerUserId` = session user. Another user's id gets **404** (existence not revealed). A client-supplied user id is never trusted |
+| Background rendering | The owner is recorded when the job is created (`videoProjects` and `generationAttempts`); the CLI is unchanged and the owner never comes from the CLI |
+| Redirects | `?next=` must be a same-site path (`/`, not `//` or `/\`, no scheme); otherwise `/` |
+| Secrets | `MONGODB_URI` and future `AUTH_SECRET` / `RESEND_API_KEY` only in `web/.env.local` (gitignored), never `NEXT_PUBLIC_*`; driver errors redacted before logging |
+| Rate-limit store | In memory (single server process; resets on restart). Can move to a MongoDB TTL collection if the app runs on more than one instance |
 
-Single-process memory is fine for this single-server app. It resets on restart, and that limitation is documented.
+## 8. Existing videos (approved: give them to your account)
 
-## 5. Screen-to-functionality mapping
+- **Configuration:** `EXPLIVIO_LEGACY_OWNER_EMAIL` names the account (it's never hard-coded).
+- **Script:** `npm run db:legacy-ownership` is a dry run by default. It changes nothing and prints how many records it would create. Today it reports **20 runs without an owner**.
+- **Writing:** only `-- --apply` writes, and only if the configured account exists, is active and is verified. Otherwise it refuses.
+- **Insert-only:** it adds `videoProjects` records (`ownerUserId`, `storage.runId`). An existing record is never modified, so it can't reassign and re-running is safe.
+- **Scope:** files in `runs/` are never moved, renamed or deleted. New sign-ups never receive legacy videos.
+- **Approval:** you approve the actual `--apply` run after seeing the dry run with your account in place.
 
-| Existing screen | Kept as is | Connected to | Minimal UI additions (existing components only) |
+## 9. Provider comparison (official pages, fetched 2026-11-03)
+
+| Criterion | **Self-managed + Atlas (chosen)** | Clerk free | Supabase Auth free |
 |---|---|---|---|
-| **Login** `/login` | Layout, fields, "Remember me", "Forgot password?", errors | `signIn` → session cookie → `?next=` (validated: same-site path only) | Generic "Email or password is incorrect"; "Verify your email first" with a link to resend; rate-limit message (existing `AuthMessage`) |
-| **Sign up** `/signup` | Name, email, password + confirm, strength meter, checklist, terms | `signUp` → user + verification token → email → `/verify-email?to=masked` | "An account with this email may already exist", worded to avoid account enumeration |
-| **Verify email** `/verify-email` | "Check your inbox", masked address, resend with cooldown | `?token=` consumes the link; resend uses a signed pending-verification cookie (no email in the URL) | Success, expired and invalid states shown with the existing `AuthMessage`; delivery wording says "outbox" in development |
-| **Forgot password** `/forgot-password` | Email field, back link | `requestPasswordReset`, always the same generic answer | — |
-| **Reset password** `/reset-password` | New + confirm password, checklist | `?token=` → `resetPassword` → revoke sessions → `/login` | Expired or invalid link state with a link to Forgot password |
-| App shell (sidebar `UserSummary`) | Avatar and layout | The real user's name and email from the session | **Sign out** button (required for logout) |
+| Free tier | Atlas free cluster: "Free forever", 512 MB | 50,000 monthly retained users; "No credit card required" | 50,000 MAU; 500 MB Postgres |
+| Email verification / reset | Yes, app-issued links | Yes, Clerk-sent; custom flow uses **codes** | Yes, but built-in mail only to team members, "2 emails per hour" |
+| Real email at $0, no domain | No (development outbox) | Development instance only; production "needs a domain you own" | No |
+| Sessions | DB-backed HttpOnly cookie, revocable | Clerk sessions (fixed 7 days on free) | Supabase JWT and refresh tokens |
+| MongoDB compatibility | Native (same database) | User ids mirrored into MongoDB | **Second database** (Postgres) |
+| Lock-in | None | Medium | Medium |
+| Fits the decisions in force | **Yes** | Partly (screen change, domain) | **No** (second database) |
 
-No new pages.
+## 10. Zero-cost limitations
 
-## 6. Security considerations
+| Limit | Effect |
+|---|---|
+| **Atlas free cluster:** 0.5 GB data, 100 ops/s, 500 connections, 10 GB in / 10 GB out per rolling 7 days, one free cluster per project | Plenty for users, sessions, metadata and settings (no media) |
+| **Paused after 30 days with zero connections**; "may deactivate idle Free clusters" per the Terms of Service | Use the app or run `db:check` at least monthly; keep an export |
+| **Backups:** the limits page says daily snapshots (4 kept) can be enabled; the pricing FAQ says backups aren't available on free | Conflicting; don't rely on it; export manually |
+| **Email:** no free sender without a domain | The development outbox until a domain exists |
+| **Rate limits** in memory | Reset on restart |
 
-- **Password hashing:** scrypt N=2^15, r=8, p=1, a 16-byte salt and a 64-byte key. That's above the OWASP minimum, and the parameters are stored with each hash so they can be upgraded later.
-- **Timing and enumeration:** password checks use constant-time comparison and run a dummy hash when the account doesn't exist. Sign-up, forgot and resend give answers that don't reveal whether an account exists.
-- **Tokens:** `crypto.randomBytes(32)` in base64url, stored as SHA-256. They're single use, expire, and are invalidated on use and on password change.
-- **Redirects:** `?next=` must be a same-site path. It must start with `/`, not `//` or `/\`, and contain no scheme; otherwise it falls back to `/`.
-- **API protection is independent of the proxy:** routes return 401 when signed out and 404 when the resource isn't the user's.
-- **Logs:** no password, token, link or email body is logged. Error messages stay generic.
-- **Secrets:**
-  - The cookie-signing secret is `AUTH_SECRET`. If it isn't set, the app generates one into `data/auth-secret` on first run.
-  - The `data/` directory is gitignored.
+## 11. Implementation sequence after approval
 
-## 7. Implementation sequence (separate commits)
-
-1. Dependencies (types only) plus the database layer and migrations; unit tests.
-2. Auth core (passwords, tokens, sessions, rate limits, email transport) and services; tests.
-3. Connect the five screens and add sign-out; route protection (proxy plus server checks).
-4. Video ownership (service, API, file route, actions, legacy handling) and server-side settings.
-5. Security and integration tests (two accounts, cross-user, expiry, reuse, brute force, redirects, cookies); responsive check of the five screens.
-6. Implementation doc, progress update.
-
-## 8. Limitations to accept
-
-- **Real emails can't be sent until you have a domain** (Resend) or configure an SMTP sender. Until then verification and reset links live in the development outbox, and the UI says so.
-- **Rate limits** are per process and reset on restart.
-- **Single-server design:** SQLite is fine for one machine; hosting with several instances would need a shared database.
-
-## 9. Future migration
-
-- **To a managed provider:** the `users` table already has `auth_provider` / `auth_subject` columns (following the design doc). A switch to Clerk or Supabase maps their subject id to the existing `usr_` id, so `ownerUserId` on runs never changes.
-- **To MongoDB or Postgres:** the same tables map one-to-one.
+1. `lib/auth` (hashing, tokens, sessions, rate limits, email) and `services/auth` on MongoDB; tests.
+2. Connect the five screens (minimal additions: verify/reset link states, sign-out in the sidebar).
+3. Route protection: `proxy` plus server checks on pages, actions and APIs.
+4. Ownership: record `videoProjects` / `generationAttempts` at creation; filter every read; server-side settings; run the legacy migration (with your approval).
+5. Security tests (two accounts, cross-user, expiry, reuse, brute force, redirects, cookies); responsive check; implementation document.
