@@ -42,6 +42,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
   - **Fixed:** a duplicate-render race; path leaks in error details; under-44 px touch targets on phones; captions spanning scene changes (K5).
   - **Blocked or not tested:** new narrated runs (credits preserved), S8–S12 (Gemini quota), human listening, other browsers.
   - **Readiness:** ready for F10. Report: [F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md). |
+| F10 — Real authentication | 🟡 Architecture proposed, awaiting approval | Recommended: self-managed auth on the Next.js server (built-in SQLite and crypto, no new dependency, $0, no account or keys); the existing Stitch screens kept; link-based verification; DB-backed HttpOnly sessions; per-user ownership of runs and settings. Real email needs a domain or SMTP sender, so a development outbox is used meanwhile (stated honestly in the UI). Provider facts verified on official pages 2026-11-03. Proposal: [F10_AUTHENTICATION_ARCHITECTURE.md](auth/F10_AUTHENTICATION_ARCHITECTURE.md). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -122,6 +123,14 @@ Decisions needed from you:
 
 ## Changelog
 
+- **2026-11-03** — F10 phase 1–2: architecture inspection and provider evaluation, [docs/auth/F10_AUTHENTICATION_ARCHITECTURE.md](auth/F10_AUTHENTICATION_ARCHITECTURE.md).
+  - **Inspected:** the five Stitch screens (backed by a demo mock), no database (run folders), no sessions or ownership, F7 settings in localStorage, and the design docs (`users` / `ownerUserId` model).
+  - **Verified on official pages:**
+    - Clerk free: 50k retained users, but production needs your own domain, and custom flows verify by code.
+    - Supabase free: built-in email only to team members at 2/hour; projects pause after 7 idle days.
+    - Resend free: needs a verified domain.
+  - **Compatibility checked:** `node:sqlite` (SQLite 3.53) and scrypt work on Node 24.19; the Next.js build compiles them (type package update needed); Next.js 16 `proxy` runs on Node.
+  - **Recommendation:** self-managed. Awaiting your approval before implementation. No code changed.
 - **2026-11-03** — F9 end-to-end QA, integration testing and stability. Report: [docs/qa/F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md).
   - **Bugs found and fixed:**
     - B1 `d9f6904`: two simultaneous Generate requests started two renders; fixed with a start lock taken before the first await.
