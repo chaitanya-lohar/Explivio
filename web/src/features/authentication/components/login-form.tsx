@@ -67,7 +67,7 @@ export function LoginForm() {
           onChange={(e) => update("password", e.target.value)}
           error={form.errors.password}
           labelAside={
-            <Link href="/forgot-password" className="rounded-[4px] text-meta font-semibold text-[#c7bfff] hover:text-foreground">
+            <Link href="/forgot-password" className="inline-flex items-center rounded-[4px] text-meta font-semibold text-[#c7bfff] hover:text-foreground max-sm:min-h-11">
               Forgot password?
             </Link>
           }

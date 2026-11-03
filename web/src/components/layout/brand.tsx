@@ -11,7 +11,7 @@ export interface BrandProps {
 
 export function Brand({ compact = false, className }: BrandProps) {
   return (
-    <Link href="/" aria-label={`${appConfig.name} home`} className={cn("flex items-center gap-3 rounded-control", className)}>
+    <Link href="/" aria-label={`${appConfig.name} home`} className={cn("flex min-h-11 items-center gap-3 rounded-control", className)}>
       <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-control bg-gradient-to-br from-primary to-secondary text-primary-foreground">
         <Sparkles className="size-5" />
       </span>
