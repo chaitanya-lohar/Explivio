@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-02
+Last updated: 2026-11-03
 
 Tracks progress against the milestones in [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx). Newest entries go at the top of the changelog.
 
@@ -37,6 +37,11 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
   - **Storage:** one versioned record in this browser's `localStorage`, read safely field by field, behind `usePreferences()`. It syncs across tabs and can later be replaced by a backend.
   - **Creation flow:** Home, Create and Configure start from the saved defaults. A choice made for one video wins for that video only. The generation request is unchanged.
   - **Tests:** 8 unit tests; 41/41 browser checks (the Generate payload verified through the mock service, so no paid calls). |
+| F9 — End-to-end QA and stability | ✅ Done (about 95%) | **Full journey validated** on a production build against the real pipeline service with a stub CLI (no API calls).
+  - **Results:** browser journey 62/62, responsive 64/64 (5 widths × 11 pages), My Videos 53/53, Settings 41/41; root tests 63/63, web tests 27/27; lint, both typechecks and the build pass; gallery passes; 22 of 27 existing videos pass the validator (the 5 failures are pre-fix baselines and demos).
+  - **Fixed:** a duplicate-render race; path leaks in error details; under-44 px touch targets on phones; captions spanning scene changes (K5).
+  - **Blocked or not tested:** new narrated runs (credits preserved), S8–S12 (Gemini quota), human listening, other browsers.
+  - **Readiness:** ready for F10. Report: [F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -117,6 +122,19 @@ Decisions needed from you:
 
 ## Changelog
 
+- **2026-11-03** — F9 end-to-end QA, integration testing and stability. Report: [docs/qa/F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md).
+  - **Bugs found and fixed:**
+    - B1 `d9f6904`: two simultaneous Generate requests started two renders; fixed with a start lock taken before the first await.
+    - B2 `d9f6904`: error details leaked parts of paths containing spaces.
+    - B3 `44340ba`: touch targets under 44 px on phones.
+    - B4 / K5 `ac8214b`: caption cues spanning scene changes.
+  - **New tests:**
+    - Integration tests for the real pipeline service using a stub CLI in a temporary root (`web/tests/pipeline-service.test.ts`; concurrency, failures, quotas, retry, stale runs, invalid ids, redaction).
+    - A cue-split unit test.
+    - A 90 s storyboard fixture using all six M7 templates (rendered silently to 87 s; all checks pass).
+  - **Executed:** root 63/63, web 27/27, browser journey 62/62, responsive 64/64, My Videos 53/53, Settings 41/41, gallery, video validator over all 27 videos, lint, typechecks and build.
+  - **Known issues:** K1–K4 deferred with reasons; K6/K7 blocked by free-tier limits; K8 needs a person.
+  - **Usage:** 0 Gemini calls, 0 ElevenLabs characters (705 left). $0.
 - **2026-11-02** — M7 evaluation and report, [docs/quality/M7_EVALUATION.md](quality/M7_EVALUATION.md).
   - **Silent run:** 7 of 12 topics with real Gemini planning and renders, no narration. Areas: astronomy, earth science, geology, history/technology, technology.
     - All 7 succeeded, within duration, and passed every script check.
