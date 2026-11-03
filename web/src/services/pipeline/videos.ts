@@ -50,7 +50,7 @@ interface Manifest {
 }
 
 // Child processes started by this server, shared across route handlers, actions and pages.
-const store = globalThis as typeof globalThis & { __explivioRuns?: Map<string, ChildProcess> };
+const store = globalThis as typeof globalThis & { __explivioRuns?: Map<string, ChildProcess>; __explivioStarting?: boolean };
 const running = (store.__explivioRuns ??= new Map());
 
 const PIPELINE_STAGE: Record<string, GenerationStage> = { storyboard: "plan", narration: "narration", render: "render" };
@@ -88,7 +88,9 @@ function safeDetail(message: string | undefined): string | undefined {
   if (!message) return undefined;
   const firstLine = message.split("\n")[0];
   const cleaned = firstLine
-    .replace(/[A-Za-z]:\\[^\s"']+|\/(?:[\w.-]+\/)+[\w.-]+/g, "[path]")
+    // Folder names may contain spaces ("D:\Namaste AI\Project 2\…", "C:\Program Files\…"): match whole paths, not up
+    // to the first space (F9: the tail of such paths leaked). Over-redacting a few words is acceptable; leaking isn't.
+    .replace(/[A-Za-z]:\\(?:[^\\\n"'<>|]*\\)*[^\s\\"'<>|]*|\/(?:[^/\s"'<>|]+(?: [^/\s"'<>|]+)*\/)+[^\s/"'<>|]*/g, "[path]")
     .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[redacted]")
     .trim();
   return cleaned.length > 240 ? `${cleaned.slice(0, 237)}…` : cleaned;
@@ -153,8 +155,19 @@ function listRunIds(): string[] {
 /** Starts the CLI for a request. Only one video renders at a time: rendering is CPU-heavy on a single machine. */
 async function startRun(request: VideoRequest): Promise<VideoProject> {
   if (!existsSync(TSX_CLI)) throw new Error("The video pipeline isn't installed. Run `npm install` in the repository root.");
-  if (listRunIds().some((id) => readRun(id)?.status === "generating")) throw new PipelineBusyError();
+  // The lock is taken before the first await: two requests arriving together (two tabs, a direct POST) used to both
+  // pass the busy check before either run folder existed, and start two renders (F9).
+  if (store.__explivioStarting || listRunIds().some((id) => readRun(id)?.status === "generating")) throw new PipelineBusyError();
+  store.__explivioStarting = true;
+  try {
+    return await spawnRun(request);
+  } finally {
+    // From here the new run folder (request.json) exists, so the busy check above sees it as generating.
+    store.__explivioStarting = false;
+  }
+}
 
+async function spawnRun(request: VideoRequest): Promise<VideoProject> {
   const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
   const dir = path.join(RUNS_DIR, id);
   await mkdir(dir);
