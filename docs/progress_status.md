@@ -42,7 +42,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
   - **Fixed:** a duplicate-render race; path leaks in error details; under-44 px touch targets on phones; captions spanning scene changes (K5).
   - **Blocked or not tested:** new narrated runs (credits preserved), S8–S12 (Gemini quota), human listening, other browsers.
   - **Readiness:** ready for F10. Report: [F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md). |
-| F10 — Real authentication | 🟡 **MongoDB Atlas connected and set up (verified 2026-11-04)**; auth awaiting approval | MongoDB Atlas is the single application database. **Verified:** `db:check` ok (1.7 s); app uses the `explivio` database; a fresh cluster (no Make My Marriage data); `db:init` created 6 collections and 10 indexes; live test passed (unique email and validators enforced by Atlas); web tests 39/39. **To tighten:** the database user has `atlasAdmin`; reduce it to `readWrite` on `explivio`. **Not done:** R2, the auth flows (awaiting approval). Docs: [architecture](auth/F10_AUTHENTICATION_ARCHITECTURE.md), [foundation report](auth/F10_DATABASE_FOUNDATION_REPORT.md). |
+| F10 — Real authentication | ✅ Built and tested (about 90%); old-video migration awaits your approval | Self-managed accounts on MongoDB Atlas (`explivio` database). The five Stitch screens are connected: sign-up, verification link, sign-in/out, forgot/reset. Sessions are HttpOnly cookies with server-side records; protected pages and APIs; per-user ownership of videos and settings (another user's video answers 404). **Tests:** web 56/56 (incl. live Atlas), browser end-to-end 70/70 with two accounts, pipeline 63/63; typecheck, lint and build pass. **Limits:** emails go to a local outbox until there's a domain; the F6/F7/F9 browser suites still need a login step. Docs: [implementation](auth/F10_AUTHENTICATION_IMPLEMENTATION.md), [architecture](auth/F10_AUTHENTICATION_ARCHITECTURE.md). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -114,19 +114,34 @@ Decisions needed from you:
 
 ## Next steps
 
-1. **Database: done (2026-11-04).** Optional tidy-ups in `web/.env.local` and Atlas:
-   - **Least privilege:** in Atlas, go to Security → Database Access → `explivio_app` → Edit, and change the role from `atlasAdmin` to *Only read and write to a specific database*: `explivio`. Then run `npm run db:check` again.
-   - **Unused lines:** remove `NODE_ENV` and `APP_ENV` from `web/.env.local` (not used by Explivio; harmless today).
-   - **Cloudflare R2 (still pending):** create the `explivio-assets` bucket and a token limited to it; the R2 settings will be added after comparing with Make My Marriage's R2 code (shared without secrets).
-2. **Approve the F10 authentication build** (sign-up, verification, login/logout, reset, route protection, per-user ownership), after the connection is verified.
-3. **Finish the M7 evaluation:** run the 5 pending silent topics (S8 prime numbers, S9 photosynthesis, S10 vaccines, S11 sky blue, S12 Roman Empire) with `npm run m7:silent S8,S9,S10,S11,S12` after the Gemini free-tier daily reset. It stops by itself on a quota error. Then fix the known issues K1–K5 in [M7_EVALUATION.md](quality/M7_EVALUATION.md): hook template, scaling small diagrams, the whole structure in one scene, a flow naming lint, and captions split at scene changes.
-4. **Illustrations (decision needed):** the report recommends programmatic visuals. The optional local image-model trial (at most 9 images, about 3 GB on D:) waits for your yes/no. See [M7_ILLUSTRATION_OPTIONS.md](quality/M7_ILLUSTRATION_OPTIONS.md).
-5. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
-6. **Merge `dev` into `main`** through a pull request once you've reviewed it.
-7. Remaining UI: the leftover Stitch fixes.
+1. **Claim your existing videos (needs your approval):**
+   - Sign up at http://localhost:3000/signup with your email. The verification link is in the newest file in `data/outbox/` (no email is sent).
+   - Add `EXPLIVIO_LEGACY_OWNER_EMAIL=<that email>` to `web/.env.local`.
+   - Run `npm run db:legacy-ownership` in `web/` (dry run). After you approve: `npm run db:legacy-ownership -- --apply`.
+2. **Database tidy-ups:**
+   - In Atlas, reduce the `explivio_app` role from `atlasAdmin` to readWrite on `explivio`.
+   - Remove `NODE_ENV` and `APP_ENV` from `web/.env.local`.
+   - Cloudflare R2: create the `explivio-assets` bucket and a token limited to it; to be compared with Make My Marriage's R2 code, shared without secrets.
+3. **Real email (optional, needs a domain):** set `EMAIL_TRANSPORT=resend`, `RESEND_API_KEY` and `EMAIL_FROM` on a verified domain.
+4. **Update the F6/F7/F9 browser suites** to sign in first, and re-run them.
+5. **Finish the M7 evaluation:** run the 5 pending silent topics (S8 prime numbers, S9 photosynthesis, S10 vaccines, S11 sky blue, S12 Roman Empire) with `npm run m7:silent S8,S9,S10,S11,S12` after the Gemini free-tier daily reset. It stops by itself on a quota error. Then fix the known issues K1–K5 in [M7_EVALUATION.md](quality/M7_EVALUATION.md): hook template, scaling small diagrams, the whole structure in one scene, a flow naming lint, and captions split at scene changes.
+6. **Illustrations (decision needed):** the report recommends programmatic visuals. The optional local image-model trial (at most 9 images, about 3 GB on D:) waits for your yes/no. See [M7_ILLUSTRATION_OPTIONS.md](quality/M7_ILLUSTRATION_OPTIONS.md).
+7. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
+8. **Merge `dev` into `main`** through a pull request once you've reviewed it.
+9. Remaining UI: the leftover Stitch fixes.
 
 ## Changelog
 
+- **2026-11-04** — F10 authentication built on MongoDB Atlas.
+  - **Commits:**
+    - `34cb666` core: scrypt, hashed single-use tokens, DB sessions, rate limits, honest email outbox, account service; 14 tests incl. live Atlas.
+    - `d2dce3e` integration: the five Stitch screens connected; proxy plus server-side session checks; sign out; per-user ownership of videos (recorded in `videoProjects` before any render; 404 for others) and of settings (moved from localStorage to the account).
+  - **Tests:**
+    - Web 56/56 with live Atlas (throwaway databases dropped).
+    - Browser end-to-end 70/70 on a production build with two accounts (isolation, cookies, brute force, open redirect, reset revoking sessions, logout invalidation, 5 screens × 5 widths).
+    - Pipeline 63/63; typecheck, lint and build pass.
+  - **Pending:** the old-video migration (dry run: 20 runs) needs your account and approval.
+  - $0; no Gemini or ElevenLabs calls.
 - **2026-11-04** — MongoDB Atlas connected and set up.
   - **Connection:** you added the Atlas connection string to `web/.env.local`; `npm run db:check` reports ok (1.7 s), and the app uses the `explivio` database.
   - **Isolation:** the cluster held only system databases, so no Make My Marriage data is present.
