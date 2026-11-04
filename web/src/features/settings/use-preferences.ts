@@ -1,68 +1,57 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
-import { DEFAULT_PREFERENCES, parsePreferences, serializePreferences, type VideoPreferences } from "@/lib/preferences";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { DEFAULT_PREFERENCES, type VideoPreferences } from "@/lib/preferences";
+import { loadPreferencesAction, savePreferencesAction } from "./actions";
 
 /*
- * Preference storage for this single-user app: the browser's localStorage, one small JSON record, no secrets.
- * Everything goes through this hook, so it can later be swapped for a backend without touching the forms.
+ * The signed-in user's defaults for new videos, stored in their account (MongoDB) since F10 (F7 kept them in the
+ * browser). Loaded fresh on every mount — no cross-page cache — so after a sign-out and another sign-in in the same
+ * tab, one account's settings can never show for another.
  */
-
-const STORAGE_KEY = "explivio.preferences";
-const listeners = new Set<() => void>();
-let cache: { raw: string | null; value: VideoPreferences } | null = null;
-
-function readRaw(): string | null {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null; // storage blocked (private mode, policy): behave as if nothing is saved
-  }
-}
-
-/** Same object for the same stored text, as useSyncExternalStore requires. */
-function getSnapshot(): VideoPreferences {
-  const raw = readRaw();
-  if (!cache || cache.raw !== raw) cache = { raw, value: parsePreferences(raw) };
-  return cache.value;
-}
-
-const getServerSnapshot = () => DEFAULT_PREFERENCES as VideoPreferences;
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  // Another tab changed the settings.
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) listener();
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
-function write(preferences: VideoPreferences): boolean {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, serializePreferences(preferences));
-    return true;
-  } catch {
-    return false;
-  } finally {
-    listeners.forEach((listener) => listener());
-  }
-}
-
-const subscribeNoop = () => () => {};
 
 /**
- * Saved defaults for new videos. `ready` is false during server rendering and hydration, when the saved values
- * aren't known yet (the product defaults are shown meanwhile). `save` and `reset` return false if storage failed.
+ * `ready` is false until the saved values arrive (product defaults are shown meanwhile). `save` and `reset` update
+ * the screen at once, then resolve to whether the server stored the change (on failure the screen goes back).
  */
 export function usePreferences() {
-  const preferences = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const ready = useSyncExternalStore(subscribeNoop, () => true, () => false);
-  const save = useCallback((patch: Partial<VideoPreferences>) => write({ ...getSnapshot(), ...patch }), []);
-  const reset = useCallback(() => write({ ...DEFAULT_PREFERENCES }), []);
+  const [preferences, setState] = useState<VideoPreferences>({ ...DEFAULT_PREFERENCES });
+  const [ready, setReady] = useState(false);
+  // The latest values, for saves that build on them; updated together with the state (never during render).
+  const latest = useRef<VideoPreferences>({ ...DEFAULT_PREFERENCES });
+  const setPreferences = useCallback((next: VideoPreferences) => {
+    latest.current = next;
+    setState(next);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadPreferencesAction()
+      .then((loaded) => !cancelled && setPreferences(loaded))
+      .catch(() => {})
+      .finally(() => !cancelled && setReady(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [setPreferences]);
+
+  const store = useCallback(async (next: VideoPreferences): Promise<boolean> => {
+    const previous = latest.current;
+    setPreferences(next);
+    try {
+      const result = await savePreferencesAction(next);
+      if (result.ok && result.preferences) {
+        setPreferences(result.preferences);
+        return true;
+      }
+    } catch {
+      /* falls through to the rollback */
+    }
+    setPreferences(previous);
+    return false;
+  }, [setPreferences]);
+
+  const save = useCallback((patch: Partial<VideoPreferences>) => store({ ...latest.current, ...patch }), [store]);
+  const reset = useCallback(() => store({ ...DEFAULT_PREFERENCES }), [store]);
   return { preferences, ready, save, reset };
 }

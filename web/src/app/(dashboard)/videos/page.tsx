@@ -9,6 +9,7 @@ import { buttonStyles } from "@/components/ui/button";
 import { VideoLibrary } from "@/features/video-library/video-library";
 import { VideoLibraryErrorBoundary } from "@/features/video-library/video-library-error";
 import { VideoLibrarySkeleton } from "@/features/video-library/video-library-skeleton";
+import { requireUser } from "@/lib/auth/session";
 import { listVideos } from "@/services";
 
 export const metadata: Metadata = { title: "My Videos" };
@@ -16,7 +17,8 @@ export const metadata: Metadata = { title: "My Videos" };
 async function LibraryContent() {
   // Statuses change while videos generate, so read the library per request.
   await connection();
-  return <VideoLibrary videos={await listVideos()} />;
+  const user = await requireUser();
+  return <VideoLibrary videos={await listVideos(user.id)} />;
 }
 
 export default function VideosPage() {

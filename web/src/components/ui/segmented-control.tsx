@@ -24,7 +24,7 @@ export function SegmentedControl<T extends string | number>({ name, legend, opti
         <label
           key={option.value}
           className={cn(
-            "relative flex h-9 min-w-14 cursor-pointer items-center justify-center rounded-[8px] px-3 text-body font-medium whitespace-nowrap text-muted transition-colors duration-150 hover:text-foreground",
+            "relative flex h-11 min-w-14 cursor-pointer sm:h-9 items-center justify-center rounded-[8px] px-3 text-body font-medium whitespace-nowrap text-muted transition-colors duration-150 hover:text-foreground",
             "has-checked:bg-primary/15 has-checked:text-[#c7bfff] has-checked:ring-1 has-checked:ring-primary",
             "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-primary",
           )}

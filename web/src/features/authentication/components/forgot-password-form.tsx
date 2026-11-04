@@ -16,7 +16,7 @@ import { useAuthForm } from "./use-auth-form";
 export function ForgotPasswordForm() {
   const [values, setValues] = useState<ForgotPasswordRequest>({ email: "" });
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ text: string; outbox: boolean }>({ text: "", outbox: false });
   const form = useAuthForm<ForgotPasswordRequest>({
     idPrefix: "forgot",
     fieldOrder: ["email"],
@@ -24,7 +24,7 @@ export function ForgotPasswordForm() {
     submit: requestPasswordResetAction,
     onSuccess: (r) => {
       setSentTo(maskEmail(values.email));
-      setNotice(r.message);
+      setNotice({ text: r.message, outbox: r.delivery === "outbox" });
     },
   });
 
@@ -32,8 +32,8 @@ export function ForgotPasswordForm() {
     return (
       <>
         <AuthHeader align="center" icon={<MailCheck />} title="Check your email" description={<>If an account exists for <span className="font-medium text-foreground">{sentTo}</span>, you&apos;ll receive a link to reset your password.</>} />
-        <AuthMessage variant="info" title="Demo only">
-          {notice}
+        <AuthMessage variant="info" title={notice.outbox ? "No email was sent" : undefined}>
+          {notice.text}
         </AuthMessage>
         <div className="mt-6 flex flex-col gap-3">
           <Link href="/login" className={buttonStyles({ size: "lg", fullWidth: true })}>

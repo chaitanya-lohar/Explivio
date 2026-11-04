@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-02
+Last updated: 2026-11-03
 
 Tracks progress against the milestones in [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx). Newest entries go at the top of the changelog.
 
@@ -23,7 +23,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 | M4 — Captions / timing | 🟡 Partial | Word-level captions and scene cuts follow measured audio in the API video. The generic `generate` path still times scene changes from storyboard estimates. |
 | M5 — End-to-end | 🟡 Built, not evaluated | `npm run generate -- "<topic>" --duration 60` runs prompt → storyboard → narration → MP4 with a manifest. The "8/10 runs succeed" target has not been measured. |
 | M6 — Evaluation | ✅ Done (subset) | 10 real videos evaluated (5 baseline, 5 after fixes) with automated checks and a 100-point scorecard. Average score 69.2 → **82.8**, pass rate 2/5 → **5/5**. Fixed: duration (word budget), scene sync (narration-aligned, drift 4.0 s → 0.9 s), visuals (storyboard-driven diagrams, no production notes or demo copy), Gemini timeouts/skip/retry. All four caption/music configs verified in the MP4. 16 regression tests (`npm test`). 7 longer topics (60–90 s) not run: ElevenLabs credits. Reports: [docs/quality/](quality/). |
-| M7 — Visual Intelligence | 🟡 In progress (steps 1–2 of 8 done) | Reusable animated templates (orbit, cycle, layers, flow, timeline, comparison) chosen and filled from a backward-compatible storyboard v2; reveal-on-mention timing; script quality (character budget, hooks, endings); a 3-topic AI illustration experiment before any integration; silent evaluation mode to save ElevenLabs credits. Plan: [docs/plans/M7_VISUAL_INTELLIGENCE_PLAN.md](plans/M7_VISUAL_INTELLIGENCE_PLAN.md). |
+| M7 — Visual Intelligence | ✅ Implemented (evaluation 7/12 topics; 5 pending Gemini quota) | **Results:** visual 16.3/20 on 7 silent topics and 16.5 on 2 narrated videos (M6 12.2); overall 88.5/100 on 2 narrated videos (M6 82.8); sync drift 0.00 s; every automated check passes. Scored by Claude's frame review plus measurement, not a human review. Report: [M7_EVALUATION.md](quality/M7_EVALUATION.md). | Reusable animated templates (orbit, cycle, layers, flow, timeline, comparison) chosen and filled from a backward-compatible storyboard v2; reveal-on-mention timing; script quality (character budget, hooks, endings); a 3-topic AI illustration experiment before any integration; silent evaluation mode to save ElevenLabs credits. Plan: [docs/plans/M7_VISUAL_INTELLIGENCE_PLAN.md](plans/M7_VISUAL_INTELLIGENCE_PLAN.md). |
 | Dashboard design (Stitch) | 🟡 Mostly fixed | 11 screens reviewed against [the design doc](Explivio_Dashboard_Design_Document_v1.docx). Two Stitch edit passes (2026-10-31) removed invented credits, quotas, plans, expiry periods and unsupported options, added mobile layouts, and fixed contrast and labels. Stitch keeps each edit as a new screen version. QA: 6 of 11 screens pass every check. Outstanding: Progress screen still contains "Synthesizing frame…" text, List view scrolls sideways by 188px at phone width, three secondary labels at 4.30–4.46:1 contrast (target 4.5). |
 | Dashboard frontend — F1 foundation | ✅ Done | `web/`: Next.js 16, React 19, TypeScript strict, Tailwind 4. Design tokens, 13 UI primitives, app shell (desktop sidebar, tablet icon sidebar, mobile drawer), 7 placeholder routes, mock service layer. `lint`, `tsc` and `build` pass. Live QA at 1440/820/390px: no overflow, contrast, label or small-text issues. See [web/README.md](../web/README.md). |
 | Dashboard frontend — F2 Home + creation flow | ✅ Done | Home dashboard (prompt composer, ideas, recent videos), Create (step 1) and Settings (step 2) with a summary panel. Generate runs a server action against the mock service, then moves to `/generating`. Prompt and settings travel in the URL. Functional test 19/19 (validation, idea fill, URL hand-off, defaults, summary updates, loading state, server action, edge cases). Layout QA 6 pages × 3 widths clean. Generation progress itself is F3. |
@@ -37,6 +37,12 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
   - **Storage:** one versioned record in this browser's `localStorage`, read safely field by field, behind `usePreferences()`. It syncs across tabs and can later be replaced by a backend.
   - **Creation flow:** Home, Create and Configure start from the saved defaults. A choice made for one video wins for that video only. The generation request is unchanged.
   - **Tests:** 8 unit tests; 41/41 browser checks (the Generate payload verified through the mock service, so no paid calls). |
+| F9 — End-to-end QA and stability | ✅ Done (about 95%) | **Full journey validated** on a production build against the real pipeline service with a stub CLI (no API calls).
+  - **Results:** browser journey 62/62, responsive 64/64 (5 widths × 11 pages), My Videos 53/53, Settings 41/41; root tests 63/63, web tests 27/27; lint, both typechecks and the build pass; gallery passes; 22 of 27 existing videos pass the validator (the 5 failures are pre-fix baselines and demos).
+  - **Fixed:** a duplicate-render race; path leaks in error details; under-44 px touch targets on phones; captions spanning scene changes (K5).
+  - **Blocked or not tested:** new narrated runs (credits preserved), S8–S12 (Gemini quota), human listening, other browsers.
+  - **Readiness:** ready for F10. Report: [F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md). |
+| F10 — Real authentication | ✅ Built and tested (about 90%); old-video migration awaits your approval | Self-managed accounts on MongoDB Atlas (`explivio` database). The five Stitch screens are connected: sign-up, verification link, sign-in/out, forgot/reset. Sessions are HttpOnly cookies with server-side records; protected pages and APIs; per-user ownership of videos and settings (another user's video answers 404). **Tests:** web 56/56 (incl. live Atlas), browser end-to-end 70/70 with two accounts, pipeline 63/63; typecheck, lint and build pass. **Limits:** emails go to a local outbox until there's a domain; the F6/F7/F9 browser suites still need a login step. Docs: [implementation](auth/F10_AUTHENTICATION_IMPLEMENTATION.md), [architecture](auth/F10_AUTHENTICATION_ARCHITECTURE.md). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -108,15 +114,154 @@ Decisions needed from you:
 
 ## Next steps
 
-1. **M7 — Visual Intelligence** (approved, in progress). **Next: step 3**: orbit, layers and timeline templates (then remove the fallback for them in `RENDERED_TEMPLATES`), followed by step 4: teach the Gemini prompt to fill `visual`. Overall: storyboard v2 schema ✅ → six animated templates (flow, cycle, comparison ✅; orbit, layers, timeline next) → template selection in the prompt → script-quality checks → silent evaluation → 2–3 narrated validation videos. See [the M7 plan](plans/M7_VISUAL_INTELLIGENCE_PLAN.md).
-2. **Zero-cost illustration investigation:** programmatic scene art plus an options report on local/open-source models (hardware and licences checked). Optional local trial only with your go-ahead.
-3. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
-4. **Real authentication with Clerk**, after a pricing and integration review.
-5. **Merge `dev` into `main`** through a pull request once you've reviewed it.
-6. Remaining UI: the leftover Stitch fixes.
+1. **Claim your existing videos (needs your approval):**
+   - Sign up at http://localhost:3000/signup with your email. The verification link is in the newest file in `data/outbox/` (no email is sent).
+   - Add `EXPLIVIO_LEGACY_OWNER_EMAIL=<that email>` to `web/.env.local`.
+   - Run `npm run db:legacy-ownership` in `web/` (dry run). After you approve: `npm run db:legacy-ownership -- --apply`.
+2. **Database tidy-ups:**
+   - In Atlas, reduce the `explivio_app` role from `atlasAdmin` to readWrite on `explivio`.
+   - Remove `NODE_ENV` and `APP_ENV` from `web/.env.local`.
+   - Cloudflare R2: create the `explivio-assets` bucket and a token limited to it; to be compared with Make My Marriage's R2 code, shared without secrets.
+3. **Real email (optional, needs a domain):** set `EMAIL_TRANSPORT=resend`, `RESEND_API_KEY` and `EMAIL_FROM` on a verified domain.
+4. **Update the F6/F7/F9 browser suites** to sign in first, and re-run them.
+5. **Finish the M7 evaluation:** run the 5 pending silent topics (S8 prime numbers, S9 photosynthesis, S10 vaccines, S11 sky blue, S12 Roman Empire) with `npm run m7:silent S8,S9,S10,S11,S12` after the Gemini free-tier daily reset. It stops by itself on a quota error. Then fix the known issues K1–K5 in [M7_EVALUATION.md](quality/M7_EVALUATION.md): hook template, scaling small diagrams, the whole structure in one scene, a flow naming lint, and captions split at scene changes.
+6. **Illustrations (decision needed):** the report recommends programmatic visuals. The optional local image-model trial (at most 9 images, about 3 GB on D:) waits for your yes/no. See [M7_ILLUSTRATION_OPTIONS.md](quality/M7_ILLUSTRATION_OPTIONS.md).
+7. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
+8. **Merge `dev` into `main`** through a pull request once you've reviewed it.
+9. Remaining UI: the leftover Stitch fixes.
 
 ## Changelog
 
+- **2026-11-04** — F10 authentication built on MongoDB Atlas.
+  - **Commits:**
+    - `34cb666` core: scrypt, hashed single-use tokens, DB sessions, rate limits, honest email outbox, account service; 14 tests incl. live Atlas.
+    - `d2dce3e` integration: the five Stitch screens connected; proxy plus server-side session checks; sign out; per-user ownership of videos (recorded in `videoProjects` before any render; 404 for others) and of settings (moved from localStorage to the account).
+  - **Tests:**
+    - Web 56/56 with live Atlas (throwaway databases dropped).
+    - Browser end-to-end 70/70 on a production build with two accounts (isolation, cookies, brute force, open redirect, reset revoking sessions, logout invalidation, 5 screens × 5 widths).
+    - Pipeline 63/63; typecheck, lint and build pass.
+  - **Pending:** the old-video migration (dry run: 20 runs) needs your account and approval.
+  - $0; no Gemini or ElevenLabs calls.
+- **2026-11-04** — MongoDB Atlas connected and set up.
+  - **Connection:** you added the Atlas connection string to `web/.env.local`; `npm run db:check` reports ok (1.7 s), and the app uses the `explivio` database.
+  - **Isolation:** the cluster held only system databases, so no Make My Marriage data is present.
+  - **Setup:** `npm run db:init` created 6 collections and 10 indexes (re-run safe).
+  - **Tests:** the live Atlas test passed (duplicate email and plaintext password rejected by the database; the test database was dropped). Web tests 39/39; build passes.
+  - **To tighten:** the database user's role is `atlasAdmin`; reduce it to `readWrite` on `explivio`.
+  - **Not printed or committed:** the connection string or password.
+  - $0.
+- **2026-11-03** — Database configuration attempt.
+  - **Added by you:** `web/.env.local` (gitignored).
+  - **Connection test:** failed safely. `MONGODB_URI` points to a local MongoDB on this laptop where nothing is running, not Atlas, so `npm run db:check` reports `unavailable` and nothing was written. The connection string was never printed.
+  - **Also found:** settings copied from Make My Marriage that Explivio doesn't use (including its secrets).
+  - **Next step:** the database configuration is now step 1 above. MongoDB stays marked as not verified.
+- **2026-11-03** — F10 MongoDB Atlas foundation, commit `cc36dad`.
+  - **Decision change:** MongoDB Atlas is the single database, replacing the SQLite proposal (withdrawn, never committed).
+  - **Built:**
+    - the official `mongodb` 7.8 driver (no Mongoose);
+    - `lib/db`: config validation, credential redaction, one shared client, safe errors;
+    - six collections with indexes (unique email, ownership, TTL) and `$jsonSchema` validators;
+    - `/api/health/db` and a startup configuration warning;
+    - scripts `db:check`, `db:init` and `db:legacy-ownership` (dry run: 20 runs without an owner; not executed).
+  - **Tests:** 13 new (12 pass offline, 1 live-Atlas test skipped). Web suite 38 pass / 1 skipped; typecheck, lint and build pass.
+  - **Atlas free tier verified on official pages:** 0.5 GB, 100 ops/s, 500 connections, paused after 30 idle days.
+  - **Not done:** no cluster is configured yet (your action); the authentication flows wait for approval.
+  - $0.
+- **2026-11-03** — F10 phase 1–2: architecture inspection and provider evaluation, [docs/auth/F10_AUTHENTICATION_ARCHITECTURE.md](auth/F10_AUTHENTICATION_ARCHITECTURE.md).
+  - **Inspected:** the five Stitch screens (backed by a demo mock), no database (run folders), no sessions or ownership, F7 settings in localStorage, and the design docs (`users` / `ownerUserId` model).
+  - **Verified on official pages:**
+    - Clerk free: 50k retained users, but production needs your own domain, and custom flows verify by code.
+    - Supabase free: built-in email only to team members at 2/hour; projects pause after 7 idle days.
+    - Resend free: needs a verified domain.
+  - **Compatibility checked:** `node:sqlite` (SQLite 3.53) and scrypt work on Node 24.19; the Next.js build compiles them (type package update needed); Next.js 16 `proxy` runs on Node.
+  - **Recommendation:** self-managed. Awaiting your approval before implementation. No code changed.
+- **2026-11-03** — F9 end-to-end QA, integration testing and stability. Report: [docs/qa/F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md).
+  - **Bugs found and fixed:**
+    - B1 `d9f6904`: two simultaneous Generate requests started two renders; fixed with a start lock taken before the first await.
+    - B2 `d9f6904`: error details leaked parts of paths containing spaces.
+    - B3 `44340ba`: touch targets under 44 px on phones.
+    - B4 / K5 `ac8214b`: caption cues spanning scene changes.
+  - **New tests:**
+    - Integration tests for the real pipeline service using a stub CLI in a temporary root (`web/tests/pipeline-service.test.ts`; concurrency, failures, quotas, retry, stale runs, invalid ids, redaction).
+    - A cue-split unit test.
+    - A 90 s storyboard fixture using all six M7 templates (rendered silently to 87 s; all checks pass).
+  - **Executed:** root 63/63, web 27/27, browser journey 62/62, responsive 64/64, My Videos 53/53, Settings 41/41, gallery, video validator over all 27 videos, lint, typechecks and build.
+  - **Known issues:** K1–K4 deferred with reasons; K6/K7 blocked by free-tier limits; K8 needs a person.
+  - **Usage:** 0 Gemini calls, 0 ElevenLabs characters (705 left). $0.
+- **2026-11-02** — M7 evaluation and report, [docs/quality/M7_EVALUATION.md](quality/M7_EVALUATION.md).
+  - **Silent run:** 7 of 12 topics with real Gemini planning and renders, no narration. Areas: astronomy, earth science, geology, history/technology, technology.
+    - All 7 succeeded, within duration, and passed every script check.
+    - 27 of 28 scenes used a template; all six M7 templates were chosen where appropriate.
+    - Visual average 16.3/20 (review).
+  - **Gemini quota:** the free-tier quota was hit (429) on topic S8. The batch paused itself and S8–S12 are pending.
+  - **Narrated:** 2 videos (Moon phases, water cycle) reusing those real storyboards, using 918 of the remaining ElevenLabs characters.
+    - Every automated check passes, scene drift is 0.00 s, and totals are 90 and 87 (average 88.5, target 85).
+  - **Scoring:** Claude's review of the frames plus automated measurement; not a human review, and narration is provisional.
+  - **Fixed during the evaluation:**
+    - two runs had used two corrections (an unknown `visual_type` now falls back, and a second invalid output fails);
+    - hub spokes crossed the centre label;
+    - the orbiter glide was too slow for late mentions.
+  - **Tooling:** `--storyboard-file`, `rerender.mjs`, `contact-sheet.mjs`, `npm run m7:silent`, and the batch runner's exact credit estimate.
+  - **Known issues K1–K8** are listed in the report.
+  - $0.
+- **2026-11-02** — M7 step 7: zero-cost illustration options report, [docs/quality/M7_ILLUSTRATION_OPTIONS.md](quality/M7_ILLUSTRATION_OPTIONS.md).
+  - **Hardware re-checked:** Ryzen 5 5625U, integrated Radeon (512 MB reserved, no CUDA), 15.3 GB RAM, D: 157 GB free, no real Python.
+  - **Compared** on image quality, educational accuracy, hardware fit, speed, storage, licence and complexity: programmatic SVG; SD 1.5-class and few-step models (ONNX DirectML or stable-diffusion.cpp Vulkan); SDXL/FLUX (don't fit); free-licence photo libraries; paid APIs (skipped).
+  - **Recommendation:** keep programmatic visuals, which are accurate by construction, and add hand-built SVG illustrations next.
+  - **Paused:** the optional local model trial (at most 9 images, about 3 GB on D:) awaits your go-ahead. Nothing was downloaded or installed. Also added `npm run m7:silent`, the evaluation batch runner.
+- **2026-11-02** — M7 step 6 (mode): silent evaluation.
+  - **Usage:** `npx tsx src/cli.ts "<topic>" --duration 30 --silent` runs the real pipeline (Gemini storyboard, script and visual checks, templates, Remotion render) without any narration call.
+  - **Timing:** deterministic and labelled `estimated` (`pipeline/silent-timing.ts`). Each scene lasts its estimated speech time; inside a scene, words are spaced by letters plus sentence and clause pauses. Captions are built from those estimates.
+  - **Separation from user-facing generation:**
+    - Runs go to `runs/m7-silent/<id>`, so they never appear in My Videos.
+    - Every frame shows a "SILENT EVALUATION · estimated timing" badge, and the manifest records `mode: "silent-evaluation"`.
+    - The web app never passes `--silent`.
+  - **Provider loading:** the narration provider is now loaded only on the narrated path.
+  - **Validator:** `validate-run` accepts `m7-silent/<id>` and skips the audio checks for these runs.
+  - **Tests:** 4 new (60 total), including a CLI run with a network guard that proves no ElevenLabs request is made.
+  - **Smoke render:** the rain demo, rendered silently in 71 s, passed the validator's video, caption and blank-frame checks.
+  - $0.
+- **2026-11-02** — M7 step 5: script quality checks (`pipeline/script-checks.ts`, pure).
+  - **Length:** judged by estimated speech time instead of word count.
+    - The model is 0.0635 s per letter + 0.65 s per sentence end + 0.5 s per clause break, fitted on 12 real ElevenLabs runs. Mean error 2.8%, worst 9.2% (`npx tsx scripts/m7/speech-model-check.mjs`); characters alone give 4.6% / 13.6%.
+    - Measured speech is about 15 characters per second, not the 17.5 the plan assumed.
+    - Gemini gets a character target: 30 s → about 435 characters, 60 s → 885, 90 s → 1,335, each ±10%, aiming 1 s under the requested length for the end tail.
+  - **Hook:** scene 1 must open with a concrete question or a specific fact. Greetings, "in this video", "today we will" and "let's dive in / break it down" are rejected.
+  - **Ending:** one clear takeaway of at least 10 words that names the topic, with no sign-off or call to action, and not cut off.
+  - **Relevance and structure:** topic terms (request words like "explain" and "beginners" ignored) must appear in the script. Scenes must be numbered 1..n, not trivially short, and not repeated, and their estimates must add up to roughly the length.
+  - **Repair:** all failures join the single repair together with the visual problems. Leftovers are recorded as warnings in `manifest.storyboard.scriptChecks`. A script still off-topic fails with a clear message rather than rendering.
+  - **Calibration on 10 past real storyboards:** 3 length misses, 2 generic hooks ("Let's break it down simply!", which M6 flagged by hand) and 2 weak endings were caught.
+  - **Tests:** 9 new (56 total). $0, no API calls.
+- **2026-11-02** — M7 step 4: Gemini now plans each scene's visual, and plans that contradict their narration are caught.
+  - **Prompt** (`pipeline/visual-guide.ts`): every scene gets a `visual` and a `purpose`. The template is chosen from the relationship the scene explains:
+    - one-way sequence → flow; repeating loop → cycle; body around body → orbit, with the orbited body as center;
+    - stacked or nested parts → layers; chronology → timeline, with dates only when stated; contrast or likeness → comparison;
+    - plus steps, hub, checklist and focus. Labels must use words the narration says.
+  - **Lint** (`pipeline/visual-lint.ts`, pure) catches:
+    - labels that are never spoken;
+    - an orbit with no orbital motion in the narration (for example a road route);
+    - the Sun at the centre of a Moon orbit, or planets orbiting the Moon or Earth;
+    - a cycle that never repeats;
+    - timeline dates out of order or not stated in the narration;
+    - comparisons that don't name both sides;
+    - one template for more than 60% of scenes.
+  - **Repair:** problems join the single existing repair request, alongside the length problem. Scenes still wrong afterwards render the M6 fallback.
+  - **Run record:** `manifest.storyboard.visualPlan` has, per scene, the template, source, purpose, animation sequence, which labels are spoken (the timing references) and any problems.
+  - **Compatibility:** older storyboards still parse and render through the fallback.
+  - **Tests:** 13 new (47 total). No API calls yet; live validation happens in step 6.
+- **2026-11-02** — M7 step 3: orbit, layers and timeline templates; all six M7 templates now render.
+  - **Orbit** (`templates/orbit.tsx`, pure geometry in `pipeline/orbit-geometry.ts`):
+    - The central body sits in the middle, and the orbiter travels a dashed path counterclockwise.
+    - An optional light source comes from the left, and the orbiter's lit half faces it, so Moon phases read correctly: new moon between Earth and the Sun, full moon opposite.
+    - Markers are numbered on the path and listed in a legend. When the narration mentions a marker, the orbiter glides forward to it.
+    - Body colours come from the label only. Which body is central comes from the plan and is checked in step 4.
+  - **Layers:** stacked bands (atmosphere, network layers) or nested rings (Earth's interior, a cell), with notes and the active layer highlighted. Concentric rings replace a side-by-side layout, which doesn't fit a 9:16 frame.
+  - **Timeline:** a vertical axis that grows to each event as it's mentioned. Dates are now optional in the schema, so they're shown only when the storyboard gives them.
+  - **Schema:** an optional `purpose` field (the scene's educational objective) on every template.
+  - **Gallery:** `npm run m7:gallery` covers 18 scenes, including Moon phases, Earth–Sun, the atmosphere, Earth's interior, and dated and undated timelines. It now fails if any finished still has an empty diagram area (a small PNG decoder in `scripts/m7/png.mjs`, no dependency).
+  - **Fixed during review:** layer fills were invisible, because an `rgb()` colour had an alpha suffix appended.
+  - **Tests:** 6 new (34 total).
+  - $0, no API calls.
 - **2026-11-02** — F7 Settings module (web).
   - **Preferences** `{durationSeconds, voice, captions, music}`, stored as `{version: 1, ...}` under `explivio.preferences`:
     - `lib/preferences.ts`: defaults that equal `appConfig` (60s, female, captions on, music off); a parser that never throws and falls back field by field for missing, corrupt, outdated or hand-edited data; `chosenOr`.

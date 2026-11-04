@@ -10,3 +10,6 @@ mcp.json
 .mcp.json
 *.log
 runs/.gemini-health.json
+
+# Local auth data (F10): generated secret and development email outbox
+data/

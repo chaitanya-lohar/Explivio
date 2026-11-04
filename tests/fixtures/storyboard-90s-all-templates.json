@@ -1,0 +1,199 @@
+{
+  "title": "How Our Planet Works",
+  "target_audience": "Curious beginners",
+  "learning_objective": "See Earth as one system: its orbit, its layers, its moving water and rock, how we learned this, and the difference between weather and climate.",
+  "scenes": [
+    {
+      "scene_id": 1,
+      "narration_text": "Did you know Earth travels about 940 million kilometres around the Sun every year? One full orbit takes about 365 days, and that steady trip is what gives us our calendar year.",
+      "on_screen_text": "One trip around the Sun",
+      "visual_type": "diagram",
+      "visual_description": "Earth orbiting the Sun.",
+      "key_elements": [
+        "Sun",
+        "Earth",
+        "365 days"
+      ],
+      "estimated_duration_seconds": 12,
+      "visual": {
+        "template": "orbit",
+        "purpose": "Show that one year is one orbit of the Sun.",
+        "center": "Sun",
+        "orbiter": "Earth",
+        "markers": [
+          "One full orbit: 365 days"
+        ]
+      }
+    },
+    {
+      "scene_id": 2,
+      "narration_text": "Beneath our feet, Earth is built in layers. A thin rocky crust sits on a thick, hot mantle, which surrounds a liquid outer core and, at the very centre, a solid inner core.",
+      "on_screen_text": "Earth is built in layers",
+      "visual_type": "diagram",
+      "visual_description": "Earth's interior as nested rings.",
+      "key_elements": [
+        "Crust",
+        "Mantle",
+        "Outer core",
+        "Inner core"
+      ],
+      "estimated_duration_seconds": 13,
+      "visual": {
+        "template": "layers",
+        "purpose": "Show the four main layers, outermost first.",
+        "arrangement": "nested",
+        "layers": [
+          {
+            "label": "Crust"
+          },
+          {
+            "label": "Mantle"
+          },
+          {
+            "label": "Outer core"
+          },
+          {
+            "label": "Inner core"
+          }
+        ]
+      }
+    },
+    {
+      "scene_id": 3,
+      "narration_text": "On the surface, water never stops moving. It evaporates from the sea, condenses into clouds, falls as rain, and flows back to the sea, so the cycle repeats again and again.",
+      "on_screen_text": "Water moves in a cycle",
+      "visual_type": "process",
+      "visual_description": "The water cycle as a loop.",
+      "key_elements": [
+        "Evaporates",
+        "Condenses",
+        "Falls as rain",
+        "Flows back"
+      ],
+      "estimated_duration_seconds": 13,
+      "visual": {
+        "template": "cycle",
+        "purpose": "Show that the stages repeat in a loop.",
+        "stages": [
+          "Evaporates",
+          "Condenses",
+          "Falls as rain",
+          "Flows back"
+        ]
+      }
+    },
+    {
+      "scene_id": 4,
+      "narration_text": "That moving water also shapes the land. Rain runs off hills into streams, streams join into rivers, and rivers carry sand and mud all the way down to the sea, slowly carving valleys over thousands of years.",
+      "on_screen_text": "Rivers carry the land away",
+      "visual_type": "process",
+      "visual_description": "Water flowing from hills to the sea.",
+      "key_elements": [
+        "Hills",
+        "Streams",
+        "Rivers",
+        "Sea"
+      ],
+      "estimated_duration_seconds": 12,
+      "visual": {
+        "template": "flow",
+        "purpose": "Show the one-way path of water and sediment.",
+        "nodes": [
+          "Hills",
+          "Streams",
+          "Rivers",
+          "Sea"
+        ],
+        "edge_labels": [
+          "runs off",
+          "join",
+          "carry sand and mud"
+        ]
+      }
+    },
+    {
+      "scene_id": 5,
+      "narration_text": "Our picture of Earth took centuries to build. In 1543, Copernicus put the Sun at the centre. In 1912, Wegener suggested that continents drift, and in the 1960s, plate tectonics explained how.",
+      "on_screen_text": "How we learned it",
+      "visual_type": "process",
+      "visual_description": "Key discoveries in order.",
+      "key_elements": [
+        "1543 Copernicus",
+        "1912 Wegener",
+        "1960s plate tectonics"
+      ],
+      "estimated_duration_seconds": 14,
+      "visual": {
+        "template": "timeline",
+        "purpose": "Show three discoveries in the order they happened.",
+        "events": [
+          {
+            "when": "1543",
+            "label": "Copernicus: Sun at the centre"
+          },
+          {
+            "when": "1912",
+            "label": "Wegener: continents drift"
+          },
+          {
+            "when": "1960s",
+            "label": "Plate tectonics explains how"
+          }
+        ]
+      }
+    },
+    {
+      "scene_id": 6,
+      "narration_text": "Weather and climate are easy to mix up. Weather is what the sky does today, like a rainy afternoon. Climate is the pattern over thirty years or more, like rainy winters, so one cold day does not change it.",
+      "on_screen_text": "Weather vs climate",
+      "visual_type": "analogy",
+      "visual_description": "Weather and climate side by side.",
+      "key_elements": [
+        "Weather: today",
+        "Climate: 30+ years"
+      ],
+      "estimated_duration_seconds": 13,
+      "visual": {
+        "template": "comparison",
+        "purpose": "Contrast short-term weather with long-term climate.",
+        "relation": "vs",
+        "left": {
+          "title": "Weather",
+          "points": [
+            "What the sky does today",
+            "A rainy afternoon"
+          ]
+        },
+        "right": {
+          "title": "Climate",
+          "points": [
+            "The pattern over thirty years",
+            "Rainy winters"
+          ]
+        }
+      }
+    },
+    {
+      "scene_id": 7,
+      "narration_text": "So our planet is a moving, layered system where water and rock are always on the move, and understanding it helps us read the planet's past and future.",
+      "on_screen_text": "One connected planet",
+      "visual_type": "summary",
+      "visual_description": "Key points.",
+      "key_elements": [
+        "A moving planet",
+        "Layered inside",
+        "Water and rock on the move"
+      ],
+      "estimated_duration_seconds": 12,
+      "visual": {
+        "template": "checklist",
+        "purpose": "Leave one clear takeaway.",
+        "items": [
+          "A moving planet",
+          "Layered inside",
+          "Water and rock on the move"
+        ]
+      }
+    }
+  ]
+}

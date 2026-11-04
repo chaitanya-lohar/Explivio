@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, KeyRound } from "lucide-react";
 import { AuthBackLink } from "@/components/auth/auth-footer";
 import { AuthHeader } from "@/components/auth/auth-header";
 import { AuthMessage } from "@/components/auth/auth-message";
-import { Button } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PasswordInput } from "@/components/ui/password-input";
-import { resetPasswordAction } from "../actions";
+import { checkResetLinkAction, resetPasswordAction } from "../actions";
 import type { ResetPasswordRequest } from "../types";
 import { validateResetPassword } from "../validation";
 import { PasswordChecklist } from "./password-checklist";
@@ -17,9 +19,20 @@ import { useAuthForm } from "./use-auth-form";
 
 export function ResetPasswordForm() {
   const router = useRouter();
-  // A future backend will put a one-time token in the reset link; it is passed through untouched.
+  // One-time token from the emailed link (never logged); checked before the form is shown.
   const token = useSearchParams().get("token") ?? undefined;
+  const [link, setLink] = useState<{ state: "checking" | "ok" | "bad"; message: string }>({ state: token ? "checking" : "bad", message: token ? "" : "This page needs the reset link from your email." });
   const [values, setValues] = useState({ password: "", confirmPassword: "" });
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    checkResetLinkAction(token)
+      .then((r) => !cancelled && setLink(r.ok ? { state: "ok", message: "" } : { state: "bad", message: r.message }))
+      .catch(() => !cancelled && setLink({ state: "ok", message: "" })); // offline: let the submit report the problem
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
   const form = useAuthForm<ResetPasswordRequest>({
     idPrefix: "reset",
     fieldOrder: ["password", "confirmPassword"],
@@ -31,6 +44,27 @@ export function ResetPasswordForm() {
     setValues((v) => ({ ...v, [field]: value }));
     form.clearError(field);
   };
+
+  if (link.state === "checking") {
+    return (
+      <>
+        <AuthHeader align="center" icon={<KeyRound />} title="Create a new password" description="Checking your reset link…" />
+        <Skeleton className="h-64" />
+      </>
+    );
+  }
+  if (link.state === "bad" || form.formCode === "token") {
+    return (
+      <>
+        <AuthHeader align="center" icon={<KeyRound />} title="This reset link can't be used" description="Reset links work once and expire after 30 minutes." />
+        <AuthMessage variant="error">{form.formCode === "token" ? form.formError : link.message}</AuthMessage>
+        <Link href="/forgot-password" className={buttonStyles({ size: "lg", fullWidth: true, className: "mt-6" })}>
+          Get a new reset link
+        </Link>
+        <AuthBackLink />
+      </>
+    );
+  }
 
   return (
     <>

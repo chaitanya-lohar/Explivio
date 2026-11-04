@@ -1,17 +1,31 @@
 // M7 template gallery: renders still frames of every animated template from a synthetic storyboard, locally.
 // No API calls (no Gemini, no ElevenLabs): word timings are simulated from each scene's narration text.
 // Usage: npm run m7:gallery [-- --only=flow,cycle]   → runs/m7-gallery/*.png (gitignored)
-import {mkdir, writeFile} from 'node:fs/promises';
+// Also a render smoke test: every "end" still must show content in the diagram area, otherwise the command fails.
+import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {bundle} from '@remotion/bundler';
 import {renderStill, selectComposition} from '@remotion/renderer';
+import {decodePng, litShare} from './png.mjs';
 
-const SCENE_SECONDS = 8;
+const SCENE_SECONDS = 9;
 const WORD_SECONDS = 0.36;
 const FPS = 30;
 
 const v1 = {visual_description: 'gallery', estimated_duration_seconds: SCENE_SECONDS};
 const SCENES = [
+  {name: 'orbit-moon-phases', on_screen_text: 'Why the Moon has phases', visual_type: 'diagram', key_elements: [], narration_text: 'The Moon orbits Earth while sunlight always lights half of it. At new moon we see the dark side, at first quarter half, at full moon all of it, then last quarter.',
+    visual: {template: 'orbit', center: 'Earth', orbiter: 'Moon', light: 'Sunlight', markers: ['New moon', 'First quarter', 'Full moon', 'Last quarter']}},
+  {name: 'orbit-earth-sun', on_screen_text: 'One trip around the Sun', visual_type: 'diagram', key_elements: [], narration_text: 'Earth travels around the Sun once a year. In the north, June brings summer and December brings winter.',
+    visual: {template: 'orbit', center: 'Sun', orbiter: 'Earth', markers: ['June: northern summer', 'December: northern winter']}},
+  {name: 'layers-atmosphere', on_screen_text: 'Layers of the atmosphere', visual_type: 'diagram', key_elements: [], narration_text: 'From the top down: the exosphere fades into space, the thermosphere holds auroras, the mesosphere burns up meteors, the stratosphere holds the ozone layer, and the troposphere is where weather happens.',
+    visual: {template: 'layers', layers: [{label: 'Exosphere', note: 'Fades into space'}, {label: 'Thermosphere', note: 'Auroras'}, {label: 'Mesosphere', note: 'Meteors burn up'}, {label: 'Stratosphere', note: 'Ozone layer'}, {label: 'Troposphere', note: 'Weather happens here'}]}},
+  {name: 'layers-earth-nested', on_screen_text: 'Inside the Earth', visual_type: 'diagram', key_elements: [], narration_text: 'Earth has a thin rocky crust, a thick hot mantle, a liquid outer core and a solid inner core.',
+    visual: {template: 'layers', arrangement: 'nested', layers: [{label: 'Crust'}, {label: 'Mantle'}, {label: 'Outer core'}, {label: 'Inner core'}]}},
+  {name: 'timeline-internet', on_screen_text: 'How the internet grew', visual_type: 'process', key_elements: [], narration_text: 'In 1969 ARPANET sent its first message. In 1983 networks adopted TCP/IP. In 1991 the World Wide Web went public, and in 2007 smartphones put it in our pockets.',
+    visual: {template: 'timeline', events: [{when: '1969', label: 'ARPANET sends first message'}, {when: '1983', label: 'Networks adopt TCP/IP'}, {when: '1991', label: 'World Wide Web goes public'}, {when: '2007', label: 'Smartphones go mainstream'}]}},
+  {name: 'timeline-undated', on_screen_text: 'How a star is born', visual_type: 'process', key_elements: [], narration_text: 'A cloud of gas collapses, a protostar forms, fusion ignites, and a main-sequence star shines for billions of years.',
+    visual: {template: 'timeline', events: [{label: 'Gas cloud collapses'}, {label: 'Protostar forms'}, {label: 'Fusion ignites'}, {label: 'Main-sequence star'}]}},
   {name: 'flow', on_screen_text: 'How a web page reaches you', visual_type: 'process', key_elements: [], narration_text: 'Your browser sends a request through your home router, across internet cables, to a web server.',
     visual: {template: 'flow', nodes: ['Your browser', 'Home router', 'Internet cables', 'Web server'], edge_labels: ['sends a request', '', 'arrives at']}},
   {name: 'flow-6', on_screen_text: 'From field to plate', visual_type: 'process', key_elements: [], narration_text: 'Farmers grow wheat, mills grind flour, bakeries bake bread, trucks deliver loaves, shops sell them, and families eat.',
@@ -50,6 +64,7 @@ console.log(`Bundling… (${scenes.length} scenes)`);
 const serveUrl = await bundle({entryPoint: path.resolve('src/video/index.tsx')});
 const composition = await selectComposition({serveUrl, id: 'ExplainerVideo', inputProps: props});
 composition.durationInFrames = seconds * FPS;
+const failures = [];
 for (const [i, scene] of scenes.entries()) {
   // "mid": about half the narration spoken; "end": everything revealed.
   const words = scene.narration_text.split(/\s+/).length;
@@ -57,7 +72,12 @@ for (const [i, scene] of scenes.entries()) {
   for (const [when, frame] of Object.entries(frames)) {
     const output = path.join(outDir, `${scene.name}-${when}.png`);
     await renderStill({serveUrl, composition, inputProps: props, frame, output, imageFormat: 'png'});
-    console.log(`  ${path.relative(process.cwd(), output)}`);
+    // Diagram area (below the headline, above the footer): must not be empty once everything is revealed.
+    const share = litShare(decodePng(await readFile(output)), {x0: 70, y0: 560, x1: 1010, y1: 1380});
+    const blank = when === 'end' && share < 0.01;
+    if (blank) failures.push(scene.name);
+    console.log(`  ${path.relative(process.cwd(), output)}  diagram content ${(share * 100).toFixed(1)}%${blank ? '  ← BLANK' : ''}`);
   }
 }
-console.log('Done.');
+if (failures.length) { console.error(`Blank diagram in: ${failures.join(', ')}`); process.exit(1); }
+console.log(`Done: ${scenes.length} scenes, none blank.`);

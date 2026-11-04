@@ -10,6 +10,8 @@ import type { AuthResponse, FieldErrors } from "../types";
 export function useAuthForm<T>(options: { idPrefix: string; fieldOrder: readonly (keyof T)[]; validate: (values: T) => FieldErrors<T>; submit: (values: T) => Promise<AuthResponse<T>>; onSuccess: (response: Extract<AuthResponse<T>, { ok: true }>) => void }) {
   const [errors, setErrors] = useState<FieldErrors<T>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  // The server's error code (e.g. "unverified"), so a form can offer the right next step.
+  const [formCode, setFormCode] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const focusFirst = (fieldErrors: FieldErrors<T>) => {
@@ -20,6 +22,7 @@ export function useAuthForm<T>(options: { idPrefix: string; fieldOrder: readonly
   function handleSubmit(values: T) {
     if (pending) return;
     setFormError(null);
+    setFormCode(null);
     const clientErrors = options.validate(values);
     setErrors(clientErrors);
     if (Object.keys(clientErrors).length) return focusFirst(clientErrors);
@@ -32,6 +35,7 @@ export function useAuthForm<T>(options: { idPrefix: string; fieldOrder: readonly
           focusFirst(response.fieldErrors);
         }
         setFormError(response.message);
+        setFormCode(response.code);
       } catch {
         setFormError("We couldn't reach the server. Check your connection and try again.");
       }
@@ -43,5 +47,5 @@ export function useAuthForm<T>(options: { idPrefix: string; fieldOrder: readonly
     if (errors[field]) setErrors((current) => ({ ...current, [field]: undefined }));
   }
 
-  return { errors, formError, pending, handleSubmit, clearError };
+  return { errors, formError, formCode, pending, handleSubmit, clearError };
 }

@@ -28,8 +28,11 @@ export interface ResetPasswordRequest {
 /** Per-field messages keyed by form field name. Never contains password values. */
 export type FieldErrors<T> = Partial<Record<keyof T, string>>;
 
-export type AuthErrorCode = "validation" | "invalid_credentials" | "unavailable" | "unknown";
+export type AuthErrorCode = "validation" | "invalid_credentials" | "unverified" | "rate_limited" | "token" | "unavailable" | "unknown";
+
+/** How an email was handled: really sent, or (development) saved to the local outbox and NOT sent. */
+export type EmailDelivery = "resend" | "outbox";
 
 export type AuthResponse<T = unknown> =
-  | { ok: true; message: string }
+  | { ok: true; message: string; redirectTo?: string; delivery?: EmailDelivery }
   | { ok: false; code: AuthErrorCode; message: string; fieldErrors?: FieldErrors<T> };

@@ -1,5 +1,5 @@
 // M6 automated checks for one pipeline run: file, streams, duration tolerance, audio, music presence, captions, blank frames.
-// Usage: node scripts/m6/validate-run.mjs <runId> [--json]
+// Usage: node scripts/m6/validate-run.mjs <runId> [--json]   (silent evaluation runs: m7-silent/<runId>; audio checks are skipped)
 import {execFileSync} from 'node:child_process';
 import {existsSync, readFileSync, statSync, mkdtempSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -111,7 +111,10 @@ export function validateRun(runId) {
   const seconds = Number(probe.format.duration);
   add('video codec h264', v?.codec_name === 'h264', v?.codec_name);
   add('resolution 1080x1920 (9:16)', v?.width === 1080 && v?.height === 1920, `${v?.width}x${v?.height}`);
-  add('audio stream present', Boolean(a), a?.codec_name ?? 'none');
+  // Silent evaluation runs (M7) have no narration by design: report that instead of failing the audio checks.
+  const silentRun = manifest.mode === 'silent-evaluation';
+  if (silentRun) add('silent evaluation run (no narration; timings estimated)', null, 'audio checks skipped');
+  else add('audio stream present', Boolean(a), a?.codec_name ?? 'none');
 
   const requested = Number(request?.durationSeconds ?? manifest.targetDurationSeconds);
   const duration = durationCheck(requested, seconds);
@@ -122,12 +125,14 @@ export function validateRun(runId) {
   const narrationEnd = cues.length ? cues[cues.length - 1].end : null;
   if (narrationEnd !== null) add('narration ends before the video does', narrationEnd <= seconds + 0.05, `speech ends ${narrationEnd.toFixed(2)}s, video ${seconds.toFixed(2)}s, tail ${(seconds - narrationEnd).toFixed(2)}s`);
 
-  const windows = audioWindows(video, 0.1);
+  const windows = silentRun || !a ? [] : audioWindows(video, 0.1);
   const speechish = windows.filter((w) => cues.some((c) => w.t + 0.05 >= c.start && w.t + 0.05 <= c.end));
   const speechDb = speechish.length ? db(Math.sqrt(speechish.reduce((s, w) => s + w.rms ** 2, 0) / speechish.length)) : null;
-  add('narration is audible (mean level > -40 dBFS)', speechDb !== null && speechDb > -40, speechDb !== null ? `${speechDb.toFixed(1)} dBFS` : 'no cues');
-  const silentSpeech = speechish.filter((w) => db(w.rms) < -60).length / Math.max(1, speechish.length);
-  add('no long silence inside narration (<15% silent windows)', silentSpeech < 0.15, `${(silentSpeech * 100).toFixed(0)}% silent`);
+  if (!silentRun) {
+    add('narration is audible (mean level > -40 dBFS)', speechDb !== null && speechDb > -40, speechDb !== null ? `${speechDb.toFixed(1)} dBFS` : 'no cues');
+    const silentSpeech = speechish.filter((w) => db(w.rms) < -60).length / Math.max(1, speechish.length);
+    add('no long silence inside narration (<15% silent windows)', silentSpeech < 0.15, `${(silentSpeech * 100).toFixed(0)}% silent`);
+  }
 
   // Music presence: look at gaps at least 0.15s away from any caption cue.
   let gaps = windows.filter((w) => w.t > 0.5 && w.t < seconds - 1 && !cues.some((c) => w.t + 0.05 >= c.start - 0.15 && w.t + 0.05 <= c.end + 0.15));
@@ -135,7 +140,7 @@ export function validateRun(runId) {
   if (!gaps.length && narrationEnd !== null) gaps = windows.filter((w) => w.t >= narrationEnd + 0.15 && w.t <= seconds - 0.2);
   const gapDb = gaps.length ? db(Math.sqrt(gaps.reduce((s, w) => s + w.rms ** 2, 0) / gaps.length)) : null;
   const musicExpected = Boolean(props.musicPath);
-  if (gapDb === null) add(`music ${musicExpected ? 'present' : 'absent'} in pauses`, null, 'no measurable pauses');
+  if (silentRun) { /* no audio to measure */ } else if (gapDb === null) add(`music ${musicExpected ? 'present' : 'absent'} in pauses`, null, 'no measurable pauses');
   else add(`music ${musicExpected ? 'present' : 'absent'} in pauses`, musicExpected ? gapDb > -60 : gapDb < -60, `${gapDb.toFixed(1)} dBFS over ${gaps.length} pause windows`);
   if (musicExpected && speechDb !== null && gapDb !== null) add('music stays well below narration (>10 dB)', speechDb - gapDb > 10, `${(speechDb - gapDb).toFixed(1)} dB`);
 

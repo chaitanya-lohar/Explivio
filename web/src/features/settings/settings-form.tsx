@@ -21,7 +21,7 @@ type Feedback = { tone: "success" | "error"; text: string } | null;
 /** How long a save confirmation stays on screen. Errors stay until the next change. */
 const FEEDBACK_MS = 4000;
 
-/** Defaults for new videos. Each change is saved immediately in this browser and confirmed below the form. */
+/** Defaults for new videos, saved to the account straight away and confirmed in a toast. */
 export function SettingsForm() {
   const { preferences, ready, save, reset } = usePreferences();
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -34,12 +34,12 @@ export function SettingsForm() {
   }, [feedback]);
 
   function update(patch: Partial<VideoPreferences>) {
-    setFeedback(save(patch) ? { tone: "success", text: "Saved. New videos will start with these settings." } : { tone: "error", text: "Couldn't save: this browser is blocking site storage, so this choice won't be kept." });
+    void save(patch).then((ok) => setFeedback(ok ? { tone: "success", text: "Saved. New videos will start with these settings." } : { tone: "error", text: "Couldn't save your change. Check your connection and try again." }));
   }
 
   function confirmDefaults() {
     setConfirmReset(false);
-    setFeedback(reset() ? { tone: "success", text: "Defaults restored. New videos will start with the original settings." } : { tone: "error", text: "Couldn't reset: this browser is blocking site storage." });
+    void reset().then((ok) => setFeedback(ok ? { tone: "success", text: "Defaults restored. New videos will start with the original settings." } : { tone: "error", text: "Couldn't reset your settings. Check your connection and try again." }));
   }
 
   if (!ready) {
@@ -92,7 +92,7 @@ export function SettingsForm() {
         </div>
       </SettingsSection>
 
-      <SettingsSection id="reset-heading" title="Saved settings" description="Stored only in this browser on this device: duration, voice, captions and music. No account, password or personal data is stored, and nothing is sent to a server.">
+      <SettingsSection id="reset-heading" title="Saved settings" description="Saved to your Explivio account, so they follow you to any device you sign in on: duration, voice, captions and music. Only you can see or change them.">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-meta text-muted">{isDefaultPreferences(preferences) ? "You're using the default settings." : "You've changed some defaults."}</p>
           <Button variant="secondary" onClick={() => setConfirmReset(true)} disabled={isDefaultPreferences(preferences)}>

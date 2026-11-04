@@ -1,6 +1,31 @@
 # M7 — Visual Intelligence: implementation plan
 
-Status: **approved, in progress** · Branch: `dev` · Prepared 2026-11-01 · Revised 2026-11-01 for the **strict $0 policy**
+Status: **implemented; evaluation partly pending** (updated 2026-11-02) · Branch: `dev` · Prepared 2026-11-01 · Revised 2026-11-01 for the **strict $0 policy**
+
+## Status (2026-11-02)
+
+| Step | State | Evidence |
+|---|---|---|
+| 1. Storyboard v2 format | ✅ | `schemas/visual.ts`, `pipeline/visual-plan.ts` |
+| 2. Flow, cycle, comparison + reveal-on-mention | ✅ | `video/templates/`, `pipeline/mention-timing.ts` |
+| 3. Orbit, layers, timeline | ✅ | Gallery: 18 scenes, non-blank check (`npm run m7:gallery`) |
+| 4. Relationship-based selection, lint, one repair | ✅ | `pipeline/visual-guide.ts`, `pipeline/visual-lint.ts`; 96% of evaluated scenes use a template |
+| 5. Script quality (speech-time length, hook, ending, relevance) | ✅ | `pipeline/script-checks.ts`; speech model mean error 2.8% (12 runs), +4.6% / −0.7% on the 2 new narrated runs |
+| 6. Silent evaluation mode | ✅ mode; 🟡 run 7/12 | `--silent`; S8–S12 pending (Gemini free-tier quota hit, 429) |
+| 7. Zero-cost illustration options | ✅ report; ⏸ local trial awaits approval | [M7_ILLUSTRATION_OPTIONS.md](../quality/M7_ILLUSTRATION_OPTIONS.md) |
+| 8. Narrated validation + report | ✅ 2 videos (credits allow 2) | [M7_EVALUATION.md](../quality/M7_EVALUATION.md) |
+
+**Results:**
+- **Visual:** 16.3/20 on 7 silent topics and 16.5 on the 2 narrated videos (target 16; M6 12.2).
+- **Overall:** 88.5/100 on 2 narrated videos (target 85; M6 82.8).
+- **No regression:** sync drift 0.00 s, durations within tolerance, every automated check passes.
+- **Scoring source:** Claude's frame review plus automated measurements, not a human review.
+
+**Deviations from this plan:**
+- **Length:** measured speech is about 15 characters/s (not 17.5). Length uses a fitted letters + pauses model instead of characters alone.
+- **Layers:** use stacked bands or concentric rings rather than a side-by-side layout, which suits 9:16.
+- **Timeline:** dates are optional, so they're never forced.
+- **Narrated runs:** reused real Gemini storyboards from silent runs, because the Gemini quota was exhausted.
 
 ## 1. Goal
 
