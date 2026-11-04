@@ -42,7 +42,7 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
   - **Fixed:** a duplicate-render race; path leaks in error details; under-44 px touch targets on phones; captions spanning scene changes (K5).
   - **Blocked or not tested:** new narrated runs (credits preserved), S8–S12 (Gemini quota), human listening, other browsers.
   - **Readiness:** ready for F10. Report: [F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md). |
-| F10 — Real authentication | 🟡 Database foundation built; **database configuration pending**; auth awaiting approval | MongoDB Atlas is the single application database (the SQLite proposal was withdrawn, never committed). **Done:** official `mongodb` driver, one cached client, config validation and redaction, collections/indexes/validators (`db:init`), health check, legacy-ownership dry run (20 runs, not executed). **2026-11-03 connection attempt:** `web/.env.local` exists, but its `MONGODB_URI` points to a local MongoDB on this laptop (nothing running), not Atlas, so `npm run db:check` reports `unavailable`; the file also contains settings copied from Make My Marriage. **Not verified yet:** MongoDB connection, R2. Docs: [architecture](auth/F10_AUTHENTICATION_ARCHITECTURE.md), [foundation report](auth/F10_DATABASE_FOUNDATION_REPORT.md). |
+| F10 — Real authentication | 🟡 **MongoDB Atlas connected and set up (verified 2026-11-04)**; auth awaiting approval | MongoDB Atlas is the single application database. **Verified:** `db:check` ok (1.7 s); app uses the `explivio` database; a fresh cluster (no Make My Marriage data); `db:init` created 6 collections and 10 indexes; live test passed (unique email and validators enforced by Atlas); web tests 39/39. **To tighten:** the database user has `atlasAdmin`; reduce it to `readWrite` on `explivio`. **Not done:** R2, the auth flows (awaiting approval). Docs: [architecture](auth/F10_AUTHENTICATION_ARCHITECTURE.md), [foundation report](auth/F10_DATABASE_FOUNDATION_REPORT.md). |
 | Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
 | Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
@@ -114,12 +114,10 @@ Decisions needed from you:
 
 ## Next steps
 
-1. **Add the database configuration (you, in `web/.env.local`; never paste values in chat):**
-   - **Atlas:** set `MONGODB_URI` to your Atlas `mongodb+srv://….mongodb.net` connection string, using a dedicated Explivio database user with readWrite on the `explivio` database only, so Make My Marriage's data stays unreachable. Optionally set `MONGODB_DB=explivio`.
-   - **Remove settings copied from Make My Marriage that Explivio doesn't use:** `NODE_ENV` (it interferes with Next.js), `PORT`, `APP_ENV`, `WORKER_HEALTH_PORT`, `REDIS_URL`, `LOG_LEVEL`, `OPENAPI_DOCS_ENABLED`, `WEB_APP_URL`, `SMTP_PORT`, and the Make My Marriage secrets `JWT_ACCESS_SECRET` and `INVITATION_TOKEN_KEYS`.
-   - **Email:** decide later whether to reuse Make My Marriage's Resend settings (`RESEND_API_KEY`, `EMAIL_FROM`); this would link the two apps.
-   - **Cloudflare R2:** create the `explivio-assets` bucket and a token limited to it, then add the R2 settings. Variable names will be confirmed after comparing with Make My Marriage's R2 code (to be shared without secrets).
-   - **Check and set up:** run `npm run db:check` in `web/`; it should print `MongoDB: ok`. Then `npm run db:init`, and the live test (`MONGODB_URI_TEST`).
+1. **Database: done (2026-11-04).** Optional tidy-ups in `web/.env.local` and Atlas:
+   - **Least privilege:** in Atlas, go to Security → Database Access → `explivio_app` → Edit, and change the role from `atlasAdmin` to *Only read and write to a specific database*: `explivio`. Then run `npm run db:check` again.
+   - **Unused lines:** remove `NODE_ENV` and `APP_ENV` from `web/.env.local` (not used by Explivio; harmless today).
+   - **Cloudflare R2 (still pending):** create the `explivio-assets` bucket and a token limited to it; the R2 settings will be added after comparing with Make My Marriage's R2 code (shared without secrets).
 2. **Approve the F10 authentication build** (sign-up, verification, login/logout, reset, route protection, per-user ownership), after the connection is verified.
 3. **Finish the M7 evaluation:** run the 5 pending silent topics (S8 prime numbers, S9 photosynthesis, S10 vaccines, S11 sky blue, S12 Roman Empire) with `npm run m7:silent S8,S9,S10,S11,S12` after the Gemini free-tier daily reset. It stops by itself on a quota error. Then fix the known issues K1–K5 in [M7_EVALUATION.md](quality/M7_EVALUATION.md): hook template, scaling small diagrams, the whole structure in one scene, a flow naming lint, and captions split at scene changes.
 4. **Illustrations (decision needed):** the report recommends programmatic visuals. The optional local image-model trial (at most 9 images, about 3 GB on D:) waits for your yes/no. See [M7_ILLUSTRATION_OPTIONS.md](quality/M7_ILLUSTRATION_OPTIONS.md).
@@ -129,6 +127,14 @@ Decisions needed from you:
 
 ## Changelog
 
+- **2026-11-04** — MongoDB Atlas connected and set up.
+  - **Connection:** you added the Atlas connection string to `web/.env.local`; `npm run db:check` reports ok (1.7 s), and the app uses the `explivio` database.
+  - **Isolation:** the cluster held only system databases, so no Make My Marriage data is present.
+  - **Setup:** `npm run db:init` created 6 collections and 10 indexes (re-run safe).
+  - **Tests:** the live Atlas test passed (duplicate email and plaintext password rejected by the database; the test database was dropped). Web tests 39/39; build passes.
+  - **To tighten:** the database user's role is `atlasAdmin`; reduce it to `readWrite` on `explivio`.
+  - **Not printed or committed:** the connection string or password.
+  - $0.
 - **2026-11-03** — Database configuration attempt.
   - **Added by you:** `web/.env.local` (gitignored).
   - **Connection test:** failed safely. `MONGODB_URI` points to a local MongoDB on this laptop where nothing is running, not Atlas, so `npm run db:check` reports `unavailable` and nothing was written. The connection string was never printed.

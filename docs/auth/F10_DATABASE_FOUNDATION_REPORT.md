@@ -13,7 +13,17 @@ Date: 2026-11-03 · Branch: `dev` · Commit: `cc36dad` · Spend: **$0**
 
 ## 2. Atlas configuration status
 
-**Not yet configured, and that's the outstanding user action (§8).** The code is ready and tested offline. The real connection is **not verified**, so MongoDB is *not* marked complete.
+**Configured and verified 2026-11-04.**
+
+| Check | Result |
+|---|---|
+| `web/.env.local` | `MONGODB_URI` is an Atlas `mongodb+srv` string on a `*.mongodb.net` host; `MONGODB_DB` is set. Values are never printed |
+| `npm run db:check` | `MongoDB: ok (1720 ms)` |
+| Database selected by the app | `explivio` |
+| Cluster contents before setup | Only `admin` and `local`: a fresh cluster, with **no Make My Marriage data in it**, so isolation holds |
+| `npm run db:init` | Created `users`, `sessions`, `emailTokens`, `videoProjects`, `generationAttempts`, `userSettings` and 10 indexes. A second run changed nothing |
+| Live Atlas test | PASS: connect, create schema, duplicate email rejected (E11000), plaintext password rejected by the validator. The throwaway `explivio_test_*` database was dropped |
+| Database user role | **`atlasAdmin`** (full cluster control). It works, but it's broader than needed: reduce it to `readWrite` on `explivio` (§8, step 2) |
 
 ## 3. Connection implementation (`web/src/lib/db/`)
 
@@ -73,9 +83,9 @@ See the architecture document §3 for the fields. In summary:
 | 9 | Health answer is only status and latency | PASS |
 | 10 | No secret leakage (redaction, safe reasons, startup message) | PASS |
 | — | Legacy ownership plan (configured, existing, verified account only; never reassigns; idempotent) | PASS |
-| — | **Live Atlas:** connect, create schema, E11000 on a duplicate email, validator rejects a plaintext password | **SKIPPED: no cluster configured** (`MONGODB_URI_TEST`) |
+| — | **Live Atlas:** connect, create schema, E11000 on a duplicate email, validator rejects a plaintext password | **PASS** (2026-11-04, against the real cluster) |
 
-- **Whole web suite:** 39 tests, **38 pass, 0 fail, 1 skipped**.
+- **Whole web suite:** 39 tests, **39 pass** with the live cluster (2026-11-04). Without `MONGODB_URI_TEST`, the live test is skipped.
 - **Other checks:** typecheck, lint and the production build pass.
 - **Scripts without a cluster:**
   - `db:check` prints `MongoDB: not_configured`.
