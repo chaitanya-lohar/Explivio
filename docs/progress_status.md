@@ -1,16 +1,70 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-03
+Last updated: 2026-11-05 (reconciled against the code and Git).
 
-Tracks progress against the milestones in [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx). Newest entries go at the top of the changelog.
+This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
-## At a glance
+## Completed
+- **M1–M7:** the pipeline (Gemini storyboard → ElevenLabs narration → Remotion render), captions, music, six animated templates. M7 is also called F8.
+- **F1–F4, auth screens, F6, F7, F9:** web app, real pipeline, My Videos, Settings, end-to-end QA.
+- **F10:** MongoDB Atlas (`explivio`: 6 collections, 10 indexes) and self-managed authentication with per-user ownership.
+  - Commits `cc36dad`, `8532210`, `a47976a`, `34cb666`, `d2dce3e`, `9be6dec`; on `main` since PR #5.
+  - Implementation verified in code on 2026-11-05; the live database was last verified on 2026-11-04.
 
-- **Video pipeline (repo root):** generates real narrated, captioned 9:16 MP4s. The "How APIs work" video is complete.
-- **Web app (`web/`):** connected to the real pipeline (F4). A prompt typed in the browser generates a real narrated, captioned MP4 with real progress, real errors and retry. It plays and downloads on the Video ready page. Generation takes about 2–5 minutes.
-- **Login and sign-up:** screens and form behaviour only. No real accounts, sign-in, sessions or emails, and the dashboard opens without logging in.
-- **Run the web app:** `cd web`, `npm install`, `npm run dev`, then open http://localhost:3000 (login at /login, sign-up at /signup).
-- **Git:** work is committed to `dev` (ahead of `main`). `main` changes only through a pull request: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
+## F10 operational closeout (before F11)
+1. **Legacy video ownership:** 20 of 21 runs have no owner.
+   - An account exists: created 2026-11-04, and one video was generated under it.
+   - `EXPLIVIO_LEGACY_OWNER_EMAIL` is not yet set.
+   - Dry run, then `--apply` **only after your approval**.
+2. **Least-privilege database user:** reduce `atlasAdmin` to `readWrite` on `explivio`. You do this in Atlas; it can't be verified from the repo.
+3. **Environment clean-up:** remove `NODE_ENV` and `APP_ENV` from `web/.env.local` (still present).
+4. **Authenticated browser regression:** re-run the F6, F7 and F9 suites with a sign-in step.
+
+## Next
+- **F11: Cloudflare R2 video storage.** Starts when you ask. It needs:
+  - the `explivio-assets` bucket;
+  - a token scoped to that bucket, saved in `web/.env.local` by you;
+  - MMM's R2 code with secrets removed.
+
+## Planned
+- F12 authentication and authorisation hardening.
+- F13 Gmail email delivery (SMTP with an App Password).
+- F14 production readiness.
+- F15 final product validation.
+
+Scope and dependencies: [ROADMAP.md](ROADMAP.md).
+
+## Optional backlog
+- M7 silent topics S8–S12 (Gemini quota).
+- Narrated evaluation after 2026-11-26.
+- Human audio review.
+- Accessibility (screen-reader) review.
+- Image-generation trial (unapproved); leftover Stitch fixes.
+
+## Current test results (2026-11-05)
+| Suite | Result | Notes |
+|---|---|---|
+| Pipeline (`npm test`, root) | 63/63 | Re-run 2026-11-05 |
+| Web (`web: npm test`) | 46 pass, 10 skipped, 0 fail | Re-run offline 2026-11-05; the 10 skipped are live-Atlas tests, which passed on 2026-11-04 (56/56) |
+| Browser end-to-end (F10) | 70/70 | 2026-11-04, production build, two accounts |
+| Typecheck, lint, build | Pass | 2026-11-04; no code has changed since |
+| F6 / F7 / F9 browser suites | 53/53, 41/41, 62/62 + 64/64 | **Historical** (before sign-in existed); need re-running with a login step |
+
+## Risks
+| Risk | Impact | Owner | Resolution |
+|---|---|---|---|
+| Videos only on the laptop disk (`runs/`, 464 MB, no cleanup) | Data loss; no cloud access; disk growth | Claude (F11, F14) | R2 storage (F11); retention policy (F14) |
+| Atlas user has `atlasAdmin` | Too much access if the URI leaks | User | Reduce to `readWrite` on `explivio` |
+| No real email | Users can't verify without access to the server's outbox | Claude (F13) | Gmail SMTP |
+| Rate limits are in memory | Reset on restart; single process only | Claude (F12) | Move to MongoDB TTL counters |
+| ElevenLabs credits about 270 characters (estimated) until 2026-11-26 | Narrated videos fail with a quota error | User | Use silent mode; wait for the reset |
+| Gemini free-tier 429s | Generation fails until the quota resets | User | Retry later; no billing |
+| Render about 2 GB of RAM; free memory dipped to 1.6 GB | Render failures; hosting cost | Claude (F14) | Separate worker; measured sizing |
+| Only Chrome tested | Unknown issues in other browsers | Claude (F15) | Cross-browser pass |
+
+## Git
+- Work on `dev`; `main` only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
+- On 2026-11-05 `main` and `dev` had the same content (F10 merged through PR #5).
 
 ## Milestones
 
@@ -43,8 +97,8 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
   - **Blocked or not tested:** new narrated runs (credits preserved), S8–S12 (Gemini quota), human listening, other browsers.
   - **Readiness:** ready for F10. Report: [F9_END_TO_END_QA_REPORT.md](qa/F9_END_TO_END_QA_REPORT.md). |
 | F10 — Real authentication | ✅ Built and tested (about 90%); old-video migration awaits your approval | Self-managed accounts on MongoDB Atlas (`explivio` database). The five Stitch screens are connected: sign-up, verification link, sign-in/out, forgot/reset. Sessions are HttpOnly cookies with server-side records; protected pages and APIs; per-user ownership of videos and settings (another user's video answers 404). **Tests:** web 56/56 (incl. live Atlas), browser end-to-end 70/70 with two accounts, pipeline 63/63; typecheck, lint and build pass. **Limits:** emails go to a local outbox until there's a domain; the F6/F7/F9 browser suites still need a login step. Docs: [implementation](auth/F10_AUTHENTICATION_IMPLEMENTATION.md), [architecture](auth/F10_AUTHENTICATION_ARCHITECTURE.md). |
-| Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. **No real authentication, sessions or route protection yet.** |
-| Real authentication | ⬜ Not started (decision needed) | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
+| Authentication UI (screens only) | ✅ Done | `(auth)` route group with its own layout (no sidebar): `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, built from the 5 Stitch auth screens after removing invented claims and QA leftovers. Forms validate on client and server and call `services/mock/auth.ts`, which checks nothing, stores nothing and sends no email; every success says so. Sign-up goes to verify-email (masked address only); reset goes to login with a confirmation. Tests: 26/26 browser checks; layout clean at 1440/1280/768/375. *(Since 2026-11-04 the mock is gone and these screens use the real F10 authentication.)* |
+| Real authentication (historical row) | ✅ Superseded by the F10 row above | Choose how accounts work: a hosted service (e.g. Clerk, Auth0, Supabase Auth) or our own backend and database. Then add real sign-up/sign-in, email verification and reset emails, sessions, sign-out, protection for the dashboard routes, and Terms/Privacy pages. The screens are ready: only `services/mock/auth.ts` needs replacing. |
 
 ## Latest outputs
 
@@ -56,14 +110,16 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 ## Known issues and constraints
 
 - **Visuals are diagrams, not illustrations (M6 O1):** relevant and synced now, but no real imagery. Biggest remaining quality gap.
-- **ElevenLabs credits nearly used:** about 1,500 characters left until 2026-11-26 (M6 used about 5,000). 90-second videos are still untested.
+- **ElevenLabs credits nearly used:** about 270 characters left (estimated) until 2026-11-26. The 2026-11-04 web video "How ChatGPT Answers Questions" used about 435 of the 705. 90-second narrated videos are still untested.
 
 - **Gemini 3.8 Flash is hanging (2026-11-01):** `gemini-3.8-flash` (and 3.7, flash-latest) didn't respond, even to a one-word prompt, while `gemini-3.6-flash` answered in about 2s. The pipeline now falls back to 3.6 on timeouts, but the wait cost about 170s per video. Recommended: set `GEMINI_MODEL=gemini-3.6-flash` in the root `.env` until 3.8 recovers.
 - **Generic video visuals are basic:** topics other than the rain and photosynthesis demos get a neutral background and storyboard-based step cards. That's correct but plain, with no illustrations. Before 2026-11-01 they wrongly reused the rain photo and rain text. Reusable visual templates (M3) are the fix.
 - **Captions-off and music-off renders not yet visually checked:** the flags are wired and verified in the render input; the real test used captions on and music on.
 - **One video at a time:** rendering is CPU-heavy on this machine. Restarting the web server while a video renders loses its live process tracking. The render continues, and a run silent for 15 minutes is marked failed.
 
-- **Auth is demo-only:** the auth screens don't sign anyone in, and the dashboard isn't protected. The sign-up terms checkbox refers to a Terms of Service and Privacy Policy that don't exist yet.
+- **Terms and Privacy pages missing:** the sign-up terms checkbox refers to a Terms of Service and Privacy Policy that don't exist yet. (Real authentication has existed since F10.)
+- **No real email yet:** verification and reset links go to `data/outbox/` (F13).
+- **Video files are local only:** `runs/` on this laptop; there's no R2 integration yet (F11).
 
 - **Indian-English voice unavailable:** ElevenLabs returns HTTP 402 for library voices through the API on the free plan. Set `ELEVENLABS_NARRATOR_VOICE_ID` after upgrading.
 - **ElevenLabs credits:** free plan, 10,000 characters per month. Each API video render uses about 700.
@@ -71,38 +127,19 @@ Tracks progress against the milestones in [Explivio_Prototype_Implementation_Pla
 - **Version warning:** Remotion warns that zod 4.6.7 is installed but it expects 4.5.4. Renders still succeed.
 - **Plain-text API key:** `mcp.json` stores the Stitch (Google) API key in plain text. It is now gitignored, but consider moving the key into an environment variable.
 - **Web: unknown video IDs return HTTP 200:** `/videos/<unknown>` renders the not-found page (with `noindex`), but streaming means the status code stays 200.
-- **Web: sidebar profile text:** the F1 brief asked for "Studio Suite" and a user role in the sidebar, which the corrected Stitch screens had removed. The code follows the brief; the role is placeholder text until accounts exist.
+- **Web: sidebar profile text:** the F1 brief asked for "Studio Suite" and a user role in the sidebar, which the corrected Stitch screens had removed. Since F10 the sidebar shows the signed-in user's name and email.
 - **Provider costs:** not yet recorded in run manifests.
 
-## Next phase
+## Earlier phase plans
 
-**Phase F4 — Connect the web app to the real video pipeline** — ✅ done 2026-11-01. Next: M6 evaluation, then real authentication (see below).
-
-Why this comes first: the prototype plan defers authentication until the core question is answered: can a prompt reliably become a useful video? Today the web app runs on mock data, so connecting it to the real pipeline is the step that proves the product.
-
-Scope:
-1. **Video service:** replace `web/src/services/mock/videos.ts` with a real implementation that starts the pipeline (`npm run generate` in the repo root) for a request (prompt, duration, voice, captions, music) and tracks the run folder.
-2. **Real progress:** report the stages the pipeline actually writes to its run manifest (storyboard → narration → render) instead of the timer-based mock.
-3. **Real results:** stream and download the rendered MP4 from `runs/`, using the same file route already built in F3. Show real failures and allow retry.
-4. **Pipeline options:** pass the user's voice, captions and music choices through to the CLI. Today the CLI takes only the topic and duration.
-5. **Run storage:** decide where run metadata lives for the prototype (for example, a JSON file per run), since there's no database yet.
-
-Done when: a prompt entered in the browser produces a real MP4 that plays and downloads in the Video ready screen, progress reflects real stages, and failures show the real error with a working retry.
-
-Then:
-- **M6 evaluation:** generate 10–20 videos from the starter prompts, score them with the plan's scorecard, and record time and cost.
-- **Real authentication:** once the approach is decided (hosted service or own backend). The screens are ready; it needs accounts, sessions, sign-out, dashboard protection and Terms/Privacy pages.
-
-Decisions needed from you:
-- Confirm F4 as the next phase, or tell me to do authentication first.
-- For authentication later: a hosted service (Clerk, Auth0, Supabase Auth) or our own backend.
+The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-01; see the changelog. Current and future phases: [ROADMAP.md](ROADMAP.md).
 
 ## Zero-cost policy (2026-11-01, non-negotiable for now)
 
 **Budget: $0.** No billing on any provider, no credit purchases, no upgrades, no paid API calls. Only free tiers within their quotas; when a quota runs out, that work pauses. Paid services are reconsidered only when we decide to prepare for public launch.
 
 - **Gemini:** free tier only. The billing status of the Google Cloud project behind the key **must be confirmed by you** in AI Studio (it isn't visible to the API key).
-- **ElevenLabs:** existing free allowance only (about 1,600 characters until 2026-11-26).
+- **ElevenLabs:** existing free allowance only (about 270 characters, estimated, until 2026-11-26).
 - **Paused / skipped:** Gemini image-generation experiments (free availability can't be verified). A local image-model trial needs your go-ahead (Python install + model download).
 
 ## Decisions (2026-11-01)
@@ -110,28 +147,31 @@ Decisions needed from you:
 - **Gemini model:** `GEMINI_MODEL=gemini-3.6-flash` applied to the local `.env` (only that line changed).
 - **Next milestone:** M7 Visual Intelligence: six programmatic templates first, then planning, script quality and silent evaluation. Illustrations are investigated at zero cost only (the earlier paid budget was withdrawn); no generated images in production until you review.
 - **Deferred:** the 90 s and remaining 7-topic evaluation, until ElevenLabs credits reset on 2026-11-26 (unless more credits are added).
-- **Authentication:** Clerk is the preferred direction for future real authentication, subject to a pricing and integration review.
+- **Authentication:** Clerk was the preferred direction at the time. *Superseded on 2026-11-03 by self-managed authentication on MongoDB Atlas (see [DECISIONS.md](DECISIONS.md) D8–D11).*
 
 ## Next steps
 
-1. **Claim your existing videos (needs your approval):**
-   - Sign up at http://localhost:3000/signup with your email. The verification link is in the newest file in `data/outbox/` (no email is sent).
-   - Add `EXPLIVIO_LEGACY_OWNER_EMAIL=<that email>` to `web/.env.local`.
-   - Run `npm run db:legacy-ownership` in `web/` (dry run). After you approve: `npm run db:legacy-ownership -- --apply`.
-2. **Database tidy-ups:**
-   - In Atlas, reduce the `explivio_app` role from `atlasAdmin` to readWrite on `explivio`.
-   - Remove `NODE_ENV` and `APP_ENV` from `web/.env.local`.
-   - Cloudflare R2: create the `explivio-assets` bucket and a token limited to it; to be compared with Make My Marriage's R2 code, shared without secrets.
-3. **Real email (optional, needs a domain):** set `EMAIL_TRANSPORT=resend`, `RESEND_API_KEY` and `EMAIL_FROM` on a verified domain.
-4. **Update the F6/F7/F9 browser suites** to sign in first, and re-run them.
-5. **Finish the M7 evaluation:** run the 5 pending silent topics (S8 prime numbers, S9 photosynthesis, S10 vaccines, S11 sky blue, S12 Roman Empire) with `npm run m7:silent S8,S9,S10,S11,S12` after the Gemini free-tier daily reset. It stops by itself on a quota error. Then fix the known issues K1–K5 in [M7_EVALUATION.md](quality/M7_EVALUATION.md): hook template, scaling small diagrams, the whole structure in one scene, a flow naming lint, and captions split at scene changes.
-6. **Illustrations (decision needed):** the report recommends programmatic visuals. The optional local image-model trial (at most 9 images, about 3 GB on D:) waits for your yes/no. See [M7_ILLUSTRATION_OPTIONS.md](quality/M7_ILLUSTRATION_OPTIONS.md).
-7. **After 2026-11-26 (ElevenLabs reset):** the deferred 90 s and 7-topic evaluation, plus a human listen-through of the narration.
-8. **Merge `dev` into `main`** through a pull request once you've reviewed it.
-9. Remaining UI: the leftover Stitch fixes.
+1. Finish the F10 operational closeout (above).
+2. **F11: Cloudflare R2**, when you ask.
+3. Then F12 → F13 → F14 → F15 ([ROADMAP.md](ROADMAP.md)).
+4. Optional backlog, without delaying the above.
+5. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
 
+- **2026-11-05** — Project context reconciled and roadmap documented (documentation only).
+  - **New:** [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), [ROADMAP.md](ROADMAP.md) (F10 closeout, F11 R2, F12 auth hardening, F13 Gmail, F14 production, F15 validation), [DECISIONS.md](DECISIONS.md) (D1–D18).
+  - **This file:** restructured (Completed / Closeout / Next / Planned / Backlog / Risks). Stale "auth is demo-only", F4-plan and Clerk statements are marked superseded.
+  - **Verified in code:** 6 collections and 10 indexes; auth modules; no R2 code or S3 SDK; email is outbox plus optional Resend, with no SMTP or Gmail.
+  - **Found locally:**
+    - an account was created on 2026-11-04;
+    - one video ("How ChatGPT Answers Questions", 30 s, narrated) was generated under it, using about 435 ElevenLabs characters;
+    - 20 of 21 runs still have no owner;
+    - `NODE_ENV` and `APP_ENV` are still in `web/.env.local`;
+    - `runs/` is 464 MB;
+    - `main` equals `dev` (PR #5).
+  - **Tests re-run:** pipeline 63/63; web 46 pass with 10 live tests skipped (no external calls).
+  - **No changes to:** application code, database data, Atlas permissions or storage. $0.
 - **2026-11-04** — F10 authentication built on MongoDB Atlas.
   - **Commits:**
     - `34cb666` core: scrypt, hashed single-use tokens, DB sessions, rate limits, honest email outbox, account service; 14 tests incl. live Atlas.
