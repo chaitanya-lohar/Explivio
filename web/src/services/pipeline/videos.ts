@@ -4,6 +4,7 @@ import * as nodeFs from "node:fs";
 import * as nodeFsPromises from "node:fs/promises";
 import path from "node:path";
 import type { GenerationStage, VideoDuration, VideoProject, VideoRequest, VoiceId } from "@/types/video";
+import { ownership } from "./ownership.ts";
 
 /*
  * Real video service: each video is a run of the Explivio pipeline CLI (repo root, `src/cli.ts`).
@@ -12,6 +13,8 @@ import type { GenerationStage, VideoDuration, VideoProject, VideoRequest, VoiceI
  *   runs/<id>/manifest.json  — written by the CLI: status, per-stage progress, errors, output
  *   runs/<id>/video.mp4      — the rendered file
  * Runs created directly from the command line (no request.json) are listed too, using the manifest.
+ * Ownership (F10): every public function takes the signed-in user's id and only sees that user's runs, as recorded
+ * in MongoDB (see ownership.ts). Another user's run id behaves exactly like an unknown id.
  */
 
 const PIPELINE_ROOT = process.env.EXPLIVIO_PIPELINE_ROOT ? path.resolve(process.env.EXPLIVIO_PIPELINE_ROOT) : path.resolve(process.cwd(), "..");
@@ -33,6 +36,8 @@ const STALE_MS = 15 * 60 * 1000;
 
 interface StoredRequest extends VideoRequest {
   createdAt: string;
+  /** Owner recorded by the web app (also in MongoDB); absent on runs made before accounts existed. */
+  ownerUserId?: string;
 }
 
 interface Manifest {
@@ -153,27 +158,34 @@ function listRunIds(): string[] {
 }
 
 /** Starts the CLI for a request. Only one video renders at a time: rendering is CPU-heavy on a single machine. */
-async function startRun(request: VideoRequest): Promise<VideoProject> {
+async function startRun(request: VideoRequest, ownerUserId: string): Promise<VideoProject> {
   if (!existsSync(TSX_CLI)) throw new Error("The video pipeline isn't installed. Run `npm install` in the repository root.");
   // The lock is taken before the first await: two requests arriving together (two tabs, a direct POST) used to both
   // pass the busy check before either run folder existed, and start two renders (F9).
   if (store.__explivioStarting || listRunIds().some((id) => readRun(id)?.status === "generating")) throw new PipelineBusyError();
   store.__explivioStarting = true;
   try {
-    return await spawnRun(request);
+    return await spawnRun(request, ownerUserId);
   } finally {
     // From here the new run folder (request.json) exists, so the busy check above sees it as generating.
     store.__explivioStarting = false;
   }
 }
 
-async function spawnRun(request: VideoRequest): Promise<VideoProject> {
+async function spawnRun(request: VideoRequest, ownerUserId: string): Promise<VideoProject> {
   const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
   const dir = path.join(RUNS_DIR, id);
   await mkdir(dir);
-  const stored: StoredRequest = { ...request, createdAt: new Date().toISOString() };
+  const stored: StoredRequest = { ...request, createdAt: new Date().toISOString(), ownerUserId };
   await writeFile(path.join(dir, "request.json"), JSON.stringify(stored, null, 2));
   await writeFile(path.join(dir, "prompt.txt"), request.prompt);
+  // Record the owner before any work starts: if the database is unreachable, nothing renders and the folder goes.
+  try {
+    await ownership().record({ id, ownerUserId, title: titleFrom(request.prompt), prompt: request.prompt, durationSeconds: request.durationSeconds, createdAt: stored.createdAt });
+  } catch (error) {
+    await nodeFsPromises.rm(/* turbopackIgnore: true */ dir, { recursive: true, force: true });
+    throw error;
+  }
 
   const args = [TSX_CLI, "src/cli.ts", "--prompt-file=" + path.join(dir, "prompt.txt"), "--duration", String(request.durationSeconds), `--voice=${request.voice}`, `--run-id=${id}`];
   if (!request.captions) args.push("--no-captions");
@@ -203,46 +215,53 @@ export class PipelineBusyError extends Error {
   }
 }
 
-/** Server-only: local path of a playable file, used by the file route. */
-export function getVideoFilePath(id: string): string | null {
+/** Server-only: local path of the user's playable file, used by the file route. */
+export async function getVideoFilePath(id: string, ownerUserId: string): Promise<string | null> {
   const dir = runDir(id);
-  if (!dir) return null;
+  if (!dir || !(await ownership().owns(id, ownerUserId))) return null;
   const file = path.join(dir, "video.mp4");
   return readRun(id)?.status === "ready" && existsSync(file) ? file : null;
 }
 
-/** Ids only; safe for prerendering. */
-export async function listVideoIds(): Promise<readonly string[]> {
-  return listRunIds();
-}
-
-export async function getVideoTitle(id: string): Promise<string | null> {
+export async function getVideoTitle(id: string, ownerUserId: string): Promise<string | null> {
   const dir = runDir(id);
-  if (!dir || !existsSync(dir)) return null;
+  if (!dir || !existsSync(dir) || !(await ownership().owns(id, ownerUserId))) return null;
   const stored = readJson<StoredRequest>(path.join(dir, "request.json"));
   const manifest = readJson<Manifest>(path.join(dir, "manifest.json"));
   return storyboardTitle(dir) ?? titleFrom(stored?.prompt ?? manifest?.prompt ?? "");
 }
 
-/** Newest first. */
-export async function listVideos(): Promise<readonly VideoProject[]> {
-  return listRunIds()
-    .map(readRun)
+/** The user's videos, newest first. The stored status is kept in step with the run folders (best effort). */
+export async function listVideos(ownerUserId: string): Promise<readonly VideoProject[]> {
+  const videos = (await ownership().listIds(ownerUserId))
+    .map((id) => readRun(id))
     .filter((v): v is VideoProject => v !== null)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  await Promise.all(videos.map((v) => ownership().syncStatus(v.id, v.status).catch(() => {})));
+  return videos;
 }
 
-export async function getVideo(id: string): Promise<VideoProject | null> {
+export async function getVideo(id: string, ownerUserId: string): Promise<VideoProject | null> {
+  if (!runDir(id) || !(await ownership().owns(id, ownerUserId))) return null;
   return readRun(id);
 }
 
-export async function createVideo(request: VideoRequest): Promise<VideoProject> {
-  return startRun(request);
+export async function createVideo(request: VideoRequest, ownerUserId: string): Promise<VideoProject> {
+  return startRun(request, ownerUserId);
 }
 
-/** Starts a new run with a failed video's settings. Returns the new video (it has a new id). */
-export async function retryVideo(id: string): Promise<VideoProject | null> {
-  const video = readRun(id);
+/** Starts a new run with one of the user's failed videos' settings. Returns the new video (it has a new id). */
+export async function retryVideo(id: string, ownerUserId: string): Promise<VideoProject | null> {
+  const video = await getVideo(id, ownerUserId);
   if (!video || video.status !== "failed") return null;
-  return startRun(video.request);
+  return startRun(video.request, ownerUserId);
+}
+
+/** ALL runs on disk with the owner written in request.json, if any. Only for the legacy-ownership migration script. */
+export function listAllRunsForMigration(): (VideoProject & { requestOwnerUserId?: string })[] {
+  return listRunIds().flatMap((id) => {
+    const video = readRun(id);
+    const dir = runDir(id);
+    return video && dir ? [{ ...video, requestOwnerUserId: readJson<StoredRequest>(path.join(dir, "request.json"))?.ownerUserId }] : [];
+  });
 }

@@ -4,6 +4,7 @@ import { ArrowRight, Clapperboard } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card } from "@/components/ui/card";
 import { VideoCard } from "@/features/video-library/video-card";
+import { requireUser } from "@/lib/auth/session";
 import { listVideos } from "@/services";
 
 const RECENT_COUNT = 3;
@@ -11,7 +12,8 @@ const RECENT_COUNT = 3;
 export async function RecentVideos() {
   // Statuses change while jobs run, so read them per request rather than at build time.
   await connection();
-  const videos = (await listVideos()).slice(0, RECENT_COUNT);
+  const user = await requireUser();
+  const videos = (await listVideos(user.id)).slice(0, RECENT_COUNT);
   return (
     <section aria-labelledby="recent-heading" className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">

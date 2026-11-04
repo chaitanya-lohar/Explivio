@@ -5,6 +5,7 @@ import { buttonStyles } from "@/components/ui/button";
 import type { UserProfile } from "@/types/user";
 import { Brand } from "./brand";
 import { NavList, SidebarNav } from "./sidebar-nav";
+import { SignOutButton } from "./sign-out-button";
 import { UserSummary } from "./user-summary";
 
 export interface SidebarContentProps {
@@ -26,8 +27,11 @@ export function SidebarContent({ user, compact = false, onNavigate }: SidebarCon
       <Suspense fallback={<NavList pathname={null} compact={compact} />}>
         <SidebarNav compact={compact} onNavigate={onNavigate} />
       </Suspense>
-      <div className="mt-auto border-t border-border pt-4">
+      <div className="mt-auto flex flex-col gap-2 border-t border-border pt-4">
         <UserSummary user={user} compact={compact} className={compact ? "justify-center" : undefined} />
+        <div className={compact ? "flex justify-center" : undefined}>
+          <SignOutButton compact={compact} />
+        </div>
       </div>
     </div>
   );

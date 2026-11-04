@@ -62,15 +62,13 @@ function toProject(record: MockRecord, now: number): VideoProject {
 }
 
 /** Server-only: local path of a playable file, used by the file route. */
-export function getVideoFilePath(id: string): string | null {
+/** Mock: sample data for UI work, shared by every account (no ownership). */
+export async function getVideoFilePath(id: string): Promise<string | null> {
   const record = records.find((r) => r.id === id);
   return record?.state.kind === "ready" && record.state.filePath ? record.state.filePath : null;
 }
 
 /** Ids only, independent of time; safe for prerendering (generateStaticParams). */
-export async function listVideoIds(): Promise<readonly string[]> {
-  return records.map((r) => r.id);
-}
 
 /** Title only, independent of time; safe for metadata. */
 export async function getVideoTitle(id: string): Promise<string | null> {

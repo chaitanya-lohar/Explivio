@@ -5,15 +5,15 @@ import { COLLECTIONS, type UserDoc, type VideoProjectDoc } from "../src/lib/db/c
 import { legacyProjectDoc, planLegacyOwnership, type LegacyRun } from "../src/lib/db/legacy-ownership.ts";
 import { readMongoConfig } from "../src/lib/db/config.ts";
 import { closeDatabase, getDatabase, safeReason } from "../src/lib/db/mongo.ts";
-import { listVideos } from "../src/services/pipeline/videos.ts";
+import { listAllRunsForMigration } from "../src/services/pipeline/videos.ts";
 
 const apply = process.argv.includes("--apply");
 const email = process.env.EXPLIVIO_LEGACY_OWNER_EMAIL?.trim().toLowerCase() || undefined;
 try {
-  const runs: LegacyRun[] = (await listVideos()).map((v) => ({ id: v.id, title: v.title, prompt: v.prompt, durationSeconds: v.durationSeconds, status: v.status === "draft" ? "failed" : v.status, createdAt: v.createdAt }));
+  const runs: LegacyRun[] = listAllRunsForMigration().map((v) => ({ id: v.id, title: v.title, prompt: v.prompt, durationSeconds: v.durationSeconds, status: v.status === "draft" ? "failed" : v.status, createdAt: v.createdAt, requestOwnerUserId: v.requestOwnerUserId }));
   if (!readMongoConfig().ok) {
     // Still useful before Atlas is set up: how many videos the migration would cover.
-    console.log(`DRY RUN: legacy video ownership\n  runs on disk without an owner: ${runs.length}\n  account lookup and the plan need MONGODB_URI (web/.env.local). Nothing changed.`);
+    console.log(`DRY RUN: legacy video ownership\n  runs on disk without an owner: ${runs.filter((r) => !r.requestOwnerUserId).length}\n  account lookup and the plan need MONGODB_URI (web/.env.local). Nothing changed.`);
     process.exit(0);
   }
   const db = await getDatabase();

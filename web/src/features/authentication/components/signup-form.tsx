@@ -25,7 +25,7 @@ export function SignupForm() {
     validate: validateRegistration,
     submit: signUpAction,
     // Only a masked address travels in the URL, never the full email.
-    onSuccess: () => router.push(`/verify-email?to=${encodeURIComponent(maskEmail(values.email))}`),
+    onSuccess: (r) => router.push(`/verify-email?to=${encodeURIComponent(maskEmail(values.email))}${r.delivery ? `&delivery=${r.delivery}` : ""}`),
   });
   const update = (field: keyof RegistrationDetails, value: string | boolean) => {
     setValues((v) => ({ ...v, [field]: value }));
