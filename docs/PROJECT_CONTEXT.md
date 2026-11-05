@@ -116,7 +116,7 @@ Template: `web/.env.example`. Gitignored local data: `data/` (`auth-secret`, `ou
 
 - Ryzen 5 5625U with integrated Radeon (no CUDA) and 15.3 GB RAM.
 - Free memory has dipped to about 1.6 GB during renders.
-- `runs/` was 464 MB on 2026-11-05.
+- `runs/` was emptied on 2026-11-05 at your request (every earlier video deleted); new videos are rendered there and uploaded to R2.
 
 ## 7. Document map
 
