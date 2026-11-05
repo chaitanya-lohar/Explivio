@@ -4,6 +4,9 @@ import * as nodeFs from "node:fs";
 import * as nodeFsPromises from "node:fs/promises";
 import path from "node:path";
 import type { GenerationStage, VideoDuration, VideoProject, VideoRequest, VoiceId } from "@/types/video";
+import type { VideoStorage } from "../../lib/db/collections.ts";
+import { objectStore, videoObjectKey } from "../../lib/storage/index.ts";
+import { startUpload, uploadInProgress } from "./cloud-upload.ts";
 import { ownership } from "./ownership.ts";
 
 /*
@@ -15,6 +18,9 @@ import { ownership } from "./ownership.ts";
  * Runs created directly from the command line (no request.json) are listed too, using the manifest.
  * Ownership (F10): every public function takes the signed-in user's id and only sees that user's runs, as recorded
  * in MongoDB (see ownership.ts). Another user's run id behaves exactly like an unknown id.
+ * Cloud storage (F11): with Cloudflare R2 configured, a new video's MP4 is uploaded after rendering (cloud-upload.ts)
+ * and the video is ready only once the upload is verified; until then it shows the "finishing" stage. Videos recorded
+ * as local (all videos before F11, or R2 not configured) keep playing from runs/ exactly as before.
  */
 
 const PIPELINE_ROOT = process.env.EXPLIVIO_PIPELINE_ROOT ? path.resolve(process.env.EXPLIVIO_PIPELINE_ROOT) : path.resolve(process.cwd(), "..");
@@ -106,8 +112,8 @@ function storyboardTitle(dir: string): string | undefined {
   return typeof storyboard?.title === "string" && storyboard.title.trim() ? storyboard.title.trim() : undefined;
 }
 
-/** Builds the UI's view of a run from its files. Returns null for folders that aren't runs. */
-function readRun(id: string): VideoProject | null {
+/** Builds the UI's view of a run from its files (and, for cloud videos, the upload state). Null for non-runs. */
+function readRun(id: string, storage?: VideoStorage): VideoProject | null {
   const dir = runDir(id);
   if (!dir || !existsSync(dir)) return null;
   const stored = readJson<StoredRequest>(path.join(dir, "request.json"));
@@ -127,9 +133,14 @@ function readRun(id: string): VideoProject | null {
 
   if (manifest?.status === "succeeded") {
     const file = path.join(dir, "video.mp4");
-    return existsSync(file)
-      ? { ...base, status: "ready", videoUrl: `/api/videos/${id}/file`, actualDurationSeconds: manifest.actualDurationSeconds }
-      : failed("finishing", "The run finished but its video file is missing.");
+    const ready: VideoProject = { ...base, status: "ready", videoUrl: `/api/videos/${id}/file`, actualDurationSeconds: manifest.actualDurationSeconds };
+    if (storage?.kind === "r2") {
+      if (storage.uploadStatus === "uploaded") return ready;
+      if (!existsSync(file)) return failed("finishing", "The run finished but its video file is missing.");
+      if (storage.uploadStatus === "failed") return failed("finishing", storage.lastError ?? "Saving the video to cloud storage failed.");
+      return { ...base, status: "generating", stage: "finishing" };
+    }
+    return existsSync(file) ? ready : failed("finishing", "The run finished but its video file is missing.");
   }
   if (manifest?.status === "failed") {
     return failed(failedStageName ? (PIPELINE_STAGE[failedStageName] ?? "render") : "plan", manifest.error ?? (failedStageName ? stages[failedStageName]?.error : undefined));
@@ -148,6 +159,18 @@ function currentStage(stages: NonNullable<Manifest["stages"]>, manifest: Manifes
   if (stages.narration) return stages.narration.status === "succeeded" ? "render" : "narration";
   if (stages.storyboard?.status === "succeeded") return "narration";
   return "plan";
+}
+
+/** Cloud videos whose render finished but whose upload isn't running in this process (e.g. after a restart). */
+function resumeUploads(ids: readonly string[], storages: Map<string, VideoStorage>): void {
+  for (const id of ids) {
+    const storage = storages.get(id);
+    if (storage?.kind !== "r2" || (storage.uploadStatus !== "pending" && storage.uploadStatus !== "uploading") || uploadInProgress(id)) continue;
+    const dir = runDir(id);
+    if (!dir || readJson<Manifest>(path.join(dir, "manifest.json"))?.status !== "succeeded") continue;
+    const file = path.join(dir, "video.mp4");
+    if (existsSync(file)) void startUpload(id, file);
+  }
 }
 
 function listRunIds(): string[] {
@@ -180,8 +203,10 @@ async function spawnRun(request: VideoRequest, ownerUserId: string): Promise<Vid
   await writeFile(path.join(dir, "request.json"), JSON.stringify(stored, null, 2));
   await writeFile(path.join(dir, "prompt.txt"), request.prompt);
   // Record the owner before any work starts: if the database is unreachable, nothing renders and the folder goes.
+  // With R2 configured the video will be uploaded after rendering; otherwise it stays local (as before F11).
+  const storage: VideoStorage = objectStore() ? { kind: "r2", runId: id, key: videoObjectKey(ownerUserId, id), uploadStatus: "pending", attempts: 0 } : { kind: "local-run", runId: id };
   try {
-    await ownership().record({ id, ownerUserId, title: titleFrom(request.prompt), prompt: request.prompt, durationSeconds: request.durationSeconds, createdAt: stored.createdAt });
+    await ownership().record({ id, ownerUserId, title: titleFrom(request.prompt), prompt: request.prompt, durationSeconds: request.durationSeconds, createdAt: stored.createdAt, storage });
   } catch (error) {
     await nodeFsPromises.rm(/* turbopackIgnore: true */ dir, { recursive: true, force: true });
     throw error;
@@ -203,6 +228,9 @@ async function spawnRun(request: VideoRequest, ownerUserId: string): Promise<Vid
     if (manifest?.status !== "succeeded" && manifest?.status !== "failed") {
       await writeFile(path.join(dir, "manifest.json"), JSON.stringify({ ...(manifest ?? {}), status: "failed", error: manifest?.error ?? `The generation process exited unexpectedly (code ${code ?? "unknown"}).` }, null, 2));
     }
+    // Rendered: upload it now (cloud videos only; local ones are already finished).
+    const file = path.join(dir, "video.mp4");
+    if (manifest?.status === "succeeded" && storage.kind === "r2" && existsSync(file)) void startUpload(id, file);
   });
   child.unref();
   return readRun(id) ?? { id, title: titleFrom(request.prompt), prompt: request.prompt, durationSeconds: request.durationSeconds, createdAt: stored.createdAt, request, status: "generating", stage: "plan", startedAt: stored.createdAt };
@@ -215,12 +243,24 @@ export class PipelineBusyError extends Error {
   }
 }
 
-/** Server-only: local path of the user's playable file, used by the file route. */
-export async function getVideoFilePath(id: string, ownerUserId: string): Promise<string | null> {
+/** Where a playable video's bytes are. Only for the owner, and only when the video is ready. */
+export type VideoSource = { kind: "local"; path: string } | { kind: "r2"; key: string; size: number };
+
+/** Server-only: the source of the user's playable file, used by the file route. */
+export async function getVideoSource(id: string, ownerUserId: string): Promise<VideoSource | null> {
   const dir = runDir(id);
   if (!dir || !(await ownership().owns(id, ownerUserId))) return null;
+  const storage = (await ownership().storageOf([id])).get(id);
+  if (readRun(id, storage)?.status !== "ready") return null;
+  if (storage?.kind === "r2") return storage.size ? { kind: "r2", key: storage.key, size: storage.size } : null;
   const file = path.join(dir, "video.mp4");
-  return readRun(id)?.status === "ready" && existsSync(file) ? file : null;
+  return existsSync(file) ? { kind: "local", path: file } : null;
+}
+
+/** Server-only: local path of a ready video that is served from runs/ (null for cloud videos). */
+export async function getVideoFilePath(id: string, ownerUserId: string): Promise<string | null> {
+  const source = await getVideoSource(id, ownerUserId);
+  return source?.kind === "local" ? source.path : null;
 }
 
 export async function getVideoTitle(id: string, ownerUserId: string): Promise<string | null> {
@@ -233,8 +273,11 @@ export async function getVideoTitle(id: string, ownerUserId: string): Promise<st
 
 /** The user's videos, newest first. The stored status is kept in step with the run folders (best effort). */
 export async function listVideos(ownerUserId: string): Promise<readonly VideoProject[]> {
-  const videos = (await ownership().listIds(ownerUserId))
-    .map((id) => readRun(id))
+  const ids = await ownership().listIds(ownerUserId);
+  const storages = await ownership().storageOf(ids);
+  resumeUploads(ids, storages);
+  const videos = ids
+    .map((id) => readRun(id, storages.get(id)))
     .filter((v): v is VideoProject => v !== null)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   await Promise.all(videos.map((v) => ownership().syncStatus(v.id, v.status).catch(() => {})));
@@ -243,17 +286,30 @@ export async function listVideos(ownerUserId: string): Promise<readonly VideoPro
 
 export async function getVideo(id: string, ownerUserId: string): Promise<VideoProject | null> {
   if (!runDir(id) || !(await ownership().owns(id, ownerUserId))) return null;
-  return readRun(id);
+  const storages = await ownership().storageOf([id]);
+  resumeUploads([id], storages);
+  return readRun(id, storages.get(id));
 }
 
 export async function createVideo(request: VideoRequest, ownerUserId: string): Promise<VideoProject> {
   return startRun(request, ownerUserId);
 }
 
-/** Starts a new run with one of the user's failed videos' settings. Returns the new video (it has a new id). */
+/**
+ * Retries one of the user's failed videos. If only the cloud upload failed, the same rendered file is uploaded again
+ * (same video id; no new render, no Gemini or ElevenLabs calls). Otherwise a new run starts with the same settings
+ * (it has a new id).
+ */
 export async function retryVideo(id: string, ownerUserId: string): Promise<VideoProject | null> {
   const video = await getVideo(id, ownerUserId);
   if (!video || video.status !== "failed") return null;
+  const storage = (await ownership().storageOf([id])).get(id);
+  const dir = runDir(id);
+  const file = dir ? path.join(dir, "video.mp4") : null;
+  if (storage?.kind === "r2" && storage.uploadStatus === "failed" && video.failedStage === "finishing" && file && existsSync(file)) {
+    if (await ownership().updateR2Storage(id, { uploadStatus: "pending", lastError: null }, ["failed"])) void startUpload(id, file);
+    return readRun(id, { ...storage, uploadStatus: "pending" });
+  }
   return startRun(video.request, ownerUserId);
 }
 
