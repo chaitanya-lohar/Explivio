@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-05 (F12 complete).
+Last updated: 2026-11-06 (F13 code complete; real Resend test pending).
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -35,11 +35,28 @@ This file is the concise current status; the newest changelog entries are at the
   - **Verified:** web 85/85 (live Atlas), security tests 8/8, browser end-to-end **36/36** on real Atlas and R2 (cross-user server-action replays, CSRF, forged addresses, cookie flags, R2 isolation), `r2:check` 10/10, pipeline 63/63; typecheck, lint and build pass.
   - Reports: [audit](security/F12_SECURITY_AUDIT.md), [implementation](security/F12_SECURITY_IMPLEMENTATION_REPORT.md), [test matrix](security/F12_SECURITY_TEST_MATRIX.md).
 
+- **F13: transactional email through Resend** 🟡 (2026-11-06; code `907db56` and the docs commit). The code is **complete and tested**; real delivery is pending your test.
+  - **Built:**
+    - a durable MongoDB email queue (`emailJobs`) with a worker running in the server, plus `npm run email:worker`;
+    - outbox (default), Resend and test providers;
+    - responsive HTML and text templates (verification, reset, password changed, existing account);
+    - links created at send time, so no token is ever stored;
+    - a 90-a-day guard below Resend Free's 100.
+  - **Verified:**
+    - web 102/102 with live Atlas (including 9 live queue tests);
+    - browser regression 34/34 through the in-server worker;
+    - F12 timing unchanged (1511 vs 1506 ms);
+    - pipeline 63/63, `r2:check` 10/10; typecheck, lint and build pass.
+  - **Pending:**
+    - (1) the real Resend test, approved, at most 3 emails to your Resend address ([setup guide §6](email/F13_SETUP_GUIDE.md));
+    - (2) delivery to other users needs a domain you own (none is bought);
+    - (3) worker hosting and delivery webhooks come with F14.
+  - Reports: [architecture](email/F13_EMAIL_ARCHITECTURE.md), [implementation](email/F13_IMPLEMENTATION_REPORT.md), [setup](email/F13_SETUP_GUIDE.md).
+
 ## Next
-- **F10 operational closeout** (above), then **F13: real email delivery through Gmail** when you ask.
+- **Your real Resend test** (above), then **F14: production readiness** when you ask.
 
 ## Planned
-- F13 Gmail email delivery (SMTP with an App Password).
 - F14 production readiness.
 - F15 final product validation.
 
@@ -134,7 +151,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 - **One video at a time:** rendering is CPU-heavy on this machine. Restarting the web server while a video renders loses its live process tracking. The render continues, and a run silent for 15 minutes is marked failed.
 
 - **Terms and Privacy pages missing:** the sign-up terms checkbox refers to a Terms of Service and Privacy Policy that don't exist yet. (Real authentication has existed since F10.)
-- **No real email yet:** verification and reset links go to `data/outbox/` (F13).
+- **Email:** the outbox stays the default. With `EMAIL_TRANSPORT=resend`, Resend Free delivers **only to your Resend account address** until a domain you own is verified (F13).
 - **Video files are local only:** `runs/` on this laptop; there's no R2 integration yet (F11).
 
 - **Indian-English voice unavailable:** ElevenLabs returns HTTP 402 for library voices through the API on the free plan. Set `ELEVENLABS_NARRATOR_VOICE_ID` after upgrading.
@@ -168,13 +185,24 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 ## Next steps
 
 1. Finish the F10 operational closeout (above).
-2. **F13: Gmail email delivery**, when you ask.
+2. **F13 real Resend test** (your action), then **F14: production readiness**, when you ask.
 3. Then F14 → F15 ([ROADMAP.md](ROADMAP.md)).
 4. Optional backlog, without delaying the above.
 5. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
 
+- **2026-11-06** — F13 transactional email (Resend), durable queue.
+  - **Approved choices:** Resend Free (approved over Gmail SMTP); no domain owned and none bought; at most 3 real test emails to your Resend address, after you switch `EMAIL_TRANSPORT=resend` on.
+  - **`907db56`:**
+    - `lib/email`: queue, worker (60 s lease, restart recovery, backoff, at most 5 submissions, 48 h limit, `unknown` never resent), providers, templates, 90-a-day guard;
+    - auth sends are queued; tokens are created at send time; password-changed email added;
+    - `emailJobs` added to `explivio` with `db:init` (additive).
+  - **Tests:**
+    - web 102/102 live (email 8/8 offline against a fake Resend endpoint; queue 9/9 live, stable over 3 runs);
+    - browser regression 34/34; pipeline 63/63; `r2:check` 10/10; typecheck, lint and build pass.
+  - **Correction recorded:** a suspected duplicate-key race in the daily counter was **not** real (the old code passes the 10-way race). The re-check stays as harmless extra protection; the failures were test bugs.
+  - **Real emails sent:** 0. $0.
 - **2026-11-05** — Full application retest before F13 (your request).
   - **Automated:**
     - web 85/85 with live Atlas; pipeline 63/63; typecheck, lint and build pass;
