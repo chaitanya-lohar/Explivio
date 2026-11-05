@@ -10,9 +10,12 @@
     "test": "node --test \"tests/**/*.test.ts\"",
     "db:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-check.mts",
     "db:init": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-init.mts",
-    "db:legacy-ownership": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-legacy-ownership.mts"
+    "db:legacy-ownership": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-legacy-ownership.mts",
+    "r2:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/r2-check.mts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1162.0",
+    "@aws-sdk/s3-request-presigner": "3.1162.0",
     "lucide-react": "^1.66.0",
     "mongodb": "^7.8.0",
     "next": "16.4.3",
