@@ -8,6 +8,10 @@ This file is the concise current status; the newest changelog entries are at the
 - **M1–M7:** the pipeline (Gemini storyboard → ElevenLabs narration → Remotion render), captions, music, six animated templates. M7 is also called F8.
 - **F1–F4, auth screens, F6, F7, F9:** web app, real pipeline, My Videos, Settings, end-to-end QA.
 - **F10:** MongoDB Atlas (`explivio`: 6 collections, 10 indexes) and self-managed authentication with per-user ownership.
+- **F11: Cloudflare R2 video storage** ✅ (2026-11-05; commits `0760ca5`, `71c5e8e`, `f2b6ea9` and the verification update).
+  - **What it does:** new videos upload to the private bucket `explivio-assets` after rendering and are verified (size, type, MD5) before they're ready. Playback streams from R2 with seeking. Downloads use 5-minute signed links. Try again re-uploads without re-rendering. A free-tier guard stops uploads at 80%. Old videos stay local, untouched.
+  - **Verified on real R2 and Atlas:** `r2:check` 10/10; browser end-to-end 39/39 with two accounts (playback, 3 seeks, 206/416, streamed download, signed link, cross-user 404, private bucket, retry with the same id, no re-render and no re-upload).
+  - Reports: [architecture](storage/F11_R2_STORAGE_ARCHITECTURE.md), [implementation](storage/F11_R2_IMPLEMENTATION_REPORT.md), [historical migration plan](storage/F11_HISTORICAL_VIDEO_MIGRATION_PLAN.md) (not executed).
   - Commits `cc36dad`, `8532210`, `a47976a`, `34cb666`, `d2dce3e`, `9be6dec`; on `main` since PR #5.
   - Implementation verified in code on 2026-11-05; the live database was last verified on 2026-11-04.
 
@@ -20,15 +24,8 @@ This file is the concise current status; the newest changelog entries are at the
 3. **Environment clean-up:** remove `NODE_ENV` and `APP_ENV` from `web/.env.local` (still present).
 4. **Authenticated browser regression:** re-run the F6, F7 and F9 suites with a sign-in step.
 
-## In progress
-- **F11: Cloudflare R2 video storage.** 🟡 Code done and tested offline (`0760ca5`, `71c5e8e`); **not complete**.
-  - Built: new videos upload to R2 after rendering and are verified before they're marked ready; playback streams from R2 with seeking; downloads use 5-minute signed links; Try again re-uploads without re-rendering; a free-tier guard stops uploads at 80%. Old videos stay local.
-  - **Waiting on you:**
-    - complete the R2 checkout (accepted knowingly);
-    - create the bucket and a scoped token, and put the values in `web/.env.local`;
-    - allow your current IP in Atlas → Network Access (Atlas refused connections on 2026-11-05).
-  - Then: `npm run r2:check`, the live Atlas test, and a browser end-to-end test on real R2.
-  - Reports: [architecture](storage/F11_R2_STORAGE_ARCHITECTURE.md), [implementation](storage/F11_R2_IMPLEMENTATION_REPORT.md), [historical migration plan](storage/F11_HISTORICAL_VIDEO_MIGRATION_PLAN.md) (not executed).
+## Next
+- **F10 operational closeout** (above), then **F12: authentication and authorisation hardening** when you ask.
 
 ## Planned
 - F12 authentication and authorisation hardening.
@@ -49,8 +46,9 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | Suite | Result | Notes |
 |---|---|---|
 | Pipeline (`npm test`, root) | 63/63 | Re-run 2026-11-05 |
-| Web (`web: npm test`) | 65 pass, 10 skipped, 0 fail (75) | 2026-11-05 after F11; the 10 skipped are live-Atlas tests (last passed 2026-11-04; Atlas unreachable on 2026-11-05) |
-| Real R2 (`npm run r2:check`) | Not run | Waiting for the bucket and credentials |
+| Web (`web: npm test` with `MONGODB_URI_TEST`) | **76/76** | 2026-11-05 after F11, including the live-Atlas tests (offline: 65 pass, 10 skipped) |
+| Real R2 (`npm run r2:check`) | **10/10** | 2026-11-05 |
+| F11 browser end-to-end (real R2 and Atlas) | **39/39** | 2026-11-05, production build, two accounts, stub pipeline |
 | Browser end-to-end (F10) | 70/70 | 2026-11-04, production build, two accounts |
 | Typecheck, lint, build | Pass | 2026-11-04; no code has changed since |
 | F6 / F7 / F9 browser suites | 53/53, 41/41, 62/62 + 64/64 | **Historical** (before sign-in existed); need re-running with a login step |
@@ -58,9 +56,9 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 ## Risks
 | Risk | Impact | Owner | Resolution |
 |---|---|---|---|
-| Videos only on the laptop disk (`runs/`, 464 MB, no cleanup) | Data loss; no cloud access; disk growth | Claude (F11, F14) | R2 storage (F11, code done, setup pending); retention policy (F14) |
+| Videos only on the laptop disk (`runs/`, 464 MB, no cleanup) | Data loss; no cloud access; disk growth | Claude (F11, F14) | New videos now go to R2 (F11 ✅); old ones need the [migration plan](storage/F11_HISTORICAL_VIDEO_MIGRATION_PLAN.md) (approval); retention policy (F14) |
 | R2 needs an active Cloudflare subscription; overages bill automatically with no cap | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert; monitor R2 → Metrics |
-| Atlas refuses connections from this machine (2026-11-05), likely a changed public IP | App can't sign in or list videos | User | Atlas → Network Access → add the current IP |
+| Your public IPv4 address changes from time to time; Atlas then refuses this machine (TLS alert 80) | App can't sign in or list videos | User | Atlas → Network Access → add the new IPv4 address (the browser's "current IP" may add the IPv6 one) |
 | Atlas user has `atlasAdmin` | Too much access if the URI leaks | User | Reduce to `readWrite` on `explivio` |
 | No real email | Users can't verify without access to the server's outbox | Claude (F13) | Gmail SMTP |
 | Rate limits are in memory | Reset on restart; single process only | Claude (F12) | Move to MongoDB TTL counters |
@@ -166,7 +164,16 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
-- **2026-11-05** — F11 Cloudflare R2 storage: code and offline tests (not complete).
+- **2026-11-05** — F11 verified on real Cloudflare R2 and Atlas: **complete**.
+  - **Your setup:** R2 activated on the $0 plan (billable usage $0.00); private bucket `explivio-assets`; token limited to that bucket; keys in `web/.env.local`; this machine's IPv4 address added in Atlas (the browser had added the IPv6 one).
+  - **Results:**
+    - `r2:check` 10/10;
+    - web 76/76 including live Atlas (the F11 metadata test proves a single claim wins);
+    - browser end-to-end 39/39 (details in the implementation report);
+    - three test-script bugs fixed; no app bugs found.
+  - **Cleanup:** all test objects were deleted from R2 and the test databases dropped; only `explivio` remains.
+  - $0.
+- **2026-11-05** — F11 Cloudflare R2 storage: code and offline tests.
   - **Commits:**
     - `0760ca5` storage service: config, official AWS SDK adapter with Content-MD5, keys, free-tier guard, `npm run r2:check`.
     - `71c5e8e` integration: upload after render → verify → ready; R2 streaming with Range; signed-link downloads; upload-only retry; resume after restart.

@@ -37,7 +37,7 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
 | 8 | Remove `NODE_ENV` and `APP_ENV` from `web/.env.local` | User | Not done (both still present) |
 | 9 | Re-run the F6, F7 and F9 browser suites with a sign-in step | Claude | Not done |
 
-## F11 — Cloudflare R2 video storage 🟡 in progress (code done; real-bucket verification pending)
+## F11 — Cloudflare R2 video storage ✅ done 2026-11-05 ([report](storage/F11_R2_IMPLEMENTATION_REPORT.md))
 
 - **Objective:** completed MP4s are stored in R2 and served securely; MongoDB holds the metadata.
 - **Current state:** no R2 or S3 code and no SDK dependency in the repository; videos exist only in `runs/`.

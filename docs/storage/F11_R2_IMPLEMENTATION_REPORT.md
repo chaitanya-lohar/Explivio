@@ -1,6 +1,6 @@
 # F11 — Cloudflare R2 implementation report
 
-Date: 2026-11-05 · Branch: `dev` · Commits: `0760ca5` (storage service), `71c5e8e` (pipeline, playback, download) · Spend: **$0**
+Date: 2026-11-05 · Branch: `dev` · Commits: `0760ca5` (storage service), `71c5e8e` (pipeline, playback, download), `f2b6ea9` (docs), and this verification update · Spend: **$0**
 
 ## Status at a glance
 
@@ -8,11 +8,11 @@ Date: 2026-11-05 · Branch: `dev` · Commits: `0760ca5` (storage service), `71c5
 |---|---|
 | Code: storage service, upload lifecycle, playback, download, retry, guard | ✅ Implemented |
 | Offline tests (memory store, SDK against a local fake S3 endpoint) | ✅ Pass |
-| R2 account checkout, bucket, scoped token, `web/.env.local` values | ⏳ **You** (guide in the session; summary in §4) |
-| Real-bucket check (`npm run r2:check`) | ⏳ Pending R2 setup |
-| Live Atlas metadata test (`tests/storage-mongo.test.ts`) | ⏳ Pending: Atlas refused the connection on 2026-11-05 (likely the IP access list) |
-| Browser end-to-end on real R2 (playback, seek, download, cross-user) | ⏳ Pending both of the above |
-| **F11 done?** | **No.** Definition-of-done items 2–11 and 16 need the real bucket |
+| R2 subscription ($0 plan), private bucket `explivio-assets`, scoped token, `web/.env.local` | ✅ Configured by you on 2026-11-05 (billable usage $0.00) |
+| Real-bucket check (`npm run r2:check`) | ✅ **10/10** on real R2 |
+| Live Atlas tests (including the F11 metadata test) | ✅ Pass. Atlas had refused this machine; fixed by adding its IPv4 address to Network Access (the browser had added the IPv6 one) |
+| Browser end-to-end on real R2 and real Atlas | ✅ **39/39** |
+| **F11 done?** | **Yes**, every definition-of-done item verified (§6). Open items are listed in §8 |
 
 ## 1. Reused, not recreated
 
@@ -70,26 +70,51 @@ Date: 2026-11-05 · Branch: `dev` · Commits: `0760ca5` (storage service), `71c5
 
 | Suite | Result | Real or mocked |
 |---|---|---|
-| Web `npm test` | **75 tests: 65 pass, 0 fail, 10 skipped** (the skipped ones are live-Atlas tests that need `MONGODB_URI_TEST`) | Offline |
+| Web `npm test` with `MONGODB_URI_TEST` | **76/76 pass, 0 skipped**, including both live-Atlas tests | Live Atlas and offline |
+| Web `npm test` without `MONGODB_URI_TEST` | 65 pass, 10 skipped (the live tests) | Offline |
 | … `storage.test.ts` | 10/10: config, redaction, keys, ranges, guard, memory contract, **real SDK requests** checked against a local fake S3 server (Content-MD5 sent, no CRC32 headers, SigV4, path style, Range forwarded, 404/403/unreachable mapping, presign without a network call) | SDK real, endpoint fake |
 | … `pipeline-service.test.ts` | 22/22, stable over 5 consecutive runs; F11: upload → verify → ready, failure keeps the MP4, retry without re-render, corruption detected, idempotent, resume after restart, late start can't overwrite a failure, guard, historical local untouched, local mode unchanged | Memory store, stub CLI |
-| `storage-mongo.test.ts` (live) | Not run: Atlas unreachable from this machine on 2026-11-05 | Real Atlas (pending) |
+| `storage-mongo.test.ts` (live) | Pass: the R2 shape is accepted by the validator; of two simultaneous claims only one wins; usage totals add up; local records can't be turned into cloud ones | **Real Atlas** (throwaway database, dropped) |
 | Pipeline (root) `npm test` | 63/63 | — |
 | Typecheck, lint, production build | Pass | — |
-| `npm run r2:check` | Reports `not_configured` (no credentials yet) | Real R2 (pending) |
+| `npm run r2:check` | **10/10** | **Real R2** |
+| Browser end-to-end | **39/39** | **Real R2, real Atlas** (`explivio_e2e`, dropped), production build, headless Chrome, stub pipeline |
+
+**Mocked:** upload failure injection, corruption in transit, the free-tier guard, and resume after a restart. These use the in-memory store, because forcing them on real R2 isn't practical. The retry path itself was also run on real R2 (below).
 
 **Found and fixed during testing:** if a page view resumed an upload before the render process exited, the exit handler could start a second upload that overwrote a recorded failure. Automatic starts now only take over `pending` or `uploading` uploads; a regression test covers this.
 
 ## 6. Real R2 evidence
 
-None yet. When the bucket exists, `npm run r2:check` runs 10 checks against it:
-- upload, metadata, byte-exact download, range read;
-- the unsigned request is refused (private bucket);
-- a signed download works, and an expired signed link is refused;
-- a missing object is reported as absent, and bad credentials are rejected;
-- the test object is deleted.
+### `npm run r2:check` (2026-11-05): 10/10
+- Uploaded a 4,831-byte synthetic test MP4; the ETag matches the MD5.
+- Metadata is correct (size, `video/mp4`), the download is byte-exact, and a 1,000-byte range read is exact.
+- An unsigned request gets **HTTP 400** (the bucket is private).
+- The signed link returns 200 as an attachment; an expired link gets **403**.
+- A missing object reports as absent; bad credentials raise `StorageAuthError`.
+- **The test object was deleted.**
 
-Then a browser test runs on a production build with real Atlas and real R2: two accounts, play, seek, download, and cross-user denial. It uses the stub pipeline with a synthetic MP4, so no Gemini or ElevenLabs calls are made.
+### Browser end-to-end (2026-11-05): 39/39
+Setup: two fresh verified accounts (A, B); a 16.8 MB, 40-second synthetic MP4 from random noise (no user video was used); the stub pipeline (no AI calls).
+
+| Area | Evidence |
+|---|---|
+| Upload | **Lifecycle:** A clicked Generate in the UI. The record was created as `r2/pending` with key `users/<A>/videos/<id>/video.mp4`. The progress screen showed **finishing** while uploading and moved to Video ready about 7 s later. **Verified state:** MongoDB has `uploaded`, the size, MD5, `video/mp4`, `uploadedAt` and status ready. An R2 HeadObject matches the size, type and ETag. The local MP4 was kept |
+| Playback | The `<video>` element loaded (40.00 s) and played. **Seeks to 30 s, 5 s and 38 s** all landed (±0.4 s) with no errors, and the browser received **206** responses |
+| HTTP | Ranges `0-99`, a middle range and the last 500 bytes all returned **206** with exact bytes; an impossible range returned **416** with `bytes */16795579`. A full request returned **200**, byte-identical (SHA-256). The server's working set went **135 → 140 MB** while streaming 16.8 MB, so the file isn't buffered |
+| Download | **302** to `*.r2.cloudflarestorage.com` with `X-Amz-Expires=300` and `Cache-Control: no-store`. Following the link gave 200, the exact bytes, and `attachment; filename="…ocean-tides-work.mp4"` |
+| Security | Signed out: **401**. Account B requesting A's video status, file and download: **404 / 404 / 404**, with no redirect or link. B's My Videos doesn't include it, and B's page shows no player. Guessed or invalid ids: 404. The R2 object URL without a signature: **400**. No secret appears in the signed link |
+| Library | A's My Videos links to the cloud video |
+| Retry on real R2 | The record was marked as a failed upload. The screen showed "Something went wrong while finishing up", the reason under Technical details, and Try again. Clicking it kept the **same id**, made **0 new renders**, and left the R2 **LastModified unchanged**, so the identical object wasn't uploaded again. The video became ready (attempts 2) |
+| Historical | A local-run video still streams from `runs/` (206) and was never uploaded |
+| Console | No errors |
+
+**Cleanup:** the run's R2 objects were deleted (0 left) and `explivio_e2e` was dropped. Only `explivio`, `admin` and `local` remain in the cluster.
+
+**Fixed during this run:** three test-script bugs, none in the app:
+- the filename pattern didn't expect the stub's `stub-` prefix;
+- the failure-reason check read only visible text, but the reason sits under the collapsed Technical details;
+- the first memory reading used a parser that returned 0. It was replaced, and the run now aborts if memory can't be read.
 
 ## 7. Free tier and cost
 
@@ -103,9 +128,15 @@ Then a browser test runs on a production build with real Atlas and real R2: two 
 
 **Guard:** new uploads stop at 80% of storage or Class A. Monitor usage in Cloudflare (R2 → Metrics, and Billing → Billable usage).
 
-**Spend so far:** $0. Nothing has been uploaded.
+**Spend so far:** $0.
+- Activation was a $0/month plan. The dashboard showed "Billable usage $0.00, no billable usage incurred yet".
+- **Testing used:** about 3 PutObject calls (r2:check and two e2e runs), a few dozen Head and Get calls, and dashboard listing. That's tiny against 1M and 10M, and all test objects were deleted, so storage is 0 B.
+- **Billing alert:** a Budget Alert in the Cloudflare Billing Dashboard is recommended (the "Notifications" route wasn't available on your account).
 
 ## 8. Remaining limitations
+
+- **Atlas IP:** your connection's IPv4 address changes from time to time. When it does, Atlas refuses this computer again (TLS alert 80), and you'll need to add the new IP in Network Access.
+- **Not yet done with a real narrated render:** the end-to-end run used the stub pipeline to save Gemini and ElevenLabs quota. The upload path is the same for real renders.
 
 - Uploads run in the web server process: a restart mid-upload is resumed when the video is next viewed, not immediately.
 - Class B operations (playback) aren't counted by the guard. 10 million a month is far beyond a single-user app; watch the dashboard.

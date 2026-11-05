@@ -34,7 +34,7 @@ Browser ──► Next.js app (web/) ──────────────�
 | Auth | `web/src/lib/auth/`, `web/src/services/auth/`, `web/src/features/authentication/` | Self-managed: scrypt, hashed tokens, DB sessions |
 | Video files | `runs/<runId>/video.mp4` on the local disk | Streamed by `/api/videos/[id]/file` after an owner check |
 | Email | `web/src/lib/auth/email.ts` | Development outbox `data/outbox/` (default); optional Resend transport (needs a domain) |
-| Object storage | **Not implemented.** Planned: Cloudflare R2 bucket `explivio-assets` (F11) | n/a |
+| Object storage | `web/src/lib/storage/`, `services/pipeline/cloud-upload.ts` (F11) | Cloudflare R2, private bucket `explivio-assets`, official AWS SDK v3. New videos are uploaded and verified, then streamed or downloaded via signed links; old videos stay in `runs/`. Settings: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` (optional `R2_ENDPOINT`); check with `npm run r2:check` |
 
 ### Video generation flow
 1. A server action checks the session, then `services/pipeline/videos.ts` creates `runs/<runId>/` with `prompt.txt` and `request.json`, which includes `ownerUserId`.
