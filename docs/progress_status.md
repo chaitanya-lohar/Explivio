@@ -19,7 +19,7 @@ This file is the concise current status; the newest changelog entries are at the
 1. ~~Legacy video ownership~~: **no longer needed.** On 2026-11-05, at your request, every old video was deleted (see the changelog).
 2. **Least-privilege database user:** reduce `atlasAdmin` to `readWrite` on `explivio`. You do this in Atlas; it can't be verified from the repo.
 3. ~~Environment clean-up~~: ✅ `NODE_ENV` and `APP_ENV` were removed from `web/.env.local` on 2026-11-05.
-4. **Authenticated browser regression:** re-run the F6, F7 and F9 suites with a sign-in step.
+4. ~~Authenticated browser regression~~: ✅ done 2026-11-05 (43/43, see the changelog).
 
 - **F12: authentication and authorisation hardening** ✅ (2026-11-05; commits `2cdf66f`, `7cde3d7`, `d5d98c0` and the docs commit).
   - **Audit:** 11 findings, one High: the sign-in limit could be bypassed by forging the client address, reproduced on the old code.
@@ -174,6 +174,24 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 5. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-05** — Full application retest before F13 (your request).
+  - **Automated:**
+    - web 85/85 with live Atlas; pipeline 63/63; typecheck, lint and build pass;
+    - `db:check` ok; `r2:check` 10/10.
+  - **Browser regression 43/43** (production build, real Atlas, real R2, stub pipeline, no AI calls). It replaces the old F6/F7/F9 browser suites, now behind sign-in:
+    - sign-up, verification (single use), unverified sign-in blocked, sign-in and sidebar;
+    - settings saved per account and used by Configure;
+    - create → progress → Video ready from R2, with playback, seeking and download;
+    - failure with Try again;
+    - My Videos search, status chips, sort, list/grid and preview;
+    - sign-out, forgot/reset with the old password refused;
+    - second-account isolation;
+    - 50 screen and width checks for overflow and 44 px targets;
+    - no console or page errors; server log free of secrets and errors.
+  - **Bug found and fixed:** almost every signed-in page logged the Next.js error "encountered the unstable value `new Date()` while prerendering". The cause was the MongoDB driver timestamping connection-pool events during the session lookup inside Next's runtime prefetch prerender. `getCurrentUser()` now calls `await connection()` before the database lookup, so sign-in state is always checked at request time and never prerendered or cached. After the fix: 0 errors in the server log.
+  - The F10 closeout item "re-run the F6/F7/F9 browser suites with sign-in" is **done**.
+  - $0.
 
 - **2026-11-05** — Clean-up at your request.
   - **Deleted permanently** (no Git copy or backup):

@@ -35,7 +35,7 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
 | 6 | Approval, then `-- --apply` | — | Not needed |
 | 7 | Reduce the Atlas user from `atlasAdmin` to `readWrite` on `explivio` | User (Atlas UI) | Not verified; can't be checked from the repo |
 | 8 | Remove `NODE_ENV` and `APP_ENV` from `web/.env.local` | Claude | ✅ Done 2026-11-05 |
-| 9 | Re-run the F6, F7 and F9 browser suites with a sign-in step | Claude | Not done |
+| 9 | Re-run the F6, F7 and F9 browser suites with a sign-in step | Claude | ✅ Done 2026-11-05 (43/43) |
 
 ## F11 — Cloudflare R2 video storage ✅ done 2026-11-05 ([report](storage/F11_R2_IMPLEMENTATION_REPORT.md))
 

@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { sign, unsign } from "./crypto";
 import { safeNextPath, userForSession, type User } from "@/services/auth/service";
 
@@ -20,7 +21,12 @@ const base = { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/"
 /** The signed-in user for this request (one database lookup per request), or null. */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return token ? userForSession(token) : null;
+  if (!token) return null;
+  // The session is checked in MongoDB at request time only, never inside a (runtime-prefetch) prerender: the driver
+  // timestamps its connection-pool events with `new Date()`, which Next.js rejects while prerendering, and a sign-in
+  // state must never be prerendered or cached anyway (revocation takes effect on the next request).
+  await connection();
+  return userForSession(token);
 });
 
 /** For protected pages: the user, or a redirect to sign-in that returns here afterwards. */
