@@ -6,6 +6,7 @@ import path from "node:path";
 import { hashPassword, hashToken, newToken, newUserId, sign, unsign, verifyPassword } from "../src/lib/auth/crypto.ts";
 import { hit, isLimited, LIMITS, memoryRateStore, resetRateLimits, setRateLimitStore } from "../src/lib/auth/rate-limit.ts";
 import * as auth from "../src/services/auth/service.ts";
+import { runEmailWorkerOnce } from "../src/lib/email/worker.ts";
 import { closeDatabase, getDatabase } from "../src/lib/db/mongo.ts";
 import { ensureSchema } from "../src/lib/db/collections.ts";
 
@@ -42,7 +43,8 @@ beforeEach(async () => {
 });
 
 /** The newest link of a kind sent to an address (read from the development outbox). */
-function linkFor(email: string, kind: "verify-email" | "reset-password"): string | null {
+async function linkFor(email: string, kind: "verify-email" | "reset-password"): Promise<string | null> {
+  await runEmailWorkerOnce();
   const files = readdirSync(outbox).sort().reverse();
   for (const f of files) {
     const text = readFileSync(path.join(outbox, f), "utf8");
@@ -59,7 +61,7 @@ const freshEmail = () => `user${process.pid}-${++n}@example.test`;
 async function verifiedUser(email = freshEmail()) {
   const r = await auth.signUp({ name: "Test User", email, password: PASSWORD }, "10.0.0.1");
   assert.ok(r.ok);
-  const v = await auth.verifyEmail(linkFor(email, "verify-email")!);
+  const v = await auth.verifyEmail((await linkFor(email, "verify-email"))!);
   assert.ok(v.ok);
   return { email, userId: v.userId };
 }
@@ -115,7 +117,7 @@ test("sign-up creates an unverified account with a hashed password and emails a 
   assert.ok(r.ok && r.pendingUserId && r.delivery === "outbox");
   const user = await (await getDatabase()).collection("users").findOne({ emailNormalized: email });
   assert.ok(user && user.emailVerified === false && /^scrypt\$/.test(user.passwordHash) && !JSON.stringify(user).includes(PASSWORD));
-  assert.ok(linkFor(email.toUpperCase(), "verify-email"), "verification link in the outbox");
+  assert.ok(await linkFor(email.toUpperCase(), "verify-email"), "verification link in the outbox");
 });
 
 test("duplicate sign-up: no second account, same answer, existing owner notified", { skip }, async () => {
@@ -123,6 +125,7 @@ test("duplicate sign-up: no second account, same answer, existing owner notified
   const r = await auth.signUp({ name: "Someone", email, password: "Other-pass-1" }, "10.0.0.3");
   assert.ok(r.ok && r.pendingUserId === null, "same success shape, no pending account");
   assert.equal(await (await getDatabase()).collection("users").countDocuments({ emailNormalized: email }), 1);
+  await runEmailWorkerOnce(); // F13: the notice is queued; send it before reading the outbox
   const newest = readdirSync(outbox).sort().reverse().map((f) => readFileSync(path.join(outbox, f), "utf8")).find((t) => t.startsWith(`To: ${email}`));
   assert.match(newest ?? "", /already has an account/);
 });
@@ -138,13 +141,13 @@ test("verification: single use, invalid token, expired token, resend replaces ol
   const email = freshEmail();
   const r = await auth.signUp({ name: "B", email, password: PASSWORD }, "10.0.0.5");
   assert.ok(r.ok && r.pendingUserId);
-  const first = linkFor(email, "verify-email")!;
+  const first = (await linkFor(email, "verify-email"))!;
   // Resend (after the cooldown) issues a new link and retires the first.
   auth.setClock(() => Date.now() + 61_000);
   await resetRateLimits();
   const again = await auth.resendVerification(r.pendingUserId);
   assert.ok(again.ok);
-  const second = linkFor(email, "verify-email")!;
+  const second = (await linkFor(email, "verify-email"))!;
   assert.notEqual(second, first);
   assert.deepEqual(await auth.verifyEmail(first), { ok: false, problem: "used" }, "retired link");
   assert.deepEqual(await auth.verifyEmail("not-a-real-token"), { ok: false, problem: "invalid" });
@@ -210,7 +213,7 @@ test("password reset: same answer for unknown email; link single use and expirin
   const unknown = await auth.requestPasswordReset(freshEmail(), "10.0.1.1");
   const known = await auth.requestPasswordReset(email, "10.0.1.1");
   assert.deepEqual(unknown, known, "no account enumeration");
-  const token = linkFor(email, "reset-password")!;
+  const token = (await linkFor(email, "reset-password"))!;
   assert.deepEqual(await auth.checkResetToken(token), { ok: true });
   assert.equal((await auth.resetPassword(token, "weak", "10.0.1.1")).ok, false, "password rules apply");
   const done = await auth.resetPassword(token, "New-password-2", "10.0.1.1");
@@ -222,7 +225,7 @@ test("password reset: same answer for unknown email; link single use and expirin
   await resetRateLimits();
   auth.setClock(() => Date.now() + 61_000);
   await auth.requestPasswordReset(email, "10.0.1.3");
-  const late = linkFor(email, "reset-password")!;
+  const late = (await linkFor(email, "reset-password"))!;
   auth.setClock(() => Date.now() + 31 * 60_000 + 61_000);
   assert.deepEqual(await auth.checkResetToken(late), { ok: false, problem: "expired" });
 });

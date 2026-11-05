@@ -1,7 +1,8 @@
 import { getDatabase } from "../../lib/db/mongo.ts";
 import { COLLECTIONS, type EmailTokenDoc, type SessionDoc, type UserDoc, type UserSettingsDoc } from "../../lib/db/collections.ts";
 import { dummyPasswordHash, hashPassword, hashToken, newToken, newUserId, verifyPassword } from "../../lib/auth/crypto.ts";
-import { appUrl, emailMode, sendEmail, type DeliveryMode } from "../../lib/auth/email.ts";
+import { emailMode, type DeliveryMode } from "../../lib/auth/email.ts";
+import { enqueueEmail } from "../../lib/email/queue.ts";
 import { clearLimit, hit, isLimited, LIMITS } from "../../lib/auth/rate-limit.ts";
 import { validateEmail, validateNewPassword } from "../../features/authentication/validation/index.ts";
 import { securityEvent } from "../../lib/security/log.ts";
@@ -19,6 +20,9 @@ import { parsePreferences, type VideoPreferences } from "../../lib/preferences.t
  *    account exists, so response time doesn't reveal registered emails;
  *  - passwords longer than MAX_PASSWORD_LENGTH are refused by the server (the UI rules are unchanged);
  *  - security events are logged without secrets (lib/security/log.ts).
+ * F13: emails are queued (lib/email/queue.ts) and sent by a worker, so no request waits for an email provider. The
+ * worker creates the email's link token at send time (createPendingEmailToken / settleEmailToken below), so no raw
+ * token is ever stored, and a failed send never invalidates a link that was already delivered.
  */
 
 export const SESSION_DAYS = 7;
@@ -81,14 +85,31 @@ export async function findUserById(id: string): Promise<User | null> {
 type Purpose = EmailTokenDoc["purpose"];
 export type TokenProblem = "invalid" | "expired" | "used";
 
-async function issueToken(userId: string, purpose: Purpose, ttlMs: number): Promise<string> {
+
+const TTL: Record<Purpose, number> = { verify_email: VERIFY_HOURS * 3_600_000, reset_password: RESET_MINUTES * 60_000 };
+
+/**
+ * F13 worker: creates the link token for an email about to be sent, WITHOUT retiring the user's older links yet (the send
+ * may still fail). Only the hash is stored. Settle it with settleEmailToken once the provider has answered.
+ */
+export async function createPendingEmailToken(userId: string, purpose: Purpose): Promise<{ token: string; hash: string }> {
   const { tokens } = await collections();
   const token = newToken();
   const now = new Date(clock());
-  // Only the newest link of each kind works: older unused ones are retired.
-  await tokens.updateMany({ userId, purpose, usedAt: null }, { $set: { usedAt: now } });
-  await tokens.insertOne({ _id: hashToken(token), userId, purpose, createdAt: now, expiresAt: new Date(now.getTime() + ttlMs), usedAt: null });
-  return token;
+  const hash = hashToken(token);
+  await tokens.insertOne({ _id: hash, userId, purpose, createdAt: now, expiresAt: new Date(now.getTime() + TTL[purpose]), usedAt: null });
+  return { token, hash };
+}
+
+/**
+ * accepted → this becomes the only working link of its kind (older unused ones retired);
+ * rejected → the never-delivered token is deleted (older links keep working);
+ * unknown  → nothing changes (it may or may not have arrived; both stay valid until they expire).
+ */
+export async function settleEmailToken(userId: string, purpose: Purpose, hash: string, outcome: "accepted" | "rejected" | "unknown"): Promise<void> {
+  const { tokens } = await collections();
+  if (outcome === "accepted") await tokens.updateMany({ userId, purpose, usedAt: null, _id: { $ne: hash } }, { $set: { usedAt: new Date(clock()) } });
+  if (outcome === "rejected") await tokens.deleteOne({ _id: hash, usedAt: null });
 }
 
 /** Uses a token exactly once (atomic), or says why it can't be used. */
@@ -111,14 +132,10 @@ async function tokenProblem(token: string, purpose: Purpose): Promise<TokenProbl
 
 // ---- Sign up / verify / resend -------------------------------------------------------------------------------------
 
+/** Queues the verification email (the worker creates the link when it sends). */
 async function sendVerification(user: { id: string; email: string; name: string }): Promise<DeliveryMode> {
-  const token = await issueToken(user.id, "verify_email", VERIFY_HOURS * 3_600_000);
-  const result = await sendEmail({
-    to: user.email,
-    subject: "Verify your Explivio email address",
-    text: `Hi ${user.name},\n\nConfirm your email address to activate your Explivio account:\n${appUrl()}/verify-email?token=${token}\n\nThis link works once and expires in ${VERIFY_HOURS} hours. If you didn't create an account, you can ignore this email.`,
-  });
-  return result.mode;
+  await enqueueEmail("verify_email", user);
+  return emailMode();
 }
 
 export type SignUpResult = { ok: true; delivery: DeliveryMode; pendingUserId: string | null } | { ok: false; code: "validation" | "rate_limited"; message: string };
@@ -166,12 +183,8 @@ async function createAccount(name: string, email: string, input: { email: string
 
 async function notifyExisting(user: UserDoc): Promise<DeliveryMode> {
   if (!(await hit(`email:${user._id}`, LIMITS.emailPerAccount, clock())).ok) return emailMode();
-  const result = await sendEmail({
-    to: user.email,
-    subject: "Someone tried to create an Explivio account with your email",
-    text: `Hi ${user.name},\n\nSomeone tried to sign up for Explivio with this address, which already has an account.\nSign in: ${appUrl()}/login\nForgot your password? ${appUrl()}/forgot-password\n\nIf this wasn't you, you can ignore this email.`,
-  });
-  return result.mode;
+  await enqueueEmail("account_exists", { id: user._id, email: user.email, name: user.name });
+  return emailMode();
 }
 
 export type VerifyResult = { ok: true; userId: string } | { ok: false; problem: TokenProblem };
@@ -312,13 +325,8 @@ async function prepareReset(email: string, ip: string): Promise<ForgotResult> {
   if ((await isLimited(`cooldown:reset:${doc._id}`, LIMITS.emailCooldown, clock())) || !(await hit(`email:${doc._id}`, LIMITS.emailPerAccount, clock())).ok) return { ok: true, delivery: mode };
   await hit(`cooldown:reset:${doc._id}`, LIMITS.emailCooldown, clock());
   securityEvent("reset_requested", { userId: doc._id, ip });
-  const token = await issueToken(doc._id, "reset_password", RESET_MINUTES * 60_000);
-  const result = await sendEmail({
-    to: doc.email,
-    subject: "Reset your Explivio password",
-    text: `Hi ${doc.name},\n\nUse this link to choose a new password:\n${appUrl()}/reset-password?token=${token}\n\nIt works once and expires in ${RESET_MINUTES} minutes. If you didn't ask for this, ignore this email: your password stays the same.`,
-  });
-  return { ok: true, delivery: result.mode };
+  await enqueueEmail("reset_password", { id: doc._id, email: doc.email, name: doc.name });
+  return { ok: true, delivery: mode };
 }
 
 /** Checks a reset link before the form is shown (doesn't use it). */
@@ -354,6 +362,9 @@ export async function resetPassword(token: string, password: string, ip: string)
   const revoked = await sessions.deleteMany({ userId: found.userId });
   await clearLimit(`login:acct:${(await users.findOne({ _id: found.userId }, { projection: { emailNormalized: 1 } }))?.emailNormalized ?? ""}`);
   securityEvent("reset_completed", { userId: found.userId, ip, count: revoked.deletedCount });
+  // F13: tell the owner (a queued job; a failure here never undoes the reset).
+  const owner = await users.findOne({ _id: found.userId }, { projection: { email: 1, name: 1 } });
+  if (owner) await enqueueEmail("password_changed", { id: owner._id, email: owner.email, name: owner.name }).catch(() => {});
   return { ok: true };
 }
 

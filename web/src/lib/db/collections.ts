@@ -16,7 +16,37 @@ export const COLLECTIONS = {
   userSettings: "userSettings",
   /** F12: rate-limit counters (hashed keys, TTL), shared across restarts and instances. */
   rateLimits: "rateLimits",
+  /** F13: durable transactional-email queue (no tokens stored; address erased once a job ends; TTL after 7 days). */
+  emailJobs: "emailJobs",
 } as const;
+
+export type EmailJobStatus = "pending" | "processing" | "retry_wait" | "accepted" | "failed" | "unknown" | "skipped";
+
+export interface EmailJobDoc {
+  _id: string; // ej_<hex>
+  kind: "verify_email" | "reset_password" | "password_changed" | "account_exists";
+  userId: string;
+  /** Recipient and display name: kept only while the job can still be sent, then set to null. */
+  to: string | null;
+  name: string | null;
+  status: EmailJobStatus;
+  /** Provider submissions made so far (each with its own idempotency key). */
+  attemptCount: number;
+  nextAttemptAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  lastAttemptAt?: Date | null;
+  /** Set right before the provider is called: a crash after this point makes the outcome unknown (never resent). */
+  submittingAt?: Date | null;
+  leaseOwner?: string | null;
+  leaseExpiresAt?: Date | null;
+  providerMessageId?: string | null;
+  lastErrorCode?: string | null;
+  acceptedAt?: Date | null;
+  completedAt?: Date | null;
+  /** TTL: finished jobs are deleted after 7 days. */
+  expireAt?: Date | null;
+}
 
 /** A fixed-window counter. `_id` is the SHA-256 of the limit key (keys can contain emails; only the hash is stored). */
 export interface RateLimitDoc {
@@ -140,6 +170,9 @@ export const INDEXES: readonly IndexSpec[] = [
   { collection: COLLECTIONS.generationAttempts, key: { ownerUserId: 1, createdAt: -1 }, options: { name: "owner_newest" } },
   { collection: COLLECTIONS.generationAttempts, key: { status: 1, updatedAt: 1 }, options: { name: "status_updated" } },
   { collection: COLLECTIONS.rateLimits, key: { resetAt: 1 }, options: { name: "expiry_ttl", expireAfterSeconds: 0 } },
+  { collection: COLLECTIONS.emailJobs, key: { status: 1, nextAttemptAt: 1 }, options: { name: "due" } },
+  { collection: COLLECTIONS.emailJobs, key: { status: 1, leaseExpiresAt: 1 }, options: { name: "lease" } },
+  { collection: COLLECTIONS.emailJobs, key: { expireAt: 1 }, options: { name: "expiry_ttl", expireAfterSeconds: 0 } },
 ];
 
 /** Server-side schema checks for the records that matter most for security (Atlas runs $jsonSchema validators). */

@@ -29,7 +29,13 @@ export type SecurityEvent =
   | "reset_completed"
   | "reset_failed"
   | "access_denied"
-  | "generation_limited";
+  | "generation_limited"
+  | "email_queued"
+  | "email_accepted"
+  | "email_rejected"
+  | "email_unknown"
+  | "email_deferred"
+  | "email_skipped";
 
 export type SecurityFields = { userId?: string | null; ip?: string | null; videoId?: string; reason?: string; count?: number };
 
@@ -46,7 +52,7 @@ export function securityEvent(event: SecurityEvent, fields: SecurityFields = {})
   if (fields.userId && /^usr_[0-9a-f]{32}$/.test(fields.userId)) record.userId = fields.userId;
   if (fields.ip) record.ip = anonymize(fields.ip);
   if (fields.videoId && /^[A-Za-z0-9_-]{1,80}$/.test(fields.videoId)) record.videoId = fields.videoId;
-  if (fields.reason && /^[a-z_]{1,40}$/.test(fields.reason)) record.reason = fields.reason;
+  if (fields.reason && /^[a-z][a-z0-9_]{0,39}$/.test(fields.reason)) record.reason = fields.reason;
   if (typeof fields.count === "number") record.count = fields.count;
   try {
     sink(`[security] ${JSON.stringify(record)}`);
