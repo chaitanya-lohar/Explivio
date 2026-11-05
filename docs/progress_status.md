@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-05 (reconciled against the code and Git).
+Last updated: 2026-11-05 (F11 code; reconciled against the code and Git).
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -20,11 +20,15 @@ This file is the concise current status; the newest changelog entries are at the
 3. **Environment clean-up:** remove `NODE_ENV` and `APP_ENV` from `web/.env.local` (still present).
 4. **Authenticated browser regression:** re-run the F6, F7 and F9 suites with a sign-in step.
 
-## Next
-- **F11: Cloudflare R2 video storage.** Starts when you ask. It needs:
-  - the `explivio-assets` bucket;
-  - a token scoped to that bucket, saved in `web/.env.local` by you;
-  - MMM's R2 code with secrets removed.
+## In progress
+- **F11: Cloudflare R2 video storage.** 🟡 Code done and tested offline (`0760ca5`, `71c5e8e`); **not complete**.
+  - Built: new videos upload to R2 after rendering and are verified before they're marked ready; playback streams from R2 with seeking; downloads use 5-minute signed links; Try again re-uploads without re-rendering; a free-tier guard stops uploads at 80%. Old videos stay local.
+  - **Waiting on you:**
+    - complete the R2 checkout (accepted knowingly);
+    - create the bucket and a scoped token, and put the values in `web/.env.local`;
+    - allow your current IP in Atlas → Network Access (Atlas refused connections on 2026-11-05).
+  - Then: `npm run r2:check`, the live Atlas test, and a browser end-to-end test on real R2.
+  - Reports: [architecture](storage/F11_R2_STORAGE_ARCHITECTURE.md), [implementation](storage/F11_R2_IMPLEMENTATION_REPORT.md), [historical migration plan](storage/F11_HISTORICAL_VIDEO_MIGRATION_PLAN.md) (not executed).
 
 ## Planned
 - F12 authentication and authorisation hardening.
@@ -45,7 +49,8 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | Suite | Result | Notes |
 |---|---|---|
 | Pipeline (`npm test`, root) | 63/63 | Re-run 2026-11-05 |
-| Web (`web: npm test`) | 46 pass, 10 skipped, 0 fail | Re-run offline 2026-11-05; the 10 skipped are live-Atlas tests, which passed on 2026-11-04 (56/56) |
+| Web (`web: npm test`) | 65 pass, 10 skipped, 0 fail (75) | 2026-11-05 after F11; the 10 skipped are live-Atlas tests (last passed 2026-11-04; Atlas unreachable on 2026-11-05) |
+| Real R2 (`npm run r2:check`) | Not run | Waiting for the bucket and credentials |
 | Browser end-to-end (F10) | 70/70 | 2026-11-04, production build, two accounts |
 | Typecheck, lint, build | Pass | 2026-11-04; no code has changed since |
 | F6 / F7 / F9 browser suites | 53/53, 41/41, 62/62 + 64/64 | **Historical** (before sign-in existed); need re-running with a login step |
@@ -53,7 +58,9 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 ## Risks
 | Risk | Impact | Owner | Resolution |
 |---|---|---|---|
-| Videos only on the laptop disk (`runs/`, 464 MB, no cleanup) | Data loss; no cloud access; disk growth | Claude (F11, F14) | R2 storage (F11); retention policy (F14) |
+| Videos only on the laptop disk (`runs/`, 464 MB, no cleanup) | Data loss; no cloud access; disk growth | Claude (F11, F14) | R2 storage (F11, code done, setup pending); retention policy (F14) |
+| R2 needs an active Cloudflare subscription; overages bill automatically with no cap | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert; monitor R2 → Metrics |
+| Atlas refuses connections from this machine (2026-11-05), likely a changed public IP | App can't sign in or list videos | User | Atlas → Network Access → add the current IP |
 | Atlas user has `atlasAdmin` | Too much access if the URI leaks | User | Reduce to `readWrite` on `explivio` |
 | No real email | Users can't verify without access to the server's outbox | Claude (F13) | Gmail SMTP |
 | Rate limits are in memory | Reset on restart; single process only | Claude (F12) | Move to MongoDB TTL counters |
@@ -159,6 +166,20 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-05** — F11 Cloudflare R2 storage: code and offline tests (not complete).
+  - **Commits:**
+    - `0760ca5` storage service: config, official AWS SDK adapter with Content-MD5, keys, free-tier guard, `npm run r2:check`.
+    - `71c5e8e` integration: upload after render → verify → ready; R2 streaming with Range; signed-link downloads; upload-only retry; resume after restart.
+  - **Decision:** you chose R2 knowing the checkout needs a payment method and overages bill automatically. The guard stops uploads at 80% of the free tier.
+  - **Verified on official pages:** R2 free tier is 10 GB, 1M Class A and 10M Class B per month, free egress (Standard only).
+  - **Tests:**
+    - web 65 pass / 10 skipped / 0 fail;
+    - pipeline 22/22, stable across 5 runs;
+    - storage 10/10, with the real SDK against a fake S3 endpoint;
+    - root 63/63; typecheck, lint and build pass.
+  - **Bug found and fixed:** a race where a late automatic upload could overwrite a recorded failure.
+  - **Not yet real:** no bucket or credentials; Atlas unreachable (IP access list). No historical video was touched.
+  - $0; no Gemini or ElevenLabs calls.
 - **2026-11-05** — Project context reconciled and roadmap documented (documentation only).
   - **New:** [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), [ROADMAP.md](ROADMAP.md) (F10 closeout, F11 R2, F12 auth hardening, F13 Gmail, F14 production, F15 validation), [DECISIONS.md](DECISIONS.md) (D1–D18).
   - **This file:** restructured (Completed / Closeout / Next / Planned / Backlog / Risks). Stale "auth is demo-only", F4-plan and Clerk statements are marked superseded.
