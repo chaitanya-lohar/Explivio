@@ -40,6 +40,10 @@ export async function signInAction(input: LoginCredentials, next?: string): Prom
   return guarded(async () => {
     const result = await auth.signIn(data, await clientIp());
     if (result.ok) {
+      // F12: a browser that already held a session (same or another account) gets only the new one; the old record
+      // is deleted rather than left valid until it expires.
+      const previous = await sessionToken();
+      if (previous) await auth.signOut(previous, "replaced").catch(() => {});
       await setSessionCookie(result.sessionToken, result.expiresAt, data.rememberMe);
       await clearPendingVerification();
       return { ok: true, message: "Signed in.", redirectTo: auth.safeNextPath(asString(next)) };

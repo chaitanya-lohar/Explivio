@@ -29,13 +29,13 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
 |---|---|---|---|
 | 1 | Create an account with the intended email | User | Appears done: an account was created on 2026-11-04 (outbox entry) and a video was generated under it. Not re-checked in the database (no external calls in the reconciliation task) |
 | 2 | Verify the account through the outbox link | User | Appears done (a video was created, which needs sign-in); not re-checked in the database |
-| 3 | Set `EXPLIVIO_LEGACY_OWNER_EMAIL` in `web/.env.local` | User | Not done (variable absent) |
-| 4 | `npm run db:legacy-ownership` dry run | Claude, on request | Not run |
-| 5 | Review the count: 20 runs without an owner (21 runs, 1 already owned) | User | Pending |
-| 6 | Explicit approval, then `-- --apply` | User → Claude | Pending; **never without approval** |
+| 3 | Set `EXPLIVIO_LEGACY_OWNER_EMAIL` in `web/.env.local` | — | **Not needed:** old videos deleted on 2026-11-05 |
+| 4 | `npm run db:legacy-ownership` dry run | — | Not needed |
+| 5 | Review the count of ownerless runs | — | Not needed (0 runs left) |
+| 6 | Approval, then `-- --apply` | — | Not needed |
 | 7 | Reduce the Atlas user from `atlasAdmin` to `readWrite` on `explivio` | User (Atlas UI) | Not verified; can't be checked from the repo |
-| 8 | Remove `NODE_ENV` and `APP_ENV` from `web/.env.local` | User | Not done (both still present) |
-| 9 | Re-run the F6, F7 and F9 browser suites with a sign-in step | Claude | Not done |
+| 8 | Remove `NODE_ENV` and `APP_ENV` from `web/.env.local` | Claude | ✅ Done 2026-11-05 |
+| 9 | Re-run the F6, F7 and F9 browser suites with a sign-in step | Claude | ✅ Done 2026-11-05 (43/43) |
 
 ## F11 — Cloudflare R2 video storage ✅ done 2026-11-05 ([report](storage/F11_R2_IMPLEMENTATION_REPORT.md))
 
@@ -54,7 +54,7 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
 | Check first | Current R2 free-tier limits (storage, operations, egress) on Cloudflare's official pages |
 | Docs | `docs/storage/F11_R2_STORAGE_ARCHITECTURE.md`, `docs/storage/F11_R2_IMPLEMENTATION_REPORT.md` |
 
-## F12 — Authentication and authorisation hardening
+## F12 — Authentication and authorisation hardening ✅ done 2026-11-05 ([report](security/F12_SECURITY_IMPLEMENTATION_REPORT.md))
 
 - **Objective:** review and strengthen the existing self-managed auth. Keep it unless there's a documented reason to change.
 - **Review:** session lifecycle, expiry, revocation and logout; password policy; rate limits (currently in memory); verification and reset tokens; cookies; CSRF; server-side authorisation; ownership of videos, generation attempts, settings and R2 objects.
@@ -84,7 +84,7 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
   - hosting, and splitting the Next.js app from a render worker;
   - Atlas network access, R2 access, Gmail configuration, secrets;
   - memory (renders need about 2 GB; free memory has dipped to 1.6 GB) and render concurrency;
-  - temp-file cleanup and the `runs/` retention policy (464 MB, no cleanup yet);
+  - temp-file cleanup and the `runs/` retention policy (emptied on 2026-11-05; no automatic cleanup yet);
   - logging, error monitoring, backups and restore;
   - security headers, rate limits, health checks, rollback.
 - **Rules:** no free hosting tier is assumed to be permanent, and nothing is deployed or billed without approval.

@@ -31,7 +31,7 @@ Browser ──► Next.js app (web/) ──────────────�
 | Pipeline | `src/` (cli, pipeline, providers, schemas, video templates) | TypeScript run with tsx; Zod; Remotion |
 | Web app | `web/src/` (app, features, services, lib, components) | Next.js 16.4 App Router (`cacheComponents`, `proxy.ts`), React 19, TypeScript strict, Tailwind 4 |
 | Database | `web/src/lib/db/` | Official `mongodb` driver 7.8 (no Mongoose), one cached client |
-| Auth | `web/src/lib/auth/`, `web/src/services/auth/`, `web/src/features/authentication/` | Self-managed: scrypt, hashed tokens, DB sessions |
+| Auth | `web/src/lib/auth/`, `web/src/services/auth/`, `web/src/features/authentication/`, `web/src/lib/security/` | Self-managed: scrypt, hashed tokens, DB sessions. F12: per-account sign-in limit and durable MongoDB rate limits (`rateLimits`), equal-time sign-up/forgot, previous session revoked on sign-in, 256-character password cap, 10 renders per account per 24 h (`EXPLIVIO_DAILY_GENERATIONS`), security log (`[security]` JSON lines, no secrets), hardening headers in `next.config.ts` |
 | Video files | `runs/<runId>/video.mp4` on the local disk | Streamed by `/api/videos/[id]/file` after an owner check |
 | Email | `web/src/lib/auth/email.ts` | Development outbox `data/outbox/` (default); optional Resend transport (needs a domain) |
 | Object storage | `web/src/lib/storage/`, `services/pipeline/cloud-upload.ts` (F11) | Cloudflare R2, private bucket `explivio-assets`, official AWS SDK v3. New videos are uploaded and verified, then streamed or downloaded via signed links; old videos stay in `runs/`. Settings: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` (optional `R2_ENDPOINT`); check with `npm run r2:check` |
@@ -116,7 +116,7 @@ Template: `web/.env.example`. Gitignored local data: `data/` (`auth-secret`, `ou
 
 - Ryzen 5 5625U with integrated Radeon (no CUDA) and 15.3 GB RAM.
 - Free memory has dipped to about 1.6 GB during renders.
-- `runs/` was 464 MB on 2026-11-05.
+- `runs/` was emptied on 2026-11-05 at your request (every earlier video deleted); new videos are rendered there and uploaded to R2.
 
 ## 7. Document map
 

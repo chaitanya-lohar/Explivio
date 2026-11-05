@@ -21,4 +21,4 @@ export const getVideoSource = async (id: string, ownerUserId: string): Promise<p
 export type { VideoSource } from "./pipeline/videos";
 export const createVideo = (request: VideoRequest, ownerUserId: string): Promise<VideoProject> => (useMock ? mock.createVideo(request) : pipeline.createVideo(request, ownerUserId));
 export const retryVideo = (id: string, ownerUserId: string): Promise<VideoProject | null> => (useMock ? mock.retryVideo(id) : pipeline.retryVideo(id, ownerUserId));
-export { PipelineBusyError } from "./pipeline/videos";
+export { GenerationLimitError, PipelineBusyError } from "./pipeline/videos";

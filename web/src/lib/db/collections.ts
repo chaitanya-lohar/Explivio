@@ -14,7 +14,17 @@ export const COLLECTIONS = {
   videoProjects: "videoProjects",
   generationAttempts: "generationAttempts",
   userSettings: "userSettings",
+  /** F12: rate-limit counters (hashed keys, TTL), shared across restarts and instances. */
+  rateLimits: "rateLimits",
 } as const;
+
+/** A fixed-window counter. `_id` is the SHA-256 of the limit key (keys can contain emails; only the hash is stored). */
+export interface RateLimitDoc {
+  _id: string;
+  count: number;
+  /** End of the window; the TTL index deletes the record after it. */
+  resetAt: Date;
+}
 
 /** Application user. Credentials are a scrypt hash; email is stored as entered and in normalised (lower-case) form. */
 export interface UserDoc {
@@ -129,6 +139,7 @@ export const INDEXES: readonly IndexSpec[] = [
   { collection: COLLECTIONS.generationAttempts, key: { videoId: 1, createdAt: -1 }, options: { name: "video_newest" } },
   { collection: COLLECTIONS.generationAttempts, key: { ownerUserId: 1, createdAt: -1 }, options: { name: "owner_newest" } },
   { collection: COLLECTIONS.generationAttempts, key: { status: 1, updatedAt: 1 }, options: { name: "status_updated" } },
+  { collection: COLLECTIONS.rateLimits, key: { resetAt: 1 }, options: { name: "expiry_ttl", expireAfterSeconds: 0 } },
 ];
 
 /** Server-side schema checks for the records that matter most for security (Atlas runs $jsonSchema validators). */

@@ -1,6 +1,8 @@
 # F11 — Historical video migration plan (plan only; not executed)
 
-Date: 2026-11-05. **No historical video has been uploaded, moved, renamed or deleted.** Running any of this needs your explicit approval.
+> **Superseded on 2026-11-05:** at your request every historical video was **deleted** (not migrated), so this plan no longer applies. It is kept for reference.
+
+Date: 2026-11-05. Running any of this needed your explicit approval.
 
 ## 1. Inventory (2026-11-05)
 

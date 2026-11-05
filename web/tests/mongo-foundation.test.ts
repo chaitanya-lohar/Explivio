@@ -82,7 +82,7 @@ function fakeDb(existing: string[] = []) {
   return { db: db as unknown as Parameters<typeof ensureSchema>[0], calls };
 }
 
-test("6. schema setup creates the six collections (validators on users and videoProjects) and all indexes; idempotent", async () => {
+test("6. schema setup creates every collection (validators on users and videoProjects) and all indexes; idempotent", async () => {
   const fresh = fakeDb();
   const result = await ensureSchema(fresh.db);
   assert.deepEqual(result.createdCollections.sort(), Object.values(COLLECTIONS).sort());

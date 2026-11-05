@@ -13,3 +13,6 @@ runs/.gemini-health.json
 
 # Local auth data (F10): generated secret and development email outbox
 data/
+
+# Local credential notes (never commit)
+/CloudFareConfKeys.txt

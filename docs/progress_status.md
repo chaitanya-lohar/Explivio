@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-05 (F11 code; reconciled against the code and Git).
+Last updated: 2026-11-05 (F12 complete).
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -16,19 +16,29 @@ This file is the concise current status; the newest changelog entries are at the
   - Implementation verified in code on 2026-11-05; the live database was last verified on 2026-11-04.
 
 ## F10 operational closeout (before F11)
-1. **Legacy video ownership:** 20 of 21 runs have no owner.
-   - An account exists: created 2026-11-04, and one video was generated under it.
-   - `EXPLIVIO_LEGACY_OWNER_EMAIL` is not yet set.
-   - Dry run, then `--apply` **only after your approval**.
+1. ~~Legacy video ownership~~: **no longer needed.** On 2026-11-05, at your request, every old video was deleted (see the changelog).
 2. **Least-privilege database user:** reduce `atlasAdmin` to `readWrite` on `explivio`. You do this in Atlas; it can't be verified from the repo.
-3. **Environment clean-up:** remove `NODE_ENV` and `APP_ENV` from `web/.env.local` (still present).
-4. **Authenticated browser regression:** re-run the F6, F7 and F9 suites with a sign-in step.
+3. ~~Environment clean-up~~: ✅ `NODE_ENV` and `APP_ENV` were removed from `web/.env.local` on 2026-11-05.
+4. ~~Authenticated browser regression~~: ✅ done 2026-11-05 (43/43, see the changelog).
+
+- **F12: authentication and authorisation hardening** ✅ (2026-11-05; commits `2cdf66f`, `7cde3d7`, `d5d98c0` and the docs commit).
+  - **Audit:** 11 findings, one High: the sign-in limit could be bypassed by forging the client address, reproduced on the old code.
+  - **Fixed:**
+    - per-account sign-in limit in durable MongoDB counters;
+    - equal-time sign-up and forgot-password (no email enumeration);
+    - the old session revoked on re-sign-in;
+    - 256-character password cap;
+    - 10 new videos per account per 24 h;
+    - secret-free security log;
+    - anti-framing and hardening headers;
+    - keys file ignored.
+  - **Verified:** web 85/85 (live Atlas), security tests 8/8, browser end-to-end **36/36** on real Atlas and R2 (cross-user server-action replays, CSRF, forged addresses, cookie flags, R2 isolation), `r2:check` 10/10, pipeline 63/63; typecheck, lint and build pass.
+  - Reports: [audit](security/F12_SECURITY_AUDIT.md), [implementation](security/F12_SECURITY_IMPLEMENTATION_REPORT.md), [test matrix](security/F12_SECURITY_TEST_MATRIX.md).
 
 ## Next
-- **F10 operational closeout** (above), then **F12: authentication and authorisation hardening** when you ask.
+- **F10 operational closeout** (above), then **F13: real email delivery through Gmail** when you ask.
 
 ## Planned
-- F12 authentication and authorisation hardening.
 - F13 Gmail email delivery (SMTP with an App Password).
 - F14 production readiness.
 - F15 final product validation.
@@ -46,7 +56,8 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | Suite | Result | Notes |
 |---|---|---|
 | Pipeline (`npm test`, root) | 63/63 | Re-run 2026-11-05 |
-| Web (`web: npm test` with `MONGODB_URI_TEST`) | **76/76** | 2026-11-05 after F11, including the live-Atlas tests (offline: 65 pass, 10 skipped) |
+| Web (`web: npm test` with `MONGODB_URI_TEST`) | **85/85** | 2026-11-05 after F12, including the live-Atlas tests (offline: 68 pass, 17 skipped) |
+| F12 browser end-to-end (real Atlas and R2) | **36/36** | 2026-11-05 |
 | Real R2 (`npm run r2:check`) | **10/10** | 2026-11-05 |
 | F11 browser end-to-end (real R2 and Atlas) | **39/39** | 2026-11-05, production build, two accounts, stub pipeline |
 | Browser end-to-end (F10) | 70/70 | 2026-11-04, production build, two accounts |
@@ -56,12 +67,13 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 ## Risks
 | Risk | Impact | Owner | Resolution |
 |---|---|---|---|
-| Videos only on the laptop disk (`runs/`, 464 MB, no cleanup) | Data loss; no cloud access; disk growth | Claude (F11, F14) | New videos now go to R2 (F11 ✅); old ones need the [migration plan](storage/F11_HISTORICAL_VIDEO_MIGRATION_PLAN.md) (approval); retention policy (F14) |
+| Rendered files pile up in `runs/` (no cleanup policy) | Disk growth | Claude (F14) | New videos go to R2 (F11 ✅); old videos were deleted on 2026-11-05; retention policy in F14 |
 | R2 needs an active Cloudflare subscription; overages bill automatically with no cap | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert; monitor R2 → Metrics |
 | Your public IPv4 address changes from time to time; Atlas then refuses this machine (TLS alert 80) | App can't sign in or list videos | User | Atlas → Network Access → add the new IPv4 address (the browser's "current IP" may add the IPv6 one) |
 | Atlas user has `atlasAdmin` | Too much access if the URI leaks | User | Reduce to `readWrite` on `explivio` |
 | No real email | Users can't verify without access to the server's outbox | Claude (F13) | Gmail SMTP |
-| Rate limits are in memory | Reset on restart; single process only | Claude (F12) | Move to MongoDB TTL counters |
+| A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits, or resets the password | User (accepted) | Password reset lifts the lockout |
+| Per-address limits trust a forgeable header until there's a trusted proxy | Best effort only; per-account and global limits carry security | Claude (F14) | Proxy that overwrites `X-Forwarded-For` |
 | ElevenLabs credits about 270 characters (estimated) until 2026-11-26 | Narrated videos fail with a quota error | User | Use silent mode; wait for the reset |
 | Gemini free-tier 429s | Generation fails until the quota resets | User | Retry later; no billing |
 | Render about 2 GB of RAM; free memory dipped to 1.6 GB | Render failures; hosting cost | Claude (F14) | Separate worker; measured sizing |
@@ -109,8 +121,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 
 | Date | Output | Notes |
 |---|---|---|
-| 2026-10-29 | `runs/2026-10-29T15-45-52-735Z-ea7e9546/video.mp4` | "How APIs Work", 57.4 s, 1080×1920, narration + captions + music. Accepted by user. |
-| 2026-10-28 | `runs/2026-10-28T18-36-24-897Z-4a4ab22c/video.mp4` | Earlier render of the same video, 57.7 s. |
+| — | none | Every earlier video, including "How APIs Work" (accepted 2026-10-29), was **deleted on 2026-11-05 at your request**. New videos are stored in Cloudflare R2. |
 
 ## Known issues and constraints
 
@@ -157,13 +168,54 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 ## Next steps
 
 1. Finish the F10 operational closeout (above).
-2. **F11: Cloudflare R2**, when you ask.
-3. Then F12 → F13 → F14 → F15 ([ROADMAP.md](ROADMAP.md)).
+2. **F13: Gmail email delivery**, when you ask.
+3. Then F14 → F15 ([ROADMAP.md](ROADMAP.md)).
 4. Optional backlog, without delaying the above.
 5. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
 
+- **2026-11-05** — Full application retest before F13 (your request).
+  - **Automated:**
+    - web 85/85 with live Atlas; pipeline 63/63; typecheck, lint and build pass;
+    - `db:check` ok; `r2:check` 10/10.
+  - **Browser regression 43/43** (production build, real Atlas, real R2, stub pipeline, no AI calls). It replaces the old F6/F7/F9 browser suites, now behind sign-in:
+    - sign-up, verification (single use), unverified sign-in blocked, sign-in and sidebar;
+    - settings saved per account and used by Configure;
+    - create → progress → Video ready from R2, with playback, seeking and download;
+    - failure with Try again;
+    - My Videos search, status chips, sort, list/grid and preview;
+    - sign-out, forgot/reset with the old password refused;
+    - second-account isolation;
+    - 50 screen and width checks for overflow and 44 px targets;
+    - no console or page errors; server log free of secrets and errors.
+  - **Bug found and fixed:** almost every signed-in page logged the Next.js error "encountered the unstable value `new Date()` while prerendering". The cause was the MongoDB driver timestamping connection-pool events during the session lookup inside Next's runtime prefetch prerender. `getCurrentUser()` now calls `await connection()` before the database lookup, so sign-in state is always checked at request time and never prerendered or cached. After the fix: 0 errors in the server log.
+  - The F10 closeout item "re-run the F6/F7/F9 browser suites with sign-in" is **done**.
+  - $0.
+
+- **2026-11-05** — Clean-up at your request.
+  - **Deleted permanently** (no Git copy or backup):
+    - every video run in `runs/` (21 folders, including "How APIs Work" and your account's "How ChatGPT Answers Questions");
+    - the M6/M7 evaluation folders (`m7-silent`, `m7-gallery`, `voice-check`, `m7-narrated.log`);
+    - 34 render-input copies in `public/runs/`, about 474 MB in all;
+    - the one video record and generation attempt in `explivio`.
+  - **Kept:** `runs/.gemini-health.json`, your account and settings, and all reports (their sample files are gone).
+  - **Effects:** the F10 legacy-ownership migration and the F11 historical migration plan no longer apply.
+  - **Environment:** `NODE_ENV` and `APP_ENV` were removed from `web/.env.local`; it now holds only the MongoDB and R2 settings.
+- **2026-11-05** — F12 authentication and authorisation hardening: **complete**.
+  - **Audit (`2cdf66f`):** 11 findings, 1 High; `CloudFareConfKeys.txt` ignored, contents never opened.
+  - **`7cde3d7`:**
+    - per-account sign-in limit, with the forged-address bypass reproduced on the old code;
+    - MongoDB `rateLimits` (atomic, hashed keys, TTL), with `db:init` applied to `explivio` (additive);
+    - equal-time sign-up and forgot-password (measured 537 vs 298 ms → 1506 vs 1507 ms);
+    - the previous session revoked on sign-in; 256-character password cap; security log.
+  - **`d5d98c0`:** 10 renders per account per 24 h; access-denied logging; security headers.
+  - **Tests:**
+    - web 85/85 live; security 8/8; browser end-to-end 36/36 on real Atlas and R2;
+    - `r2:check` 10/10; pipeline 63/63; typecheck, lint and build pass;
+    - only test bugs were fixed during the runs.
+  - **Data:** your `explivio` data unchanged (1 user, 1 video); test databases and R2 test objects removed.
+  - $0.
 - **2026-11-05** — F11 verified on real Cloudflare R2 and Atlas: **complete**.
   - **Your setup:** R2 activated on the $0 plan (billable usage $0.00); private bucket `explivio-assets`; token limited to that bucket; keys in `web/.env.local`; this machine's IPv4 address added in Atlas (the browser had added the IPv6 one).
   - **Results:**

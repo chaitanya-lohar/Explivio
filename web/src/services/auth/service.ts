@@ -4,6 +4,7 @@ import { dummyPasswordHash, hashPassword, hashToken, newToken, newUserId, verify
 import { appUrl, emailMode, sendEmail, type DeliveryMode } from "../../lib/auth/email.ts";
 import { clearLimit, hit, isLimited, LIMITS } from "../../lib/auth/rate-limit.ts";
 import { validateEmail, validateNewPassword } from "../../features/authentication/validation/index.ts";
+import { securityEvent } from "../../lib/security/log.ts";
 import { parsePreferences, type VideoPreferences } from "../../lib/preferences.ts";
 
 /*
@@ -12,6 +13,12 @@ import { parsePreferences, type VideoPreferences } from "../../lib/preferences.t
  *  - passwords: scrypt; tokens: 256-bit random, only SHA-256 hashes stored, single use (atomic), expiring;
  *  - answers that could reveal whether an account exists are identical either way (sign-up, forgot, resend);
  *  - passwords, tokens, links and email bodies are never logged.
+ * F12 hardening:
+ *  - sign-in failures are limited per ACCOUNT (any address), stored in MongoDB (lib/auth/rate-limit.ts);
+ *  - sign-up, forgot-password and resend take the same minimum time and do the same expensive work whether or not the
+ *    account exists, so response time doesn't reveal registered emails;
+ *  - passwords longer than MAX_PASSWORD_LENGTH are refused by the server (the UI rules are unchanged);
+ *  - security events are logged without secrets (lib/security/log.ts).
  */
 
 export const SESSION_DAYS = 7;
@@ -19,6 +26,26 @@ export const REMEMBER_DAYS = 30;
 export const VERIFY_HOURS = 24;
 export const RESET_MINUTES = 30;
 const DAY = 86_400_000;
+/** Server-side cap (scrypt input). Longer inputs are rejected on sign-up/reset and are simply wrong on sign-in. */
+export const MAX_PASSWORD_LENGTH = 256;
+
+/**
+ * Minimum response times (ms) for answers that must not reveal whether an account exists. Each is above the slowest
+ * path measured against Atlas (see the F12 report); tests can lower them.
+ */
+const FLOORS = { signUp: 1500, forgot: 1200, resend: 1200 };
+export function setResponseFloors(next: Partial<typeof FLOORS> | null): void {
+  Object.assign(FLOORS, next ?? { signUp: 1500, forgot: 1200, resend: 1200 });
+}
+async function atLeast<T>(ms: number, work: () => Promise<T>): Promise<T> {
+  const started = Date.now();
+  try {
+    return await work();
+  } finally {
+    const left = ms - (Date.now() - started);
+    if (left > 0) await new Promise((resolve) => setTimeout(resolve, left));
+  }
+}
 
 /** Overridable clock (tests). */
 let clock = () => Date.now();
@@ -103,15 +130,26 @@ export type SignUpResult = { ok: true; delivery: DeliveryMode; pendingUserId: st
 export async function signUp(input: { name: string; email: string; password: string }, ip: string): Promise<SignUpResult> {
   const name = input.name.trim().slice(0, 80);
   const email = normalizeEmail(input.email);
-  if (!name || validateEmail(email) || validateNewPassword(input.password)) return { ok: false, code: "validation", message: "Check the highlighted fields." };
-  if (!hit(`signup:ip:${ip}`, LIMITS.signupPerIp).ok) return { ok: false, code: "rate_limited", message: "Too many sign-up attempts from this network. Please try again later." };
+  if (!name || validateEmail(email) || validateNewPassword(input.password) || input.password.length > MAX_PASSWORD_LENGTH) return { ok: false, code: "validation", message: "Check the highlighted fields." };
+  return atLeast(FLOORS.signUp, () => createAccount(name, email, input, ip));
+}
 
+async function createAccount(name: string, email: string, input: { email: string; password: string }, ip: string): Promise<SignUpResult> {
+  if (!(await hit(`signup:ip:${ip}`, LIMITS.signupPerIp, clock())).ok || !(await hit("signup:global", LIMITS.signupGlobal, clock())).ok) {
+    securityEvent("signup_rate_limited", { ip });
+    return { ok: false, code: "rate_limited", message: "Too many sign-up attempts from this network. Please try again later." };
+  }
+  // The password is hashed whether or not the email is taken: the same expensive work either way (F12).
+  const passwordHash = await hashPassword(input.password);
   const { users } = await collections();
   const existing = await users.findOne({ emailNormalized: email });
-  if (existing) return { ok: true, delivery: await notifyExisting(existing), pendingUserId: null };
+  if (existing) {
+    securityEvent("signup_existing_email", { userId: existing._id, ip });
+    return { ok: true, delivery: await notifyExisting(existing), pendingUserId: null };
+  }
 
   const now = new Date(clock());
-  const doc: UserDoc = { _id: newUserId(), email: input.email.trim(), emailNormalized: email, name, passwordHash: await hashPassword(input.password), emailVerified: false, emailVerifiedAt: null, status: "active", authProvider: "local", createdAt: now, updatedAt: now, passwordChangedAt: now };
+  const doc: UserDoc = { _id: newUserId(), email: input.email.trim(), emailNormalized: email, name, passwordHash, emailVerified: false, emailVerifiedAt: null, status: "active", authProvider: "local", createdAt: now, updatedAt: now, passwordChangedAt: now };
   try {
     await users.insertOne(doc);
   } catch (error) {
@@ -120,13 +158,14 @@ export async function signUp(input: { name: string; email: string; password: str
     const winner = await users.findOne({ emailNormalized: email });
     return { ok: true, delivery: winner ? await notifyExisting(winner) : "outbox", pendingUserId: null };
   }
-  hit(`cooldown:verify:${doc._id}`, LIMITS.emailCooldown);
-  hit(`email:${doc._id}`, LIMITS.emailPerAccount);
+  await hit(`cooldown:verify:${doc._id}`, LIMITS.emailCooldown, clock());
+  await hit(`email:${doc._id}`, LIMITS.emailPerAccount, clock());
+  securityEvent("signup_created", { userId: doc._id, ip });
   return { ok: true, delivery: await sendVerification({ id: doc._id, email: doc.email, name }), pendingUserId: doc._id };
 }
 
 async function notifyExisting(user: UserDoc): Promise<DeliveryMode> {
-  if (!hit(`email:${user._id}`, LIMITS.emailPerAccount).ok) return emailMode();
+  if (!(await hit(`email:${user._id}`, LIMITS.emailPerAccount, clock())).ok) return emailMode();
   const result = await sendEmail({
     to: user.email,
     subject: "Someone tried to create an Explivio account with your email",
@@ -139,7 +178,11 @@ export type VerifyResult = { ok: true; userId: string } | { ok: false; problem: 
 
 export async function verifyEmail(token: string): Promise<VerifyResult> {
   const found = await consumeToken(token, "verify_email");
-  if ("problem" in found) return { ok: false, problem: found.problem };
+  if ("problem" in found) {
+    securityEvent("verify_failed", { reason: found.problem });
+    return { ok: false, problem: found.problem };
+  }
+  securityEvent("verify_success", { userId: found.userId });
   const { users } = await collections();
   const now = new Date(clock());
   await users.updateOne({ _id: found.userId, emailVerified: false }, { $set: { emailVerified: true, emailVerifiedAt: now, updatedAt: now } });
@@ -153,13 +196,18 @@ export type ResendResult = { ok: true; delivery: DeliveryMode } | { ok: false; c
  * such an account it answers the same way, so it can't be used to discover accounts.
  */
 export async function resendVerification(pendingUserId: string | null): Promise<ResendResult> {
-  const { users } = await collections();
-  const user = pendingUserId ? await users.findOne({ _id: pendingUserId }) : null;
-  const mode = emailMode();
-  if (!user || user.emailVerified || user.status !== "active") return { ok: true, delivery: mode };
-  if (isLimited(`cooldown:verify:${user._id}`, LIMITS.emailCooldown) || !hit(`email:${user._id}`, LIMITS.emailPerAccount).ok) return { ok: false, code: "rate_limited", message: "Please wait a little before requesting another email." };
-  hit(`cooldown:verify:${user._id}`, LIMITS.emailCooldown);
-  return { ok: true, delivery: await sendVerification({ id: user._id, email: user.email, name: user.name }) };
+  return atLeast(FLOORS.resend, async () => {
+    const { users } = await collections();
+    const user = pendingUserId ? await users.findOne({ _id: pendingUserId }) : null;
+    const mode = emailMode();
+    if (!user || user.emailVerified || user.status !== "active") return { ok: true, delivery: mode };
+    if ((await isLimited(`cooldown:verify:${user._id}`, LIMITS.emailCooldown, clock())) || !(await hit(`email:${user._id}`, LIMITS.emailPerAccount, clock())).ok) {
+      return { ok: false, code: "rate_limited", message: "Please wait a little before requesting another email." };
+    }
+    await hit(`cooldown:verify:${user._id}`, LIMITS.emailCooldown, clock());
+    securityEvent("verification_resent", { userId: user._id });
+    return { ok: true, delivery: await sendVerification({ id: user._id, email: user.email, name: user.name }) };
+  });
 }
 
 // ---- Sign in / sessions ----------------------------------------------------------------------------------------------
@@ -173,24 +221,36 @@ const INVALID = { ok: false as const, code: "invalid_credentials" as const, mess
 
 export async function signIn(input: { email: string; password: string; rememberMe: boolean }, ip: string): Promise<SignInResult> {
   const email = normalizeEmail(input.email);
-  const accountKey = `login:acct:${email}:${ip}`;
-  if (isLimited(accountKey, LIMITS.loginPerAccount) || isLimited(`login:ip:${ip}`, LIMITS.loginPerIp)) {
+  // Per account, whatever the client address (the address can be forged): F12.
+  const accountKey = `login:acct:${email}`;
+  const ipKey = `login:ip:${ip}`;
+  const now = clock();
+  if ((await isLimited(accountKey, LIMITS.loginPerAccount, now)) || (await isLimited(ipKey, LIMITS.loginPerIp, now))) {
+    securityEvent("signin_rate_limited", { ip });
     return { ok: false, code: "rate_limited", message: "Too many sign-in attempts. Wait 15 minutes and try again, or reset your password." };
   }
   const { users } = await collections();
   const doc = await users.findOne({ emailNormalized: email });
-  // Same work whether or not the account exists, so response time doesn't reveal it.
-  const valid = await verifyPassword(input.password, doc?.passwordHash ?? (await dummyPasswordHash()));
+  // Same work whether or not the account exists, so response time doesn't reveal it. Over-long input is just wrong.
+  const valid = input.password.length <= MAX_PASSWORD_LENGTH && (await verifyPassword(input.password, doc?.passwordHash ?? (await dummyPasswordHash())));
   if (!doc || !valid) {
-    hit(accountKey, LIMITS.loginPerAccount);
-    hit(`login:ip:${ip}`, LIMITS.loginPerIp);
+    const failures = await hit(accountKey, LIMITS.loginPerAccount, now);
+    await hit(ipKey, LIMITS.loginPerIp, now);
+    securityEvent("signin_failed", { userId: doc?._id, ip, count: failures.count });
     return INVALID;
   }
-  if (doc.status !== "active") return { ok: false, code: "disabled", message: "This account is disabled." };
+  if (doc.status !== "active") {
+    securityEvent("signin_failed", { userId: doc._id, ip, reason: "disabled" });
+    return { ok: false, code: "disabled", message: "This account is disabled." };
+  }
   // Only someone who knows the password learns that the email is unverified.
-  if (!doc.emailVerified) return { ok: false, code: "unverified", message: "Verify your email address before signing in. We can send you a new link.", pendingUserId: doc._id };
-  clearLimit(accountKey);
+  if (!doc.emailVerified) {
+    securityEvent("signin_unverified", { userId: doc._id, ip });
+    return { ok: false, code: "unverified", message: "Verify your email address before signing in. We can send you a new link.", pendingUserId: doc._id };
+  }
+  await clearLimit(accountKey);
   const session = await createSession(doc._id, input.rememberMe);
+  securityEvent("signin_success", { userId: doc._id, ip });
   return { ok: true, sessionToken: session.token, expiresAt: session.expiresAt, user: toUser(doc) };
 }
 
@@ -221,10 +281,12 @@ export async function userForSession(token: string | undefined): Promise<User | 
   return toUser(user);
 }
 
-export async function signOut(token: string | undefined): Promise<void> {
-  if (!token) return;
+/** Deletes the session behind a cookie value (sign-out, or the browser's old session on a new sign-in). */
+export async function signOut(token: string | undefined, reason: "signout" | "replaced" = "signout"): Promise<void> {
+  if (!token || token.length > 200) return;
   const { sessions } = await collections();
-  await sessions.deleteOne({ _id: hashToken(token) });
+  const removed = await sessions.findOneAndDelete({ _id: hashToken(token) });
+  if (removed) securityEvent(reason === "signout" ? "signout" : "signin_previous_session_revoked", { userId: removed.userId });
 }
 
 // ---- Forgot / reset ------------------------------------------------------------------------------------------------------
@@ -235,13 +297,21 @@ export type ForgotResult = { ok: true; delivery: DeliveryMode } | { ok: false; c
 export async function requestPasswordReset(emailInput: string, ip: string): Promise<ForgotResult> {
   const email = normalizeEmail(emailInput);
   if (validateEmail(email)) return { ok: false, code: "validation", message: "Enter a valid email address." };
-  if (!hit(`reset-request:ip:${ip}`, LIMITS.resetPerIp).ok) return { ok: false, code: "rate_limited", message: "Too many requests from this network. Please try again later." };
+  return atLeast(FLOORS.forgot, () => prepareReset(email, ip));
+}
+
+async function prepareReset(email: string, ip: string): Promise<ForgotResult> {
+  if (!(await hit(`reset-request:ip:${ip}`, LIMITS.resetPerIp, clock())).ok) {
+    securityEvent("reset_rate_limited", { ip });
+    return { ok: false, code: "rate_limited", message: "Too many requests from this network. Please try again later." };
+  }
   const mode = emailMode();
   const { users } = await collections();
   const doc = await users.findOne({ emailNormalized: email });
   if (!doc || doc.status !== "active") return { ok: true, delivery: mode };
-  if (isLimited(`cooldown:reset:${doc._id}`, LIMITS.emailCooldown) || !hit(`email:${doc._id}`, LIMITS.emailPerAccount).ok) return { ok: true, delivery: mode };
-  hit(`cooldown:reset:${doc._id}`, LIMITS.emailCooldown);
+  if ((await isLimited(`cooldown:reset:${doc._id}`, LIMITS.emailCooldown, clock())) || !(await hit(`email:${doc._id}`, LIMITS.emailPerAccount, clock())).ok) return { ok: true, delivery: mode };
+  await hit(`cooldown:reset:${doc._id}`, LIMITS.emailCooldown, clock());
+  securityEvent("reset_requested", { userId: doc._id, ip });
   const token = await issueToken(doc._id, "reset_password", RESET_MINUTES * 60_000);
   const result = await sendEmail({
     to: doc.email,
@@ -266,16 +336,24 @@ export type ResetResult = { ok: true } | { ok: false; code: "validation" | "rate
 
 /** Sets a new password, uses up the link, signs the account out everywhere. Proves inbox access, so it also verifies. */
 export async function resetPassword(token: string, password: string, ip: string): Promise<ResetResult> {
-  if (validateNewPassword(password)) return { ok: false, code: "validation", message: "Check the highlighted fields." };
-  if (!hit(`reset:ip:${ip}`, LIMITS.resetPerIp).ok) return { ok: false, code: "rate_limited", message: "Too many attempts from this network. Please try again later." };
+  if (validateNewPassword(password) || password.length > MAX_PASSWORD_LENGTH) return { ok: false, code: "validation", message: "Check the highlighted fields." };
+  if (!(await hit(`reset:ip:${ip}`, LIMITS.resetPerIp, clock())).ok) {
+    securityEvent("reset_rate_limited", { ip });
+    return { ok: false, code: "rate_limited", message: "Too many attempts from this network. Please try again later." };
+  }
   const passwordHash = await hashPassword(password); // before using the token, so a slow hash can't leave it half-used
   const found = await consumeToken(token, "reset_password");
-  if ("problem" in found) return { ok: false, code: "token", problem: found.problem };
+  if ("problem" in found) {
+    securityEvent("reset_failed", { ip, reason: found.problem });
+    return { ok: false, code: "token", problem: found.problem };
+  }
   const { users, sessions, tokens } = await collections();
   const now = new Date(clock());
   await users.updateOne({ _id: found.userId }, { $set: { passwordHash, passwordChangedAt: now, updatedAt: now, emailVerified: true }, $min: { emailVerifiedAt: now } });
   await tokens.updateMany({ userId: found.userId, usedAt: null }, { $set: { usedAt: now } });
-  await sessions.deleteMany({ userId: found.userId });
+  const revoked = await sessions.deleteMany({ userId: found.userId });
+  await clearLimit(`login:acct:${(await users.findOne({ _id: found.userId }, { projection: { emailNormalized: 1 } }))?.emailNormalized ?? ""}`);
+  securityEvent("reset_completed", { userId: found.userId, ip, count: revoked.deletedCount });
   return { ok: true };
 }
 

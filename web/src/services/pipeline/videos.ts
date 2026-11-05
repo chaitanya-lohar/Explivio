@@ -39,6 +39,8 @@ const TSX_CLI = path.join(PIPELINE_ROOT, "node_modules", "tsx", "dist", "cli.mjs
 const RUN_ID = /^[A-Za-z0-9_-]{1,80}$/;
 /** A run still marked "running" whose manifest hasn't changed for this long, with no process we know of, is treated as interrupted. */
 const STALE_MS = 15 * 60 * 1000;
+/** F12: new videos (renders) one account may start in 24 hours; protects the shared Gemini and ElevenLabs free quotas. */
+const dailyGenerations = () => Math.max(1, Number(process.env.EXPLIVIO_DAILY_GENERATIONS) || 10);
 
 interface StoredRequest extends VideoRequest {
   createdAt: string;
@@ -188,6 +190,10 @@ async function startRun(request: VideoRequest, ownerUserId: string): Promise<Vid
   if (store.__explivioStarting || listRunIds().some((id) => readRun(id)?.status === "generating")) throw new PipelineBusyError();
   store.__explivioStarting = true;
   try {
+    // Checked inside the lock, so two requests at once can't both pass it.
+    const used = await ownership().countGenerationsSince(ownerUserId, new Date(Date.now() - 86_400_000));
+    const limit = dailyGenerations();
+    if (used >= limit) throw new GenerationLimitError(limit);
     return await spawnRun(request, ownerUserId);
   } finally {
     // From here the new run folder (request.json) exists, so the busy check above sees it as generating.
@@ -234,6 +240,13 @@ async function spawnRun(request: VideoRequest, ownerUserId: string): Promise<Vid
   });
   child.unref();
   return readRun(id) ?? { id, title: titleFrom(request.prompt), prompt: request.prompt, durationSeconds: request.durationSeconds, createdAt: stored.createdAt, request, status: "generating", stage: "plan", startedAt: stored.createdAt };
+}
+
+export class GenerationLimitError extends Error {
+  constructor(limit: number) {
+    super(`You've reached the limit of ${limit} new videos in 24 hours. Please try again later.`);
+    this.name = "GenerationLimitError";
+  }
 }
 
 export class PipelineBusyError extends Error {
