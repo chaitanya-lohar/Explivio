@@ -10,7 +10,10 @@ Detailed reasoning lives in the linked reports.
 | # | Date | Decision | Why | Status |
 |---|---|---|---|---|
 | D18 | 2026-11-05 | Next phases run in order: F11 R2 → F12 auth hardening → F13 Gmail → F14 production → F15 validation. The optional backlog stays separate | One concern at a time; storage before security review, so the review covers R2 objects too | Active ([ROADMAP.md](ROADMAP.md)) |
-| D17 | 2026-11-05 | Real email via **Gmail SMTP with an App Password**; Gmail API with OAuth as the fallback | $0, and it reaches a Gmail inbox without owning a domain. Resend needs a verified domain | Planned (F13) |
+| D17 | 2026-11-05 | Real email via **Gmail SMTP with an App Password**; Gmail API with OAuth as the fallback | $0, and it reaches a Gmail inbox without owning a domain. Resend needs a verified domain | **Superseded by D23** |
+| D25 | 2026-11-06 | The worker creates link tokens at send time; jobs never hold tokens; `unknown` outcomes are never resent | No secrets at rest in the queue; links stay fresh after waiting; no duplicate emails | Active (F13) |
+| D24 | 2026-11-06 | Durable MongoDB queue (`emailJobs`) with a lease-based worker, not an in-memory or unawaited send | Survives restarts; keeps F12 timing; no Redis or paid queue | Active (F13) |
+| D23 | 2026-11-06 | Email through **Resend Free** (direct HTTPS, no SDK), replacing the planned Gmail SMTP; no domain bought, so delivery reaches only your Resend address until a domain exists | Your choice; $0; transactional API with idempotency | Active (F13; supersedes D17) |
 | D22 | 2026-11-05 | 10 new renders per account per 24 h (`EXPLIVIO_DAILY_GENERATIONS`), counted from `generationAttempts` | Protects the shared Gemini and ElevenLabs free quotas from one account | Active (F12) |
 | D21 | 2026-11-05 | Rate limits stored in MongoDB (`rateLimits`, hashed keys, TTL) rather than memory or Redis | Survive restarts and work across instances; no new service; $0 | Active (F12) |
 | D20 | 2026-11-05 | Sign-in limited **per account** (10 failures per 15 min from any address); per-address limits are best effort because the client address can be forged; the lockout-as-DoS trade-off is accepted (a reset lifts it) | Fixes the High finding F1 without a paid service | Active (F12) |

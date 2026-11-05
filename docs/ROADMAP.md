@@ -7,7 +7,7 @@ Last updated: 2026-11-05.
 Phases run **one after another**. Each phase starts only when the user asks for it, and it ends with tests, a report, a `progress_status.md` update and a push to `dev`.
 
 ```
-F10 closeout ─► F11 R2 storage ─► F12 auth hardening ─► F13 Gmail email ─► F14 production readiness ─► F15 final validation
+F10 closeout ─► F11 R2 storage ─► F12 auth hardening ─► F13 Resend email ─► F14 production readiness ─► F15 final validation
 ```
 
 ## Done
@@ -62,7 +62,9 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
 - **Tests:** IDOR, privilege escalation, session fixation and replay, cross-user R2 access.
 - **Doc:** `docs/security/F12_AUTHORIZATION_SECURITY_REVIEW.md`.
 
-## F13 — Real Gmail email delivery
+## F13 — Transactional email (Resend; durable queue) 🟡 code done 2026-11-06; real test pending your action; other recipients need a domain ([report](email/F13_IMPLEMENTATION_REPORT.md))
+
+*Plan below as originally written (Gmail SMTP); replaced by Resend at your request (D23).*
 
 - **Objective:** verification and reset emails reach a real Gmail inbox.
 - **Current state:** outbox transport (default) plus an optional Resend transport that needs a verified domain. No SMTP or Gmail code.

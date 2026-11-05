@@ -6,6 +6,7 @@ import path from "node:path";
 import { hit, isLimited, LIMITS, memoryRateStore, mongoRateStore, resetRateLimits, setRateLimitStore } from "../src/lib/auth/rate-limit.ts";
 import { securityEvent, setSecuritySink } from "../src/lib/security/log.ts";
 import * as auth from "../src/services/auth/service.ts";
+import { runEmailWorkerOnce } from "../src/lib/email/worker.ts";
 import { closeDatabase, getDatabase } from "../src/lib/db/mongo.ts";
 import { COLLECTIONS, ensureSchema } from "../src/lib/db/collections.ts";
 
@@ -45,7 +46,8 @@ beforeEach(async () => {
 const PASSWORD = "Correct-horse-9";
 let n = 0;
 const freshEmail = () => `sec${process.pid}-${++n}@example.test`;
-function linkFor(email: string, kind: "verify-email" | "reset-password"): string {
+async function linkFor(email: string, kind: "verify-email" | "reset-password"): Promise<string> {
+  await runEmailWorkerOnce();
   for (const f of readdirSync(outbox).sort().reverse()) {
     const text = readFileSync(path.join(outbox, f), "utf8");
     const m = text.startsWith(`To: ${email}\n`) && text.match(new RegExp(`/${kind}\\?token=([A-Za-z0-9_-]+)`));
@@ -55,7 +57,7 @@ function linkFor(email: string, kind: "verify-email" | "reset-password"): string
 }
 async function verifiedUser(email = freshEmail()) {
   assert.ok((await auth.signUp({ name: "Sec User", email, password: PASSWORD }, "10.1.0.1")).ok);
-  const v = await auth.verifyEmail(linkFor(email, "verify-email"));
+  const v = await auth.verifyEmail(await linkFor(email, "verify-email"));
   assert.ok(v.ok);
   return { email, userId: v.userId };
 }
@@ -151,7 +153,7 @@ test("sessions: concurrent sessions are independent; replacing one revokes only 
   for (let i = 0; i < LIMITS.loginPerAccount.limit; i++) await signIn(email, `Wrong-${i}-x`, `192.0.2.${i}`);
   assert.equal((await signIn(email)).ok, false, "locked");
   await auth.requestPasswordReset(email, "10.5.0.1");
-  assert.deepEqual(await auth.resetPassword(linkFor(email, "reset-password"), "Brand-new-pass-7", "10.5.0.1"), { ok: true });
+  assert.deepEqual(await auth.resetPassword(await linkFor(email, "reset-password"), "Brand-new-pass-7", "10.5.0.1"), { ok: true });
   for (const s of [phone, again]) assert.equal(await auth.userForSession(s.ok ? s.sessionToken : ""), null, "all sessions revoked");
   assert.equal((await signIn(email, "Brand-new-pass-7")).ok, true, "the owner can sign in right after resetting");
 });
@@ -179,21 +181,21 @@ test("input caps: over-long passwords are refused on sign-up and reset, and are 
   const r = await signIn(email, long);
   assert.ok(!r.ok && r.code === "invalid_credentials");
   await auth.requestPasswordReset(email, "10.7.0.2");
-  const reset = await auth.resetPassword(linkFor(email, "reset-password"), long, "10.7.0.2");
+  const reset = await auth.resetPassword(await linkFor(email, "reset-password"), long, "10.7.0.2");
   assert.ok(!reset.ok && reset.code === "validation");
-  assert.deepEqual(await auth.checkResetToken(linkFor(email, "reset-password")), { ok: true }, "the link isn't used up by a rejected password");
+  assert.deepEqual(await auth.checkResetToken(await linkFor(email, "reset-password")), { ok: true }, "the link isn't used up by a rejected password");
 });
 
 test("a whole account lifecycle logs the security events, and no log line contains a password, email, token or address", { skip }, async () => {
   logs.length = 0;
   const email = freshEmail();
   await auth.signUp({ name: "Log", email, password: PASSWORD }, "198.51.100.10");
-  const verifyToken = linkFor(email, "verify-email");
+  const verifyToken = await linkFor(email, "verify-email");
   await auth.verifyEmail(verifyToken);
   await signIn(email, "Wrong-pass-1", "198.51.100.10");
   const s = await signIn(email, PASSWORD, "198.51.100.10");
   await auth.requestPasswordReset(email, "198.51.100.10");
-  const resetToken = linkFor(email, "reset-password");
+  const resetToken = await linkFor(email, "reset-password");
   await auth.resetPassword(resetToken, "Changed-pass-2", "198.51.100.10");
   await auth.signOut(s.ok ? s.sessionToken : undefined);
   const events = logs.map((l) => JSON.parse(l.replace(/^\[security\] /, "")).event);

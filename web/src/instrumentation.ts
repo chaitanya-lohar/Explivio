@@ -1,7 +1,7 @@
 /*
- * Runs once when the Next.js server starts. Reports a missing or malformed MongoDB or R2 setting immediately (without
- * the value), so a misconfiguration is visible at startup rather than on the first database request. The app still
- * starts: until authentication is switched on, pages that don't need the database keep working.
+ * Runs once when the Next.js server starts. Reports a missing or malformed MongoDB, R2 or email setting immediately
+ * (without the value), so a misconfiguration is visible at startup rather than on the first request, and starts the
+ * email queue worker (F13).
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
@@ -12,4 +12,13 @@ export async function register() {
   const { readR2Config } = await import("./lib/storage/config");
   const storage = readR2Config();
   if (!storage.ok) console.warn(`[storage] ${storage.message}`);
+  // Email (F13): report a broken transport setup (names only), then start the queue worker in this server process.
+  // EXPLIVIO_EMAIL_WORKER=off leaves sending to a separate `npm run email:worker` process instead.
+  const { readEmailConfig } = await import("./lib/email/config");
+  const email = readEmailConfig();
+  if (!email.ok) console.warn(`[email] ${email.message}`);
+  if (config.ok && process.env.EXPLIVIO_EMAIL_WORKER !== "off") {
+    const { startEmailWorker } = await import("./lib/email/worker");
+    startEmailWorker();
+  }
 }
