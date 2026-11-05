@@ -74,6 +74,11 @@ function secret(): string {
   return cachedSecret;
 }
 
+/** A short keyed hash for log correlation (e.g. of a client address): stable per server, not reversible. */
+export function anonymize(value: string): string {
+  return createHmac("sha256", secret()).update(`log:${value}`).digest("base64url").slice(0, 12);
+}
+
 /** `value.expires.signature` for small, non-secret cookie payloads (e.g. which account awaits verification). */
 export function sign(value: string, expiresAt: number): string {
   const body = `${value}.${expiresAt}`;

@@ -4,7 +4,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { hashPassword, hashToken, newToken, newUserId, sign, unsign, verifyPassword } from "../src/lib/auth/crypto.ts";
-import { hit, isLimited, LIMITS, resetRateLimits } from "../src/lib/auth/rate-limit.ts";
+import { hit, isLimited, LIMITS, memoryRateStore, resetRateLimits, setRateLimitStore } from "../src/lib/auth/rate-limit.ts";
 import * as auth from "../src/services/auth/service.ts";
 import { closeDatabase, getDatabase } from "../src/lib/db/mongo.ts";
 import { ensureSchema } from "../src/lib/db/collections.ts";
@@ -21,6 +21,9 @@ process.env.EXPLIVIO_PIPELINE_ROOT = mkdtempSync(path.join(tmpdir(), "explivio-r
 delete process.env.EMAIL_TRANSPORT;
 const live = Boolean(process.env.MONGODB_URI_TEST);
 const skip = !live && "MONGODB_URI_TEST not set: no live MongoDB";
+// Offline: counters in memory. Live: the real MongoDB store (F12). Minimum response times off for speed (tested in security.test.ts).
+if (!live) setRateLimitStore(memoryRateStore());
+auth.setResponseFloors({ signUp: 0, forgot: 0, resend: 0 });
 
 before(async () => {
   if (!live) return;
@@ -33,8 +36,8 @@ after(async () => {
   await closeDatabase();
   rmSync(outbox, { recursive: true, force: true });
 });
-beforeEach(() => {
-  resetRateLimits();
+beforeEach(async () => {
+  await resetRateLimits();
   auth.setClock(null);
 });
 
@@ -97,11 +100,11 @@ test("open redirects are refused: only same-site, non-auth paths", () => {
   for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "javascript:alert(1)", "/login", "%2F%2Fevil", "", null, "/\u0000x"]) assert.equal(auth.safeNextPath(bad), "/", String(bad));
 });
 
-test("rate limits: count per key, block over the limit", () => {
-  for (let i = 0; i < 5; i++) assert.equal(hit("k", LIMITS.loginPerAccount).ok, true);
-  assert.equal(hit("k", LIMITS.loginPerAccount).ok, false);
-  assert.equal(isLimited("k", LIMITS.loginPerAccount), true);
-  assert.equal(isLimited("other", LIMITS.loginPerAccount), false);
+test("rate limits: count per key, block over the limit", async () => {
+  for (let i = 0; i < LIMITS.loginPerAccount.limit; i++) assert.equal((await hit("k", LIMITS.loginPerAccount)).ok, true);
+  assert.equal((await hit("k", LIMITS.loginPerAccount)).ok, false);
+  assert.equal(await isLimited("k", LIMITS.loginPerAccount), true);
+  assert.equal(await isLimited("other", LIMITS.loginPerAccount), false);
 });
 
 // ---- Live MongoDB ---------------------------------------------------------------------------------------------------
@@ -138,7 +141,7 @@ test("verification: single use, invalid token, expired token, resend replaces ol
   const first = linkFor(email, "verify-email")!;
   // Resend (after the cooldown) issues a new link and retires the first.
   auth.setClock(() => Date.now() + 61_000);
-  resetRateLimits();
+  await resetRateLimits();
   const again = await auth.resendVerification(r.pendingUserId);
   assert.ok(again.ok);
   const second = linkFor(email, "verify-email")!;
@@ -172,11 +175,17 @@ test("sign-in: verified account gets a session; wrong password and unknown email
   assert.ok(!unverified.ok && unverified.code === "unverified");
 });
 
-test("brute force: the 6th wrong password from the same place is refused, even if the next one is right", { skip }, async () => {
+test("brute force (F12 F1): after 10 wrong passwords the account is locked for every address, even if the next one is right", { skip }, async () => {
   const { email } = await verifiedUser();
-  for (let i = 0; i < 5; i++) await auth.signIn({ email, password: `Wrong-pass-${i}`, rememberMe: false }, "10.0.0.8");
-  const blocked = await auth.signIn({ email, password: PASSWORD, rememberMe: false }, "10.0.0.8");
-  assert.ok(!blocked.ok && blocked.code === "rate_limited");
+  // A different (forged) address on every attempt: F10 keyed the limit on email+address, so this never locked.
+  for (let i = 0; i < LIMITS.loginPerAccount.limit; i++) {
+    const r = await auth.signIn({ email, password: `Wrong-pass-${i}`, rememberMe: false }, `203.0.113.${i + 1}`);
+    assert.ok(!r.ok && r.code === "invalid_credentials", `attempt ${i + 1}`);
+  }
+  const blocked = await auth.signIn({ email, password: PASSWORD, rememberMe: false }, "198.51.100.77");
+  assert.ok(!blocked.ok && blocked.code === "rate_limited", "a fresh address doesn't reset the account limit");
+  auth.setClock(() => Date.now() + 16 * 60_000);
+  assert.equal((await auth.signIn({ email, password: PASSWORD, rememberMe: false }, "198.51.100.78")).ok, true, "normal sign-in works once the window has passed");
 });
 
 test("sessions: expiry, logout and remember-me length", { skip }, async () => {
@@ -210,7 +219,7 @@ test("password reset: same answer for unknown email; link single use and expirin
   assert.deepEqual(await auth.resetPassword(token, "Another-pass-3", "10.0.1.1"), { ok: false, code: "token", problem: "used" }, "single use");
   assert.equal((await auth.signIn({ email, password: PASSWORD, rememberMe: false }, "10.0.1.2")).ok, false, "old password gone");
   assert.equal((await auth.signIn({ email, password: "New-password-2", rememberMe: false }, "10.0.1.2")).ok, true);
-  resetRateLimits();
+  await resetRateLimits();
   auth.setClock(() => Date.now() + 61_000);
   await auth.requestPasswordReset(email, "10.0.1.3");
   const late = linkFor(email, "reset-password")!;

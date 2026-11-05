@@ -58,8 +58,14 @@ export async function clearPendingVerification(): Promise<void> {
   (await cookies()).delete({ name: PENDING_COOKIE, path: "/" });
 }
 
-/** Best-effort client address for rate limits (first proxy hop if present). */
+/**
+ * Best-effort client address, used ONLY for per-address rate limits and (hashed) security logs.
+ * Next.js fills x-forwarded-for with the socket address when the client sent none, but keeps a client-supplied value,
+ * so without a trusted proxy that overwrites it (F14) the value can be forged. Security therefore never depends on it:
+ * sign-in is limited per account and sign-up globally (F12). The value is bounded so it can't bloat keys or logs.
+ */
 export async function clientIp(): Promise<string> {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
+  const raw = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || "local";
+  return /^[0-9A-Fa-f:.]{1,45}$/.test(raw) ? raw : "invalid";
 }
