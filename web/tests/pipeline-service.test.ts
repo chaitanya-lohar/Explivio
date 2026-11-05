@@ -4,7 +4,11 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { memoryOwnership, setOwnershipStore } from "../src/services/pipeline/ownership.ts";
+import { memoryStore, type MemoryStore } from "../src/lib/storage/memory.ts";
+import { setObjectStore } from "../src/lib/storage/index.ts";
+import { startUpload } from "../src/services/pipeline/cloud-upload.ts";
 
 /*
  * Integration tests for the REAL pipeline video service (services/pipeline/videos.ts): spawning, run ids, status
@@ -188,4 +192,154 @@ test("F10 ownership: if the owner can't be recorded, nothing renders and no run 
   await sleep(500);
   assert.equal(readdirSync(path.join(root, "runs")).length, before, "folder removed");
   assert.equal(calls().length, callsBefore, "no CLI started");
+});
+
+// ---- F11: Cloudflare R2 storage (in-memory object store with the same contract; the real bucket: npm run r2:check) ----
+
+const sampleBytes = () => readFileSync(path.join(here, "fixtures", "tiny.mp4"));
+async function withStore<T>(fn: (store: MemoryStore) => Promise<T>): Promise<T> {
+  const store = memoryStore();
+  setObjectStore(store);
+  try {
+    return await fn(store);
+  } finally {
+    setObjectStore(null);
+  }
+}
+const storageOf = (id: string) => owners.projects.get(id)?.storage;
+
+test("F11: with R2, the rendered MP4 is uploaded, verified and recorded, and only then ready; the local file is kept", async () => {
+  await withStore(async (store) => {
+    const v = await service.createVideo(request("Explain auroras [ok]"), A);
+    const recorded = storageOf(v.id);
+    assert.equal(recorded?.kind, "r2");
+    assert.equal(recorded?.kind === "r2" && recorded.key, `users/${A}/videos/${v.id}/video.mp4`, "key built from server ids");
+    const done = await settle(v.id);
+    assert.equal(done.status, "ready");
+    const s = storageOf(v.id);
+    assert.ok(s?.kind === "r2");
+    assert.equal(s.uploadStatus, "uploaded");
+    assert.equal(s.size, sampleBytes().length);
+    assert.equal(s.md5, createHash("md5").update(sampleBytes()).digest("hex"));
+    assert.equal(s.contentType, "video/mp4");
+    assert.equal(s.attempts, 1);
+    assert.ok(s.uploadedAt instanceof Date);
+    assert.ok(store.objects.get(s.key)?.data.equals(sampleBytes()), "stored bytes equal the render");
+    assert.ok(existsSync(path.join(root, "runs", v.id, "video.mp4")), "local MP4 kept");
+    assert.deepEqual(await service.getVideoSource(v.id, A), { kind: "r2", key: s.key, size: s.size });
+    assert.equal(await service.getVideoSource(v.id, B), null, "B gets nothing for A's cloud video");
+    assert.ok((await service.listVideos(A)).some((x) => x.id === v.id && x.status === "ready"), "appears in My Videos");
+  });
+});
+
+test("F11: an upload failure keeps the MP4 and fails at 'finishing'; Try again re-uploads the same file without rendering", async () => {
+  await withStore(async (store) => {
+    store.failNextPuts = 1;
+    const v = await service.createVideo(request("Explain monsoons [ok]"), A);
+    const failed = await settle(v.id);
+    assert.equal(failed.status, "failed");
+    assert.equal(failed.failedStage, "finishing");
+    assert.match(failed.errorDetail ?? "", /cloud storage/i);
+    assert.doesNotMatch(failed.errorDetail ?? "", /[A-Za-z]:\\|\/tmp\//, "no paths");
+    assert.ok(existsSync(path.join(root, "runs", v.id, "video.mp4")), "local MP4 kept after a failed upload");
+    assert.equal(await service.getVideoSource(v.id, A), null, "not playable until stored");
+
+    const cliRuns = calls().length;
+    assert.equal(await service.retryVideo(v.id, B), null, "B can't retry A's upload");
+    const retried = await service.retryVideo(v.id, A);
+    assert.equal(retried?.id, v.id, "same video, not a new run");
+    assert.equal(retried?.status, "generating");
+    assert.equal(retried?.stage, "finishing");
+    const done = await settle(v.id);
+    assert.equal(done.status, "ready");
+    assert.equal(calls().length, cliRuns, "no new render: no Gemini or ElevenLabs calls");
+    assert.equal(store.calls.put, 2);
+    const s = storageOf(v.id);
+    assert.ok(s?.kind === "r2" && s.attempts === 2 && s.lastError === null);
+  });
+});
+
+test("F11: a corrupted upload is detected by verification and never marked ready", async () => {
+  await withStore(async (store) => {
+    store.corruptNextPut = true;
+    const v = await service.createVideo(request("Explain comets [ok]"), A);
+    const done = await settle(v.id);
+    assert.equal(done.status, "failed");
+    assert.match(done.errorDetail ?? "", /doesn't match/);
+  });
+});
+
+test("F11: a late automatic upload start (e.g. the render process exiting) never overwrites a recorded failure", async () => {
+  await withStore(async (store) => {
+    store.corruptNextPut = true;
+    const v = await service.createVideo(request("Explain meteors [ok]"), A);
+    assert.equal((await settle(v.id)).status, "failed");
+    const puts = store.calls.put;
+    await startUpload(v.id, path.join(root, "runs", v.id, "video.mp4"));
+    assert.equal((await service.getVideo(v.id, A))?.status, "failed", "still failed: only Try again restarts it");
+    assert.equal(store.calls.put, puts, "no automatic re-upload");
+  });
+});
+
+test("F11: uploads are idempotent; an object already stored with the same checksum is not uploaded again", async () => {
+  await withStore(async (store) => {
+    const v = await service.createVideo(request("Explain eclipses [ok]"), A);
+    await settle(v.id);
+    assert.equal(store.calls.put, 1);
+    await owners.updateR2Storage(v.id, { uploadStatus: "pending" });
+    assert.equal((await service.getVideo(v.id, A))?.stage, "finishing", "looking at it resumes the pending upload");
+    assert.equal((await settle(v.id)).status, "ready");
+    assert.equal(store.calls.put, 1, "no second PutObject");
+  });
+});
+
+test("F11: an upload interrupted by a server restart resumes the next time the video is looked at", async () => {
+  await withStore(async (store) => {
+    const id = "2026-11-05T09-00-00-000Z-restart1";
+    const dir = path.join(root, "runs", id);
+    mkdirSync(dir);
+    writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({ status: "succeeded", prompt: "Explain tides", targetDurationSeconds: 30 }));
+    writeFileSync(path.join(dir, "video.mp4"), sampleBytes());
+    await owners.record({ id, ownerUserId: A, title: id, prompt: "p", durationSeconds: 30, createdAt: new Date().toISOString(), storage: { kind: "r2", runId: id, key: `users/${A}/videos/${id}/video.mp4`, uploadStatus: "uploading", attempts: 1, lastAttemptAt: new Date() } });
+    assert.equal((await service.getVideo(id, A))?.status, "generating");
+    assert.equal((await settle(id)).status, "ready");
+    assert.equal(store.calls.put, 1);
+  });
+});
+
+test("F11: the free-tier guard stops uploads near the limit (video kept locally, clear reason)", async () => {
+  await withStore(async (store) => {
+    setOwnershipStore({ ...owners, storageUsage: async () => ({ storedBytes: 8e9 - 100, uploadsThisMonth: 0 }) }); // 100 bytes under the 80% line; the MP4 is ~4.8 KB
+    try {
+      const v = await service.createVideo(request("Explain glaciers melting [ok]"), A);
+      const done = await settle(v.id);
+      assert.equal(done.status, "failed");
+      assert.match(done.errorDetail ?? "", /free limit/);
+      assert.equal(store.calls.put, 0, "nothing uploaded");
+      assert.ok(existsSync(path.join(root, "runs", v.id, "video.mp4")));
+    } finally {
+      setOwnershipStore(owners);
+    }
+  });
+});
+
+test("F11: videos stored locally before R2 keep playing from runs/ when R2 is configured", async () => {
+  const id = "2026-10-01T09-00-00-000Z-histor01";
+  const dir = path.join(root, "runs", id);
+  mkdirSync(dir);
+  writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({ status: "succeeded", prompt: "Old video", targetDurationSeconds: 30 }));
+  writeFileSync(path.join(dir, "video.mp4"), sampleBytes());
+  await own(id);
+  await withStore(async (store) => {
+    assert.equal((await service.getVideo(id, A))?.status, "ready");
+    assert.deepEqual(await service.getVideoSource(id, A), { kind: "local", path: path.join(dir, "video.mp4") });
+    assert.equal(store.calls.put + store.calls.head, 0, "historical videos are not touched or uploaded");
+  });
+});
+
+test("F11: without R2 configured, new videos are stored locally exactly as before", async () => {
+  const v = await service.createVideo(request("Explain rainbows [ok]"), A);
+  assert.deepEqual(storageOf(v.id), { kind: "local-run", runId: v.id });
+  assert.equal((await settle(v.id)).status, "ready");
+  assert.equal((await service.getVideoSource(v.id, A))?.kind, "local");
 });

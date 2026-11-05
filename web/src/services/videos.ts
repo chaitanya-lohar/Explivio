@@ -12,6 +12,13 @@ export const listVideos = (ownerUserId: string): Promise<readonly VideoProject[]
 export const getVideo = (id: string, ownerUserId: string): Promise<VideoProject | null> => (useMock ? mock.getVideo(id) : pipeline.getVideo(id, ownerUserId));
 export const getVideoTitle = (id: string, ownerUserId: string): Promise<string | null> => (useMock ? mock.getVideoTitle(id) : pipeline.getVideoTitle(id, ownerUserId));
 export const getVideoFilePath = async (id: string, ownerUserId: string): Promise<string | null> => (useMock ? mock.getVideoFilePath(id) : pipeline.getVideoFilePath(id, ownerUserId));
+/** Where a ready video's bytes are (local file or Cloudflare R2 object), for the owner only. */
+export const getVideoSource = async (id: string, ownerUserId: string): Promise<pipeline.VideoSource | null> => {
+  if (!useMock) return pipeline.getVideoSource(id, ownerUserId);
+  const filePath = await mock.getVideoFilePath(id);
+  return filePath ? { kind: "local", path: filePath } : null;
+};
+export type { VideoSource } from "./pipeline/videos";
 export const createVideo = (request: VideoRequest, ownerUserId: string): Promise<VideoProject> => (useMock ? mock.createVideo(request) : pipeline.createVideo(request, ownerUserId));
 export const retryVideo = (id: string, ownerUserId: string): Promise<VideoProject | null> => (useMock ? mock.retryVideo(id) : pipeline.retryVideo(id, ownerUserId));
 export { PipelineBusyError } from "./pipeline/videos";

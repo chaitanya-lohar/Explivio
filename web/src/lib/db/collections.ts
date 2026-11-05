@@ -52,6 +52,36 @@ export interface EmailTokenDoc {
 }
 
 /** User-visible video project. `_id` is the existing run id; the MP4 stays in runs/<id>/ (storage reference only). */
+/** The MP4 stays in runs/<runId>/ (every video before F11, and new ones when R2 isn't configured). */
+export interface LocalVideoStorage {
+  kind: "local-run";
+  runId: string;
+}
+
+/**
+ * F11: the MP4 is rendered into runs/<runId>/ and then uploaded to Cloudflare R2. The video is ready only when
+ * uploadStatus is "uploaded" (object verified: size, type and MD5). The local file is kept either way.
+ */
+export interface R2VideoStorage {
+  kind: "r2";
+  runId: string;
+  /** users/<ownerUserId>/videos/<runId>/video.mp4 */
+  key: string;
+  uploadStatus: "pending" | "uploading" | "uploaded" | "failed";
+  /** Upload attempts so far (each is at most one PutObject). */
+  attempts: number;
+  contentType?: "video/mp4";
+  size?: number;
+  /** Hex MD5 of the uploaded bytes (equals R2's ETag for single-part uploads). */
+  md5?: string;
+  lastAttemptAt?: Date;
+  uploadedAt?: Date;
+  /** Safe, user-presentable reason of the last failure (no secrets or paths). */
+  lastError?: string | null;
+}
+
+export type VideoStorage = LocalVideoStorage | R2VideoStorage;
+
 export interface VideoProjectDoc {
   _id: string; // run id
   ownerUserId: string;
@@ -59,7 +89,7 @@ export interface VideoProjectDoc {
   prompt: string;
   durationSeconds: 30 | 60 | 90;
   status: "generating" | "ready" | "failed" | "expired";
-  storage: { kind: "local-run"; runId: string };
+  storage: VideoStorage;
   createdAt: Date;
   updatedAt: Date;
   /** Set by the legacy ownership migration for runs created before accounts existed. */
