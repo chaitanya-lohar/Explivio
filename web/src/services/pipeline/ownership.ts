@@ -29,6 +29,8 @@ export interface OwnershipStore {
   updateR2Storage(id: string, patch: R2StoragePatch, onlyIf?: R2VideoStorage["uploadStatus"][]): Promise<boolean>;
   /** Totals for the free-tier guard. */
   storageUsage(now?: Date): Promise<StorageUsage>;
+  /** New generations (renders) the user started since this time (F12 per-user limit). */
+  countGenerationsSince(ownerUserId: string, since: Date): Promise<number>;
 }
 
 const projectStatus = (status: VideoStatus): VideoProjectDoc["status"] => (status === "draft" ? "generating" : status);
@@ -91,6 +93,11 @@ export const mongoOwnership: OwnershipStore = {
       .toArray();
     return { storedBytes: totals?.storedBytes ?? 0, uploadsThisMonth: totals?.uploadsThisMonth ?? 0 };
   },
+  async countGenerationsSince(ownerUserId, since) {
+    const db = await getDatabase();
+    // One attempt per render (upload-only retries create none); served by the owner_newest index.
+    return db.collection<GenerationAttemptDoc>(COLLECTIONS.generationAttempts).countDocuments({ ownerUserId, createdAt: { $gte: since } });
+  },
 };
 
 /** For tests: same behaviour, kept in memory. */
@@ -128,6 +135,9 @@ export function memoryOwnership(): OwnershipStore & { projects: Map<string, NewP
         if (storage.lastAttemptAt && storage.lastAttemptAt >= monthStart(now)) uploadsThisMonth += storage.attempts;
       }
       return { storedBytes, uploadsThisMonth };
+    },
+    async countGenerationsSince(ownerUserId, since) {
+      return [...projects.values()].filter((p) => p.ownerUserId === ownerUserId && new Date(p.createdAt) >= since).length;
     },
   };
 }

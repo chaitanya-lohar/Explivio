@@ -25,6 +25,8 @@ mkdirSync(path.join(root, "runs"));
 process.env.EXPLIVIO_PIPELINE_ROOT = root;
 process.env.STUB_STEP_MS = "150";
 process.env.STUB_SAMPLE_MP4 = path.join(here, "fixtures", "tiny.mp4");
+// These tests start many videos as one user; the F12 per-user daily limit is exercised by its own test below.
+process.env.EXPLIVIO_DAILY_GENERATIONS = "1000";
 
 type Service = typeof import("../src/services/pipeline/videos.ts");
 let service: Service;
@@ -342,4 +344,29 @@ test("F11: without R2 configured, new videos are stored locally exactly as befor
   assert.deepEqual(storageOf(v.id), { kind: "local-run", runId: v.id });
   assert.equal((await settle(v.id)).status, "ready");
   assert.equal((await service.getVideoSource(v.id, A))?.kind, "local");
+});
+
+test("F12: per-user generation limit: after the daily allowance the next render is refused; other users are unaffected", async () => {
+  const C = "usr_cccccccccccccccccccccccccccccccc";
+  const D = "usr_dddddddddddddddddddddddddddddddd";
+  const settleAs = async (id: string, owner: string) => {
+    for (let i = 0; i < 100; i++, await sleep(100)) {
+      const v = await service.getVideo(id, owner);
+      if (v && v.status !== "generating") return v;
+    }
+    throw new Error("still generating: " + id);
+  };
+  process.env.EXPLIVIO_DAILY_GENERATIONS = "2";
+  try {
+    for (const prompt of ["Explain gravity [ok]", "Explain magnets [fail-render]"]) await settleAs((await service.createVideo(request(prompt), C)).id, C);
+    const runsBefore = calls().length;
+    await assert.rejects(service.createVideo(request("Explain friction [ok]"), C), (e: Error) => e.name === "GenerationLimitError" && /limit of 2 new videos/.test(e.message));
+    const failed = (await service.listVideos(C)).find((v) => v.status === "failed")!;
+    await assert.rejects(service.retryVideo(failed.id, C), (e: Error) => e.name === "GenerationLimitError", "a re-render retry counts as a new render");
+    assert.equal(calls().length, runsBefore, "nothing was started");
+    const other = await service.createVideo(request("Explain inertia [ok]"), D);
+    assert.equal((await settleAs(other.id, D)).status, "ready", "another user isn't affected");
+  } finally {
+    process.env.EXPLIVIO_DAILY_GENERATIONS = "1000";
+  }
 });

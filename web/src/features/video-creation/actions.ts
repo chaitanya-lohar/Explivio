@@ -2,7 +2,8 @@
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { toVideoRequest } from "@/lib/video-request";
-import { createVideo, PipelineBusyError } from "@/services";
+import { createVideo, GenerationLimitError, PipelineBusyError } from "@/services";
+import { securityEvent } from "@/lib/security/log";
 import type { VideoRequest } from "@/types/video";
 
 export type GenerateVideoResult = { ok: true; videoId: string } | { ok: false; error: string };
@@ -17,6 +18,10 @@ export async function generateVideo(input: VideoRequest): Promise<GenerateVideoR
     const video = await createVideo(parsed.request, user.id);
     return { ok: true, videoId: video.id };
   } catch (error) {
+    if (error instanceof GenerationLimitError) {
+      securityEvent("generation_limited", { userId: user.id });
+      return { ok: false, error: error.message };
+    }
     if (error instanceof PipelineBusyError) return { ok: false, error: error.message };
     return { ok: false, error: "We couldn't start your video. Please try again." };
   }

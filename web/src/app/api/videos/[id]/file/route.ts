@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { parseRange } from "@/lib/http-range";
 import { getCurrentUser } from "@/lib/auth/session";
+import { securityEvent } from "@/lib/security/log";
 import { ObjectNotFoundError, objectStore } from "@/lib/storage";
 import { getVideo, getVideoSource } from "@/services";
 
@@ -23,7 +24,11 @@ export async function GET(request: Request, ctx: RouteContext<"/api/videos/[id]/
   if (!user) return new Response("Sign in to watch this video", { status: 401 });
   const { id } = await ctx.params;
   const source = await getVideoSource(id, user.id);
-  if (!source) return new Response("Video file not available", { status: 404 });
+  if (!source) {
+    // No key, no signed link and no details for videos the user doesn't own (or that aren't ready).
+    securityEvent("access_denied", { userId: user.id, videoId: id, reason: "video_file" });
+    return new Response("Video file not available", { status: 404 });
+  }
 
   const download = new URL(request.url).searchParams.has("download");
   const fileName = download ? await downloadName(id, user.id) : null;
