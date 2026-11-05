@@ -1,64 +1,76 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-06 (F13 code complete; real Resend test pending).
+Last updated: 2026-11-06. **F13 code is complete and on `dev`; the real Resend test is pending your action, and F13 is not yet merged into `main`.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
+
+## At a glance
+| Phase | Status | On `main`? |
+|---|---|---|
+| M1–M7, F1–F4, auth screens, F6, F7, F9 | ✅ Done | Yes |
+| F10: MongoDB Atlas and self-managed auth | ✅ Done (1 closeout item left, yours) | Yes (PR #5) |
+| F11: Cloudflare R2 video storage | ✅ Done, verified on real R2 | Yes (PR #6/#7) |
+| F12: auth and authorisation hardening | ✅ Done | Yes (PR #7) |
+| Retest before F13 (43/43, prerender fix) | ✅ Done | Yes (PR #7) |
+| F13: transactional email (Resend, durable queue) | 🟡 Code done and tested; **real Resend test pending** | **No:** 2 commits on `dev` (`907db56`, `002f950`) |
+| F14: production readiness | ⬜ Next | — |
+| F15: final product validation | ⬜ Planned | — |
 
 ## Completed
 - **M1–M7:** the pipeline (Gemini storyboard → ElevenLabs narration → Remotion render), captions, music, six animated templates. M7 is also called F8.
 - **F1–F4, auth screens, F6, F7, F9:** web app, real pipeline, My Videos, Settings, end-to-end QA.
-- **F10:** MongoDB Atlas (`explivio`: 6 collections, 10 indexes) and self-managed authentication with per-user ownership.
-- **F11: Cloudflare R2 video storage** ✅ (2026-11-05; commits `0760ca5`, `71c5e8e`, `f2b6ea9` and the verification update).
-  - **What it does:** new videos upload to the private bucket `explivio-assets` after rendering and are verified (size, type, MD5) before they're ready. Playback streams from R2 with seeking. Downloads use 5-minute signed links. Try again re-uploads without re-rendering. A free-tier guard stops uploads at 80%. Old videos stay local, untouched.
-  - **Verified on real R2 and Atlas:** `r2:check` 10/10; browser end-to-end 39/39 with two accounts (playback, 3 seeks, 206/416, streamed download, signed link, cross-user 404, private bucket, retry with the same id, no re-render and no re-upload).
-  - Reports: [architecture](storage/F11_R2_STORAGE_ARCHITECTURE.md), [implementation](storage/F11_R2_IMPLEMENTATION_REPORT.md), [historical migration plan](storage/F11_HISTORICAL_VIDEO_MIGRATION_PLAN.md) (not executed).
-  - Commits `cc36dad`, `8532210`, `a47976a`, `34cb666`, `d2dce3e`, `9be6dec`; on `main` since PR #5.
-  - Implementation verified in code on 2026-11-05; the live database was last verified on 2026-11-04.
-
-## F10 operational closeout (before F11)
-1. ~~Legacy video ownership~~: **no longer needed.** On 2026-11-05, at your request, every old video was deleted (see the changelog).
-2. **Least-privilege database user:** reduce `atlasAdmin` to `readWrite` on `explivio`. You do this in Atlas; it can't be verified from the repo.
-3. ~~Environment clean-up~~: ✅ `NODE_ENV` and `APP_ENV` were removed from `web/.env.local` on 2026-11-05.
-4. ~~Authenticated browser regression~~: ✅ done 2026-11-05 (43/43, see the changelog).
-
-- **F12: authentication and authorisation hardening** ✅ (2026-11-05; commits `2cdf66f`, `7cde3d7`, `d5d98c0` and the docs commit).
-  - **Audit:** 11 findings, one High: the sign-in limit could be bypassed by forging the client address, reproduced on the old code.
-  - **Fixed:**
-    - per-account sign-in limit in durable MongoDB counters;
-    - equal-time sign-up and forgot-password (no email enumeration);
-    - the old session revoked on re-sign-in;
-    - 256-character password cap;
-    - 10 new videos per account per 24 h;
-    - secret-free security log;
-    - anti-framing and hardening headers;
-    - keys file ignored.
-  - **Verified:** web 85/85 (live Atlas), security tests 8/8, browser end-to-end **36/36** on real Atlas and R2 (cross-user server-action replays, CSRF, forged addresses, cookie flags, R2 isolation), `r2:check` 10/10, pipeline 63/63; typecheck, lint and build pass.
+- **F10: MongoDB Atlas and authentication** (2026-11-03/04; commits `cc36dad`, `8532210`, `a47976a`, `34cb666`, `d2dce3e`, `9be6dec`).
+  - Self-managed accounts in the `explivio` database, sessions, per-user ownership of videos and settings.
+- **F11: Cloudflare R2 video storage** ✅ (2026-11-05; `0760ca5`, `71c5e8e`, `f2b6ea9`, `f1a35ab`).
+  - New videos upload to the private bucket `explivio-assets` and are verified before they're ready.
+  - Playback streams from R2 with seeking; downloads use 5-minute signed links; Try again re-uploads without re-rendering; a free-tier guard stops uploads at 80%.
+  - Verified: `r2:check` 10/10; browser end-to-end 39/39.
+  - Reports: [architecture](storage/F11_R2_STORAGE_ARCHITECTURE.md), [implementation](storage/F11_R2_IMPLEMENTATION_REPORT.md).
+- **F12: authentication and authorisation hardening** ✅ (2026-11-05; `2cdf66f`, `7cde3d7`, `d5d98c0`, `44199cc`).
+  - **Audit:** 11 findings, one High: the sign-in limit could be bypassed by forging the client address, reproduced on the old code and fixed.
+  - **Fixed:** per-account sign-in limit in durable MongoDB counters; equal-time sign-up and forgot-password; old session revoked on re-sign-in; 256-character password cap; 10 new videos per account per 24 h; secret-free security log; hardening headers; keys file ignored.
+  - Verified: browser end-to-end 36/36.
   - Reports: [audit](security/F12_SECURITY_AUDIT.md), [implementation](security/F12_SECURITY_IMPLEMENTATION_REPORT.md), [test matrix](security/F12_SECURITY_TEST_MATRIX.md).
+- **Clean-up and retest** (2026-11-05; `8346b9c`, `e752338`).
+  - Every old video deleted at your request; `NODE_ENV` and `APP_ENV` removed from `web/.env.local`.
+  - Full browser regression 43/43, replacing the old F6/F7/F9 suites behind sign-in.
+  - Fixed the "`new Date()` while prerendering" error logged on signed-in pages.
 
-- **F13: transactional email through Resend** 🟡 (2026-11-06; code `907db56` and the docs commit). The code is **complete and tested**; real delivery is pending your test.
-  - **Built:**
-    - a durable MongoDB email queue (`emailJobs`) with a worker running in the server, plus `npm run email:worker`;
-    - outbox (default), Resend and test providers;
-    - responsive HTML and text templates (verification, reset, password changed, existing account);
-    - links created at send time, so no token is ever stored;
-    - a 90-a-day guard below Resend Free's 100.
-  - **Verified:**
-    - web 102/102 with live Atlas (including 9 live queue tests);
-    - browser regression 34/34 through the in-server worker;
-    - F12 timing unchanged (1511 vs 1506 ms);
-    - pipeline 63/63, `r2:check` 10/10; typecheck, lint and build pass.
-  - **Pending:**
-    - (1) the real Resend test, approved, at most 3 emails to your Resend address ([setup guide §6](email/F13_SETUP_GUIDE.md));
-    - (2) delivery to other users needs a domain you own (none is bought);
-    - (3) worker hosting and delivery webhooks come with F14.
-  - Reports: [architecture](email/F13_EMAIL_ARCHITECTURE.md), [implementation](email/F13_IMPLEMENTATION_REPORT.md), [setup](email/F13_SETUP_GUIDE.md).
+## In progress: F13 transactional email (Resend)
+- **Code complete and tested** (2026-11-06; `907db56`, `002f950`):
+  - **Queue and worker:** a durable MongoDB queue (`emailJobs`), sent by a worker inside the server or by `npm run email:worker`.
+  - **Providers:** outbox (default), Resend and test.
+  - **Templates:** responsive HTML and text for verification, reset, password changed and existing account.
+  - **Safety:** link tokens are created at send time (never stored in the queue); uncertain sends are never repeated; at most 90 emails per UTC day (below Resend Free's 100).
+- **Verified:**
+  - web 102/102 with live Atlas (8 email tests, 9 live queue tests);
+  - browser regression 34/34 through the in-server worker;
+  - F12 timing still equal (sign-up 1511 vs 1506 ms);
+  - pipeline 63/63, `r2:check` 10/10; typecheck, lint and build pass.
+- **Pending:**
+  1. **Real Resend test (your action, approved, at most 3 emails):**
+     - add `EMAIL_TRANSPORT=resend` to `web/.env.local` and run `npm run dev`;
+     - sign up with your Resend account address;
+     - confirm the verification, reset and password-changed emails arrive ([setup guide §6](email/F13_SETUP_GUIDE.md)).
+
+     **Real emails sent so far: 0.**
+  2. **Delivery to other users** needs a domain you own (none bought; Resend's testing domain only reaches your own address).
+  3. **Merge F13 into `main`** through a PR (only these 2 commits remain).
+  4. **F14:** keeping the worker running on a production host; delivery webhooks.
+- Reports: [architecture](email/F13_EMAIL_ARCHITECTURE.md), [implementation](email/F13_IMPLEMENTATION_REPORT.md), [setup guide](email/F13_SETUP_GUIDE.md).
+
+## Your open actions
+1. Run the real Resend test (above) and tell me what arrived.
+2. Open and merge the F13 PR: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
+3. In Atlas, reduce the `explivio_app` user from `atlasAdmin` to `readWrite` on `explivio` (F10 closeout).
+4. Delete the unused `SMTP_PORT` line from `web/.env.local`.
+5. Optional: set a Cloudflare Budget Alert for R2 if you haven't.
 
 ## Next
-- **Your real Resend test** (above), then **F14: production readiness** when you ask.
+- **Paused at your request (2026-11-06):** the next phase, F14 production readiness, starts later, when you ask. Until then, only your open actions above remain.
 
 ## Planned
-- F14 production readiness.
-- F15 final product validation.
+- F15: final product validation.
 
 Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 
@@ -69,36 +81,38 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 - Accessibility (screen-reader) review.
 - Image-generation trial (unapproved); leftover Stitch fixes.
 
-## Current test results (2026-11-05)
-| Suite | Result | Notes |
+## Current test results (2026-11-06)
+| Suite | Result | When / notes |
 |---|---|---|
-| Pipeline (`npm test`, root) | 63/63 | Re-run 2026-11-05 |
-| Web (`web: npm test` with `MONGODB_URI_TEST`) | **85/85** | 2026-11-05 after F12, including the live-Atlas tests (offline: 68 pass, 17 skipped) |
-| F12 browser end-to-end (real Atlas and R2) | **36/36** | 2026-11-05 |
-| Real R2 (`npm run r2:check`) | **10/10** | 2026-11-05 |
-| F11 browser end-to-end (real R2 and Atlas) | **39/39** | 2026-11-05, production build, two accounts, stub pipeline |
-| Browser end-to-end (F10) | 70/70 | 2026-11-04, production build, two accounts |
-| Typecheck, lint, build | Pass | 2026-11-04; no code has changed since |
-| F6 / F7 / F9 browser suites | 53/53, 41/41, 62/62 + 64/64 | **Historical** (before sign-in existed); need re-running with a login step |
+| Web (`web: npm test` with `MONGODB_URI_TEST`) | **102/102** | 2026-11-06 after F13, including live Atlas (offline: 76 pass, 26 skipped) |
+| Pipeline (`npm test`, root) | **63/63** | 2026-11-06 |
+| Real R2 (`npm run r2:check`) | **10/10** | 2026-11-06 |
+| Typecheck, lint, production build | Pass | 2026-11-06 |
+| F13 browser regression (email queue, real Atlas and R2) | **34/34** | 2026-11-06 |
+| Full browser regression (before F13) | **43/43** | 2026-11-05 |
+| F12 browser end-to-end | 36/36 | 2026-11-05 |
+| F11 browser end-to-end | 39/39 | 2026-11-05 |
+| Real Resend delivery | **Not run** | Waiting for your test |
 
 ## Risks
 | Risk | Impact | Owner | Resolution |
 |---|---|---|---|
-| Rendered files pile up in `runs/` (no cleanup policy) | Disk growth | Claude (F14) | New videos go to R2 (F11 ✅); old videos were deleted on 2026-11-05; retention policy in F14 |
+| No email reaches other users until a domain you own is verified in Resend | New users can't verify by email in production | User | Verify a domain later (never bought under the $0 rule); until then the outbox or your own address only |
+| The email worker needs a long-running process | Emails wait in the queue on serverless hosting | Claude (F14) | Separate worker or scheduled run; jobs are durable meanwhile |
 | R2 needs an active Cloudflare subscription; overages bill automatically with no cap | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert; monitor R2 → Metrics |
 | Your public IPv4 address changes from time to time; Atlas then refuses this machine (TLS alert 80) | App can't sign in or list videos | User | Atlas → Network Access → add the new IPv4 address (the browser's "current IP" may add the IPv6 one) |
 | Atlas user has `atlasAdmin` | Too much access if the URI leaks | User | Reduce to `readWrite` on `explivio` |
-| No real email | Users can't verify without access to the server's outbox | Claude (F13) | Gmail SMTP |
 | A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits, or resets the password | User (accepted) | Password reset lifts the lockout |
 | Per-address limits trust a forgeable header until there's a trusted proxy | Best effort only; per-account and global limits carry security | Claude (F14) | Proxy that overwrites `X-Forwarded-For` |
+| Rendered files pile up in `runs/` (no cleanup policy) | Disk growth | Claude (F14) | New videos go to R2; retention policy in F14 |
 | ElevenLabs credits about 270 characters (estimated) until 2026-11-26 | Narrated videos fail with a quota error | User | Use silent mode; wait for the reset |
 | Gemini free-tier 429s | Generation fails until the quota resets | User | Retry later; no billing |
 | Render about 2 GB of RAM; free memory dipped to 1.6 GB | Render failures; hosting cost | Claude (F14) | Separate worker; measured sizing |
 | Only Chrome tested | Unknown issues in other browsers | Claude (F15) | Cross-browser pass |
 
 ## Git
-- Work on `dev`; `main` only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-- On 2026-11-05 `main` and `dev` had the same content (F10 merged through PR #5).
+- Work on `dev`; `main` changes only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
+- **2026-11-06:** `main` includes everything up to `e752338` (PRs #5, #6, #7). `dev` is 2 commits ahead (F13: `907db56`, `002f950`, plus this status update). `main` also holds the 3 PR merge commits, which change no files.
 
 ## Milestones
 
@@ -184,13 +198,21 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Next steps
 
-1. Finish the F10 operational closeout (above).
-2. **F13 real Resend test** (your action), then **F14: production readiness**, when you ask.
-3. Then F14 → F15 ([ROADMAP.md](ROADMAP.md)).
-4. Optional backlog, without delaying the above.
-5. Merge `dev` into `main` through a PR after each reviewed phase.
+1. Your open actions (top of this file): the real Resend test, the F13 PR, and the Atlas role.
+2. **F14: production readiness**, paused until you ask; then F15 ([ROADMAP.md](ROADMAP.md)).
+3. Optional backlog, without delaying the above.
+4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-06** — Status tidy-up.
+  - **Restructured:** the top of this file now has "At a glance" with `main` and `dev` status, Completed, In progress (F13), Your open actions, and current test results. F10–F13 entries were moved into the right sections.
+  - **Recorded:**
+    - PRs #6 and #7 are merged, so F11, F12, the clean-up and the retest are on `main`;
+    - only the 2 F13 commits are waiting for a PR;
+    - the real Resend test is still pending (0 real emails sent);
+    - the next phase (F14) is paused until you ask.
+  - Documentation only; $0.
 
 - **2026-11-06** — F13 transactional email (Resend), durable queue.
   - **Approved choices:** Resend Free (approved over Gmail SMTP); no domain owned and none bought; at most 3 real test emails to your Resend address, after you switch `EMAIL_TRANSPORT=resend` on.
