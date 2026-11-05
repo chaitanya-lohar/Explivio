@@ -54,7 +54,7 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
 | Check first | Current R2 free-tier limits (storage, operations, egress) on Cloudflare's official pages |
 | Docs | `docs/storage/F11_R2_STORAGE_ARCHITECTURE.md`, `docs/storage/F11_R2_IMPLEMENTATION_REPORT.md` |
 
-## F12 — Authentication and authorisation hardening
+## F12 — Authentication and authorisation hardening ✅ done 2026-11-05 ([report](security/F12_SECURITY_IMPLEMENTATION_REPORT.md))
 
 - **Objective:** review and strengthen the existing self-managed auth. Keep it unless there's a documented reason to change.
 - **Review:** session lifecycle, expiry, revocation and logout; password policy; rate limits (currently in memory); verification and reset tokens; cookies; CSRF; server-side authorisation; ownership of videos, generation attempts, settings and R2 objects.
