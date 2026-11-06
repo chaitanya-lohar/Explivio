@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-07. **Everything through F13 is on `main` (PR #8 merged). The real Resend test is still pending your action; F14 is paused until you ask.**
+Last updated: 2026-11-07. **Everything through F13 is on `main` (PR #8 merged), and real email delivery is verified. F14 is paused; next: a free fallback voice so narration no longer depends on ElevenLabs credits (research in progress).**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -12,7 +12,7 @@ This file is the concise current status; the newest changelog entries are at the
 | F11: Cloudflare R2 video storage | ✅ Done, verified on real R2 | Yes (PR #6/#7) |
 | F12: auth and authorisation hardening | ✅ Done | Yes (PR #7) |
 | Retest before F13 (43/43, prerender fix) | ✅ Done | Yes (PR #7) |
-| F13: transactional email (Resend, durable queue) | 🟡 Code done and tested; **real Resend test pending** | Yes (PR #8) |
+| F13: transactional email (Resend, durable queue) | ✅ Done; real delivery verified to your address (other recipients need a domain) | Yes (PR #8) |
 | F14: production readiness | ⬜ Next | — |
 | F15: final product validation | ⬜ Planned | — |
 
@@ -48,22 +48,17 @@ This file is the concise current status; the newest changelog entries are at the
   - F12 timing still equal (sign-up 1511 vs 1506 ms);
   - pipeline 63/63, `r2:check` 10/10; typecheck, lint and build pass.
 - **Pending:**
-  1. **Real Resend test (your action, approved, at most 3 emails):**
-     - add `EMAIL_TRANSPORT=resend` to `web/.env.local` and run `npm run dev`;
-     - sign up with your Resend account address;
-     - confirm the verification, reset and password-changed emails arrive ([setup guide §6](email/F13_SETUP_GUIDE.md)).
-
-     **Real emails sent so far: 0.**
+  1. ~~Real Resend test~~: ✅ **Real delivery verified 2026-11-06** (your Resend address only): Resend accepted 3 emails (account-exists notice, because the address already had an account; reset link; password changed), you confirmed they arrived, and the queue kept no addresses. Today's count: 3, within the approved 3.
   2. **Delivery to other users** needs a domain you own (none bought; Resend's testing domain only reaches your own address).
   3. ~~Merge F13 into `main`~~: ✅ merged through PR #8 (2026-11-06).
   4. **F14:** keeping the worker running on a production host; delivery webhooks.
 - Reports: [architecture](email/F13_EMAIL_ARCHITECTURE.md), [implementation](email/F13_IMPLEMENTATION_REPORT.md), [setup guide](email/F13_SETUP_GUIDE.md).
 
 ## Your open actions
-1. Run the real Resend test (above) and tell me what arrived.
+1. ~~Run the real Resend test~~: ✅ done 2026-11-06.
 2. ~~Open and merge the F13 PR~~: ✅ done (PR #8).
 3. In Atlas, reduce the `explivio_app` user from `atlasAdmin` to `readWrite` on `explivio` (F10 closeout).
-4. Delete the unused `SMTP_PORT` line from `web/.env.local`.
+4. ~~Delete the unused `SMTP_PORT` line~~: ✅ done (`EMAIL_TRANSPORT=resend` is now set).
 5. Optional: set a Cloudflare Budget Alert for R2 if you haven't.
 
 ## Next
@@ -92,7 +87,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | Full browser regression (before F13) | **43/43** | 2026-11-05 |
 | F12 browser end-to-end | 36/36 | 2026-11-05 |
 | F11 browser end-to-end | 39/39 | 2026-11-05 |
-| Real Resend delivery | **Not run** | Waiting for your test |
+| Real Resend delivery | **3/3 accepted and received** | 2026-11-06, your Resend address |
 
 ## Risks
 | Risk | Impact | Owner | Resolution |
@@ -204,6 +199,11 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-07** — F13 real delivery verified, and the ElevenLabs problem raised.
+  - **Email:** **Real delivery verified 2026-11-06** (your Resend address only): Resend accepted 3 emails (account-exists notice, because the address already had an account; reset link; password changed), you confirmed they arrived, and the queue kept no addresses. Today's count: 3, within the approved 3.
+  - **Setup changes:** your IP changed again (now 157.48.86.69) and was added to Atlas; `EMAIL_TRANSPORT=resend` set; `SMTP_PORT` removed.
+  - **New problem:** a 60 s video failed at narration because ElevenLabs free credits are used up (267 left; 858 needed; reset 2026-11-26). You asked for a free way to stop depending on ElevenLabs for voice; research is under way.
 
 - **2026-11-07** — PR #8 merged: F13 is on `main`, and `main` and `dev` have the same content. Still pending: the real Resend test (`EMAIL_TRANSPORT` not set yet; 0 real emails sent), the Atlas role reduction, and removing `SMTP_PORT` from `web/.env.local`. F14 is paused until you ask.
 
