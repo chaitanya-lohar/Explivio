@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-07. **Everything through F13 is on `main`, and real email delivery is verified. The narration-voice problem is parked ([research](voice/VOICE_FALLBACK_RESEARCH.md)); next: F14 production readiness.**
+Last updated: 2026-11-07. **Everything through F13 is on `main`, and real email delivery is verified. The voice problem is parked; F14 will target Vercel ([notes](deployment/VERCEL_NOTES.md)) and starts later, when you ask.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -200,6 +200,10 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-07** — Decision: deploy on **Vercel**, later.
+  - **Constraints checked in Vercel's official docs:** Hobby is non-commercial only; functions are limited to 300 s, 2 GB / 1 vCPU and a read-only disk (except /tmp); cron runs once a day on Hobby; video rendering needs Vercel Sandbox (Remotion's documented path).
+  - **Recorded:** what has to change for Vercel in [deployment/VERCEL_NOTES.md](deployment/VERCEL_NOTES.md). F14 is not started. $0.
 
 - **2026-11-07** — Free narration voice researched, trialled and parked.
   - **Problem:** a 60 s video failed because ElevenLabs credits are used up (267 left, 858 needed).
