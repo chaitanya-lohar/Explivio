@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-06. **F13 code is complete and on `dev`; the real Resend test is pending your action, and F13 is not yet merged into `main`.**
+Last updated: 2026-11-07. **Everything through F13 is on `main` (PR #8 merged). The real Resend test is still pending your action; F14 is paused until you ask.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -12,7 +12,7 @@ This file is the concise current status; the newest changelog entries are at the
 | F11: Cloudflare R2 video storage | ✅ Done, verified on real R2 | Yes (PR #6/#7) |
 | F12: auth and authorisation hardening | ✅ Done | Yes (PR #7) |
 | Retest before F13 (43/43, prerender fix) | ✅ Done | Yes (PR #7) |
-| F13: transactional email (Resend, durable queue) | 🟡 Code done and tested; **real Resend test pending** | **No:** 2 commits on `dev` (`907db56`, `002f950`) |
+| F13: transactional email (Resend, durable queue) | 🟡 Code done and tested; **real Resend test pending** | Yes (PR #8) |
 | F14: production readiness | ⬜ Next | — |
 | F15: final product validation | ⬜ Planned | — |
 
@@ -55,13 +55,13 @@ This file is the concise current status; the newest changelog entries are at the
 
      **Real emails sent so far: 0.**
   2. **Delivery to other users** needs a domain you own (none bought; Resend's testing domain only reaches your own address).
-  3. **Merge F13 into `main`** through a PR (only these 2 commits remain).
+  3. ~~Merge F13 into `main`~~: ✅ merged through PR #8 (2026-11-06).
   4. **F14:** keeping the worker running on a production host; delivery webhooks.
 - Reports: [architecture](email/F13_EMAIL_ARCHITECTURE.md), [implementation](email/F13_IMPLEMENTATION_REPORT.md), [setup guide](email/F13_SETUP_GUIDE.md).
 
 ## Your open actions
 1. Run the real Resend test (above) and tell me what arrived.
-2. Open and merge the F13 PR: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
+2. ~~Open and merge the F13 PR~~: ✅ done (PR #8).
 3. In Atlas, reduce the `explivio_app` user from `atlasAdmin` to `readWrite` on `explivio` (F10 closeout).
 4. Delete the unused `SMTP_PORT` line from `web/.env.local`.
 5. Optional: set a Cloudflare Budget Alert for R2 if you haven't.
@@ -112,7 +112,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 
 ## Git
 - Work on `dev`; `main` changes only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-- **2026-11-06:** `main` includes everything up to `e752338` (PRs #5, #6, #7). `dev` is 2 commits ahead (F13: `907db56`, `002f950`, plus this status update). `main` also holds the 3 PR merge commits, which change no files.
+- **2026-11-07:** `main` has the same content as `dev` (PRs #5–#8 merged; `main` also holds the 4 PR merge commits, which change no files).
 
 ## Milestones
 
@@ -204,6 +204,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-07** — PR #8 merged: F13 is on `main`, and `main` and `dev` have the same content. Still pending: the real Resend test (`EMAIL_TRANSPORT` not set yet; 0 real emails sent), the Atlas role reduction, and removing `SMTP_PORT` from `web/.env.local`. F14 is paused until you ask.
 
 - **2026-11-06** — Status tidy-up.
   - **Restructured:** the top of this file now has "At a glance" with `main` and `dev` status, Completed, In progress (F13), Your open actions, and current test results. F10–F13 entries were moved into the right sections.
