@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-07. **Everything through F13 is on `main` (PR #8 merged), and real email delivery is verified. F14 is paused; next: a free fallback voice so narration no longer depends on ElevenLabs credits (research in progress).**
+Last updated: 2026-11-07. **Everything through F13 is on `main`, and real email delivery is verified. The narration-voice problem is parked ([research](voice/VOICE_FALLBACK_RESEARCH.md)); next: F14 production readiness.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -70,6 +70,7 @@ This file is the concise current status; the newest changelog entries are at the
 Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 
 ## Optional backlog
+- **Parked (2026-11-07): free fallback narration voice.** ElevenLabs free credits ran out (267 left; reset 2026-11-26). Researched and trialled: Kokoro-82M (local, fp32: about 35 s per 60 s video, about 1 GB RAM) and Gemini TTS (free API, real limit unverified). See [VOICE_FALLBACK_RESEARCH.md](voice/VOICE_FALLBACK_RESEARCH.md). Narrated videos fail until the reset or until this is resumed.
 - M7 silent topics S8–S12 (Gemini quota).
 - Narrated evaluation after 2026-11-26.
 - Human audio review.
@@ -100,7 +101,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits, or resets the password | User (accepted) | Password reset lifts the lockout |
 | Per-address limits trust a forgeable header until there's a trusted proxy | Best effort only; per-account and global limits carry security | Claude (F14) | Proxy that overwrites `X-Forwarded-For` |
 | Rendered files pile up in `runs/` (no cleanup policy) | Disk growth | Claude (F14) | New videos go to R2; retention policy in F14 |
-| ElevenLabs credits about 270 characters (estimated) until 2026-11-26 | Narrated videos fail with a quota error | User | Use silent mode; wait for the reset |
+| ElevenLabs credits used up: 267 characters left (confirmed 2026-11-06) until 2026-11-26 | Every narrated video fails at the narration stage (a 60 s video needs about 858 characters) | User (parked) | Wait for the reset, or resume the parked free-voice fallback ([research](voice/VOICE_FALLBACK_RESEARCH.md)) |
 | Gemini free-tier 429s | Generation fails until the quota resets | User | Retry later; no billing |
 | Render about 2 GB of RAM; free memory dipped to 1.6 GB | Render failures; hosting cost | Claude (F14) | Separate worker; measured sizing |
 | Only Chrome tested | Unknown issues in other browsers | Claude (F15) | Cross-browser pass |
@@ -199,6 +200,13 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-07** — Free narration voice researched, trialled and parked.
+  - **Problem:** a 60 s video failed because ElevenLabs credits are used up (267 left, 858 needed).
+  - **Research:** Kokoro-82M (Apache-2.0, local) and Gemini TTS (free API) are the only lasting $0 options. Cloud TTS from Google, Azure and Amazon needs a card; OpenAI is paid; Edge is unofficial; XTTS and F5 are non-commercial.
+  - **Kokoro trial on this laptop:** fp32 is 3.5× faster than q8 (0.6 s of work per second of audio; about 970 MB RAM). Samples are in `data/voice-trial/` (gitignored); the trial packages were removed again.
+  - **Your concern:** how a local voice works after deployment. Answer: it runs on the render server, which F14 needs anyway; an API voice needs no server.
+  - **Decision:** parked; F14 next. Nothing was added to the app. $0. Details: [voice/VOICE_FALLBACK_RESEARCH.md](voice/VOICE_FALLBACK_RESEARCH.md).
 
 - **2026-11-07** — F13 real delivery verified, and the ElevenLabs problem raised.
   - **Email:** **Real delivery verified 2026-11-06** (your Resend address only): Resend accepted 3 emails (account-exists notice, because the address already had an account; reset link; password changed), you confirmed they arrived, and the queue kept no addresses. Today's count: 3, within the approved 3.
