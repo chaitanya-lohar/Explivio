@@ -96,7 +96,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | No email reaches other users until a domain you own is verified in Resend | New users can't verify by email in production | User | Verify a domain later (never bought under the $0 rule); until then the outbox or your own address only |
 | The email worker needs a long-running process | Emails wait in the queue on serverless hosting | Claude (F14) | Separate worker or scheduled run; jobs are durable meanwhile |
 | R2 needs an active Cloudflare subscription; overages bill automatically with no cap | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert; monitor R2 → Metrics |
-| Your public IPv4 address changes from time to time; Atlas then refuses this machine (TLS alert 80) | App can't sign in or list videos | User | Atlas → Network Access → add the new IPv4 address (the browser's "current IP" may add the IPv6 one) |
+| Your public IPv4 address changes often (Jio: 157.48.111.100 → 157.48.86.69 → 157.48.221.175 in 4 days) | Atlas blocked the app ("Accounts are temporarily unavailable") | User (done) | **2026-11-09:** Atlas Network Access now allows the range `157.48.0.0/16`, so changes inside it no longer block. Before Vercel: switch to `0.0.0.0/0` together with a readWrite-only user and a long random password |
 | Atlas user has `atlasAdmin` | Too much access if the URI leaks | User | Reduce to `readWrite` on `explivio` |
 | A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits, or resets the password | User (accepted) | Password reset lifts the lockout |
 | Per-address limits trust a forgeable header until there's a trusted proxy | Best effort only; per-account and global limits carry security | Claude (F14) | Proxy that overwrites `X-Forwarded-For` |
@@ -200,6 +200,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — Atlas access: your provider changed your IP again (157.48.221.175), so you allowed the range `157.48.0.0/16` in Atlas Network Access instead of single addresses. Connection confirmed (`db:check` ok, 715 ms). App servers stopped after your manual test. Documentation only; $0.
 
 - **2026-11-08** — Free, unlimited narration voice (Kokoro-82M) implemented and tested: **feasible**.
   - **Built:**
