@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-07. **Everything through F13 is on `main`, and real email delivery is verified. The voice problem is parked; F14 will target Vercel ([notes](deployment/VERCEL_NOTES.md)) and starts later, when you ask.**
+Last updated: 2026-11-08. **Everything through F13 is on `main`. New: a free, unlimited narration voice (Kokoro) is implemented and tested, so videos no longer fail when ElevenLabs credits run out. F14 (Vercel) starts when you ask.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -70,7 +70,7 @@ This file is the concise current status; the newest changelog entries are at the
 Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 
 ## Optional backlog
-- **Parked (2026-11-07): free fallback narration voice.** ElevenLabs free credits ran out (267 left; reset 2026-11-26). Researched and trialled: Kokoro-82M (local, fp32: about 35 s per 60 s video, about 1 GB RAM) and Gemini TTS (free API, real limit unverified). See [VOICE_FALLBACK_RESEARCH.md](voice/VOICE_FALLBACK_RESEARCH.md). Narrated videos fail until the reset or until this is resumed.
+- ~~Parked: free fallback narration voice~~: **done 2026-11-08**; see the changelog and [FREE_VOICE_IMPLEMENTATION.md](voice/FREE_VOICE_IMPLEMENTATION.md).
 - M7 silent topics S8–S12 (Gemini quota).
 - Narrated evaluation after 2026-11-26.
 - Human audio review.
@@ -101,7 +101,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits, or resets the password | User (accepted) | Password reset lifts the lockout |
 | Per-address limits trust a forgeable header until there's a trusted proxy | Best effort only; per-account and global limits carry security | Claude (F14) | Proxy that overwrites `X-Forwarded-For` |
 | Rendered files pile up in `runs/` (no cleanup policy) | Disk growth | Claude (F14) | New videos go to R2; retention policy in F14 |
-| ElevenLabs credits used up: 267 characters left (confirmed 2026-11-06) until 2026-11-26 | Every narrated video fails at the narration stage (a 60 s video needs about 858 characters) | User (parked) | Wait for the reset, or resume the parked free-voice fallback ([research](voice/VOICE_FALLBACK_RESEARCH.md)) |
+| ElevenLabs credits used up (until 2026-11-26) | None for availability: narration falls back to the free Kokoro voice (quality a little lower, +30–40 s per video) | Claude (done) | `NARRATION_PROVIDER=auto` (default); [details](voice/FREE_VOICE_IMPLEMENTATION.md) |
 | Gemini free-tier 429s | Generation fails until the quota resets | User | Retry later; no billing |
 | Render about 2 GB of RAM; free memory dipped to 1.6 GB | Render failures; hosting cost | Claude (F14) | Separate worker; measured sizing |
 | Only Chrome tested | Unknown issues in other browsers | Claude (F15) | Cross-browser pass |
@@ -200,6 +200,20 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-08** — Free, unlimited narration voice (Kokoro-82M) implemented and tested: **feasible**.
+  - **Built:**
+    - `src/providers/kokoro.ts` and `kokoro-worker.mjs`: speech in its own process, measured sentence timing, captions, MP3 through the bundled ffmpeg;
+    - `providers/narration.ts`: `NARRATION_PROVIDER` = auto (ElevenLabs, otherwise Kokoro), kokoro or elevenlabs;
+    - the CLI uses the selector; `kokoro-js` 1.2.1 pinned; the model (311 MB) is in `models/kokoro` (gitignored).
+  - **Voices:** female `af_heart` (speed 1.0), male `am_michael` (speed 1.13, calibrated).
+  - **Tests (no Gemini calls):**
+    - full 90 s female video 13/13 (89 s of narration in 30 s);
+    - male video through automatic fallback after ElevenLabs refused (quota): 13/13 after the speed calibration (the first run was 101 s, +11 s, and failed);
+    - pipeline 69/69 including the real model; typecheck passes.
+  - **Bugs fixed:** the male voice ran too long; curly-quote sentence ends weren't split; one older test updated for the selector.
+  - **Known:** captions are timed per sentence (words estimated within each); `npm audit` flags 3 highs in `sharp` (images, never used here).
+  - $0. Report: [voice/FREE_VOICE_IMPLEMENTATION.md](voice/FREE_VOICE_IMPLEMENTATION.md).
 
 - **2026-11-07** — Decision: deploy on **Vercel**, later.
   - **Constraints checked in Vercel's official docs:** Hobby is non-commercial only; functions are limited to 300 s, 2 GB / 1 vCPU and a read-only disk (except /tmp); cron runs once a day on Hobby; video rendering needs Vercel Sandbox (Remotion's documented path).

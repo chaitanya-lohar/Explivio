@@ -1,6 +1,6 @@
 # Free narration voice: research and trial (parked)
 
-Date: 2026-11-07 · Status: **parked at your request.** Nothing was added to the app; research and a local trial only. $0.
+Date: 2026-11-07 · Status: ~~parked~~ → **implemented 2026-11-08**; see [FREE_VOICE_IMPLEMENTATION.md](FREE_VOICE_IMPLEMENTATION.md). Original status: parked at your request. Nothing was added to the app; research and a local trial only. $0.
 
 ## Problem
 Narration uses ElevenLabs. On 2026-11-06 a 60 s video failed at the narration stage: the free plan had 267 characters left and the video needed 858. Credits reset on 2026-11-26, and the free plan's 10,000 characters a month is about 10 narrated videos.

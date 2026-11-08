@@ -21,7 +21,7 @@ You decided to deploy Explivio on **Vercel**, later, in F14. These are the const
 | **Atlas network access:** your home IP only | Vercel uses changing IP addresses | Allow access from anywhere (0.0.0.0/0) with a strong, least-privilege database user (reduce the `atlasAdmin` role first) |
 | **Secrets:** `web/.env.local` | — | Vercel project environment variables (never committed) |
 | **Client IP for rate limits** | Vercel sets `x-forwarded-for` | Trust Vercel's forwarded IP (`EXPLIVIO_TRUST_PROXY`), as planned in F12 |
-| **Parked free voice** | A local Kokoro voice (about 1 GB RAM, 326 MB model) won't fit in a function | Prefer an API voice (Gemini TTS) on Vercel, or run Kokoro inside the render sandbox |
+| **Free voice (Kokoro, implemented 2026-11-08)** | About 1 GB RAM and a 311 MB model won't fit a normal function | Runs inside the same Vercel Sandbox as the render (8 GB), just before it; the model is downloaded or cached in the sandbox. Gemini TTS remains an API alternative |
 | **Email links** | — | Set `EXPLIVIO_APP_URL` to the Vercel URL |
 
 ## Points to decide later
