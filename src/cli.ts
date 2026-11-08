@@ -111,8 +111,9 @@ try {
     manifest.narration = {provider: 'none', note: 'Demo render contains captions and visuals only.'};
   } else {
     const localAudio = path.join(runDir, 'narration.mp3');
-    // Loaded only on this path, so silent and demo runs never touch the narration provider.
-    const {createNarration} = await import('./providers/elevenlabs.js');
+    // Loaded only on this path, so silent and demo runs never touch a narration provider. ElevenLabs or the free Kokoro
+    // voice, chosen by NARRATION_PROVIDER (auto: ElevenLabs, falling back to Kokoro when it fails, e.g. no credits).
+    const {createNarration} = await import('./providers/narration.js');
     const audio = await stage('narration', () => createNarration(narrationText, localAudio, voiceGender));
     await copyFile(localAudio, path.join(publicRunDir, 'narration.mp3'));
     // Keep at least 0.4 s after the last word so speech never ends exactly on the final frame.

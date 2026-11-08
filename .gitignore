@@ -16,3 +16,6 @@ data/
 
 # Local credential notes (never commit)
 /CloudFareConfKeys.txt
+
+# Free Kokoro voice model (F13 voice fallback), downloaded on first use
+models/
