@@ -110,7 +110,8 @@ export function validateRun(runId) {
   const a = probe.streams.find((s) => s.codec_type === 'audio');
   const seconds = Number(probe.format.duration);
   add('video codec h264', v?.codec_name === 'h264', v?.codec_name);
-  add('resolution 1080x1920 (9:16)', v?.width === 1080 && v?.height === 1920, `${v?.width}x${v?.height}`);
+  // 1080x1920, or 720x1280 for 720p renders (F14): both 9:16.
+  add('resolution 9:16 (1080x1920 or 720x1280)', (v?.width === 1080 && v?.height === 1920) || (v?.width === 720 && v?.height === 1280), `${v?.width}x${v?.height}`);
   // Silent evaluation runs (M7) have no narration by design: report that instead of failing the audio checks.
   const silentRun = manifest.mode === 'silent-evaluation';
   if (silentRun) add('silent evaluation run (no narration; timings estimated)', null, 'audio checks skipped');

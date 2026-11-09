@@ -27,6 +27,9 @@ const musicEnabled = args.includes('--music');
 const silent = args.includes('--silent');
 // Development only: narrate an already generated, validated storyboard (e.g. from a silent run) without calling Gemini.
 const storyboardFile = flagValue('storyboard-file');
+// Output size: 1080p (default, 1080x1920) or 720p (720x1280, about half the render work; used for public cloud renders).
+// The composition stays 1080x1920 and Remotion scales it by 2/3, so every layout is identical.
+const resolution = flagValue('resolution') === '720p' ? '720p' : '1080p';
 // Tests only: stop before the (slow) render.
 const skipRender = args.includes('--skip-render');
 const demoName = args.find((arg) => ['photosynthesis', 'rain', 'api'].includes(arg.toLowerCase()))?.toLowerCase();
@@ -43,7 +46,7 @@ const runDir = silent ? path.resolve('runs', 'm7-silent', runId) : path.resolve(
 const publicRunDir = path.resolve('public', 'runs', runId);
 await mkdir(runDir, {recursive: true}); if (!silent) await mkdir(publicRunDir, {recursive: true});
 const started = Date.now();
-const manifest: Record<string, unknown> = {runId, mode: silent ? 'silent-evaluation' : 'standard', prompt: topic, targetDurationSeconds: seconds, voice: voiceGender || 'default', captions: captionsEnabled, music: musicEnabled, language: 'English', aspectRatio: '9:16', status: 'running', startedAt: new Date().toISOString(), stages: {}};
+const manifest: Record<string, unknown> = {runId, mode: silent ? 'silent-evaluation' : 'standard', prompt: topic, targetDurationSeconds: seconds, resolution, voice: voiceGender || 'default', captions: captionsEnabled, music: musicEnabled, language: 'English', aspectRatio: '9:16', status: 'running', startedAt: new Date().toISOString(), stages: {}};
 const saveManifest = async () => writeFile(path.join(runDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 const stage = async <T,>(name: string, fn: () => Promise<T>): Promise<T> => {
   const begin = Date.now(); const stages = manifest.stages as Record<string, unknown>;
@@ -139,7 +142,7 @@ Render skipped. Run manifest: ${path.join(runDir, 'manifest.json')}`);
   }
   await stage('render', async () => {
     const cli = path.resolve('node_modules', '@remotion', 'cli', 'remotion-cli.js');
-    await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', '--crf=18', '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
+    await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', '--crf=18', ...(resolution === '720p' ? ['--scale=0.6666666666666666'] : []), '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
   });
   manifest.metrics = {...(manifest.metrics as object), outputBytes: (await stat(outputPath)).size};
   manifest.status = 'succeeded'; manifest.output = path.relative(process.cwd(), outputPath); manifest.elapsedMs = Date.now() - started; manifest.finishedAt = new Date().toISOString();
