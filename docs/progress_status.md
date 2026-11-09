@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **F14 (Vercel): preview deployment works end to end (sign-in, email, cloud render in Sandbox, R2, watch and download). Before production: Resend domain, Terms/Privacy, production variables. [Plan](deployment/F14_PRODUCTION_PLAN.md).**
+Last updated: 2026-11-09. **F14: LIVE at https://explivio.vercel.app (production, approved by the user). Cloud rendering in Vercel Sandbox, 720p, Kokoro voice, Resend email.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -200,6 +200,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — **Production deployment approved and done: https://explivio.vercel.app.** All 18 variables set for Production (the user added the secrets; new AUTH_SECRET and CRON_SECRET for production). Checked live: pages 200, `/api/health/db` ok, cron rejects unauthenticated calls (401), HSTS and frame headers present, no startup warnings. Known limit: until a domain is verified in Resend, only the Resend account owner's address receives email (user chose to leave this for now). Still open: Terms and Privacy pages, monthly render cap, backups, cleanup of 3 test snapshots.
 
 - **2026-11-09** — **F14 preview deployment: works end to end** (tested by the user: sign-in → create a 60 s video → cloud render in Vercel Sandbox → watch → download).
   - Fixed on the way: emails on Vercel were queued but never sent (a startup hook lives in a different module instance); now `enqueueEmail` schedules the send with `after()` itself. Confirmed in the logs (`email_accepted`).
