@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **F14: LIVE at https://explivio.vercel.app (production, approved by the user). Cloud rendering in Vercel Sandbox, 720p, Kokoro voice, Resend email.**
+Last updated: 2026-11-09. **F14: LIVE at https://explivio.vercel.app. Next (paused until 2026-11-10): verify a free email domain in Resend so other users receive email.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -200,6 +200,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — Production tested; a sign-up from a second Gmail address got no email: the job is `failed` because Resend's test sender only delivers to the account owner. **Plan for 2026-11-10:** free DigitalPlat domain (e.g. `explivio.dpdns.org`, 1 free domain per account) → DNS in the existing Cloudflare account (Free plan, nameservers set at DigitalPlat) → add the domain in Resend and copy its 3 records (MX `send`, SPF TXT `send`, DKIM TXT `resend._domainkey`) into Cloudflare → verify → change `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`) → redeploy → test with a second address. No code change needed. Hold the LinkedIn post until then. Also pending: 3 test snapshots (about 4 GB, expire in about 30 days) and a PR from dev to main.
 
 - **2026-11-09** — **Production deployment approved and done: https://explivio.vercel.app.** All 18 variables set for Production (the user added the secrets; new AUTH_SECRET and CRON_SECRET for production). Checked live: pages 200, `/api/health/db` ok, cron rejects unauthenticated calls (401), HSTS and frame headers present, no startup warnings. Known limit: until a domain is verified in Resend, only the Resend account owner's address receives email (user chose to leave this for now). Still open: Terms and Privacy pages, monthly render cap, backups, cleanup of 3 test snapshots.
 
