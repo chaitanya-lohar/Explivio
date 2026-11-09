@@ -72,6 +72,11 @@ export async function clearPendingVerification(): Promise<void> {
  */
 export async function clientIp(): Promise<string> {
   const h = await headers();
+  // On Vercel the edge network sets x-real-ip itself (a client can't forge it), so per-address limits are meaningful.
+  if (process.env.VERCEL) {
+    const ip = h.get("x-real-ip")?.trim() ?? "";
+    return /^[0-9A-Fa-f:.]{1,45}$/.test(ip) ? ip : "invalid";
+  }
   const raw = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || "local";
   return /^[0-9A-Fa-f:.]{1,45}$/.test(raw) ? raw : "invalid";
 }
