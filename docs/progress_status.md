@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **Everything, including the free Kokoro narration voice, is on `main` (PR #9 merged). F14 (Vercel deployment) starts when you ask.**
+Last updated: 2026-11-09. **Everything, including the free Kokoro voice, is on `main` (PR #9). F14 (Vercel) detailed plan written and waiting for your approval: [F14_PRODUCTION_PLAN.md](deployment/F14_PRODUCTION_PLAN.md).**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -200,6 +200,11 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — F14 detailed plan written (not implemented): [deployment/F14_PRODUCTION_PLAN.md](deployment/F14_PRODUCTION_PLAN.md).
+  - **Shape:** website on Vercel; rendering in Vercel Sandbox; run status in MongoDB; email via `after()` plus a daily cron; production config (`AUTH_SECRET` required: the app currently writes a secret file, which fails on Vercel); Terms and Privacy pages, which the sign-up checkbox references but don't exist; backups to R2.
+  - **Decisions needed:** render host (Sandbox recommended; Hugging Face free compute ended, GitHub Actions terms forbid it, Oracle and Cloud Run need a card); 720p for public videos; email to all users (Gmail SMTP, a free subdomain, or MMM's approach).
+  - Documentation only; $0.
 
 - **2026-11-09** — PR #9 merged: the free Kokoro narration voice, F13 email verification and the voice and Vercel docs are on `main`; `main` and `dev` are identical. After pulling `main` elsewhere, run `npm install` in the repo root; the voice model (about 311 MB) downloads on first use.
 
