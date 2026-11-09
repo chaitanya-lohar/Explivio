@@ -55,6 +55,8 @@ export interface OwnershipStore {
   runsOf(ids: readonly string[]): Promise<Map<string, RunRecord>>;
   /** F14: whether any run is queued or running with a heartbeat newer than `aliveSince` (one render at a time). */
   hasActiveRun(aliveSince: Date): Promise<boolean>;
+  /** F14: the Vercel Sandbox rendering this run (its name), so a stuck sandbox can be found and stopped. */
+  recordSandbox(id: string, sandboxId: string): Promise<void>;
 }
 
 function toRecord(p: VideoProjectDoc, a?: GenerationAttemptDoc): RunRecord {
@@ -114,6 +116,10 @@ export const mongoOwnership: OwnershipStore = {
     const db = await getDatabase();
     return (await db.collection<GenerationAttemptDoc>(COLLECTIONS.generationAttempts).countDocuments({ status: { $in: ["queued", "running"] }, heartbeatAt: { $gte: aliveSince } }, { limit: 1 })) === 1;
   },
+  async recordSandbox(id, sandboxId) {
+    const db = await getDatabase();
+    await db.collection<GenerationAttemptDoc>(COLLECTIONS.generationAttempts).updateOne({ _id: id }, { $set: { sandboxId, updatedAt: new Date() } });
+  },
   async syncStatus(id, status) {
     const db = await getDatabase();
     const now = new Date();
@@ -160,12 +166,14 @@ export const mongoOwnership: OwnershipStore = {
 };
 
 /** For tests: same behaviour, kept in memory. */
-export function memoryOwnership(): OwnershipStore & { projects: Map<string, NewProject & { storage: VideoStorage }>; attempts: Map<string, { status: "queued" | "running" | "succeeded" | "failed"; heartbeatAt: Date; progress?: RunProgress & { heartbeatAt: string; startedAt: string } }> } {
+export function memoryOwnership(): OwnershipStore & { sandboxes: Map<string, string>; projects: Map<string, NewProject & { storage: VideoStorage }>; attempts: Map<string, { status: "queued" | "running" | "succeeded" | "failed"; heartbeatAt: Date; progress?: RunProgress & { heartbeatAt: string; startedAt: string } }> } {
   const projects = new Map<string, NewProject & { storage: VideoStorage }>();
   const attempts = new Map<string, { status: "queued" | "running" | "succeeded" | "failed"; heartbeatAt: Date; progress?: RunProgress & { heartbeatAt: string; startedAt: string } }>();
+  const sandboxes = new Map<string, string>();
   return {
     projects,
     attempts,
+    sandboxes,
     async recordProgress(id, progress) {
       const now = new Date();
       const prev = attempts.get(id);
@@ -197,6 +205,9 @@ export function memoryOwnership(): OwnershipStore & { projects: Map<string, NewP
       if (projects.has(p.id)) throw new Error("duplicate project");
       projects.set(p.id, { ...p, storage: p.storage ?? { kind: "local-run", runId: p.id } });
       if (p.dispatch) attempts.set(p.id, { status: "queued", heartbeatAt: new Date() });
+    },
+    async recordSandbox(id, sandboxId) {
+      sandboxes.set(id, sandboxId);
     },
     async syncStatus() {},
     async storageOf(ids) {

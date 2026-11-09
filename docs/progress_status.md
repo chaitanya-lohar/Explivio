@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **F14 (Vercel) approved and in progress: Sandbox rendering, 720p, email through Resend. Step 1 done (video status in MongoDB). [Plan](deployment/F14_PRODUCTION_PLAN.md).**
+Last updated: 2026-11-09. **F14 (Vercel) in progress: Steps 1, 3 and 4 done (cloud rendering in Vercel Sandbox works). Next: production config and a preview deployment. [Plan](deployment/F14_PRODUCTION_PLAN.md).**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -200,6 +200,15 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — **F14 Step 3 done: cloud rendering in Vercel Sandbox.**
+  - Snapshot (`npm run sandbox:snapshot`): allow-listed code, Chrome libraries, npm packages, Remotion Chrome, Kokoro model; 2.3 GB, never expires, built in 59 s. Current id: `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` (set as `SANDBOX_SNAPSHOT_ID`).
+  - `RENDER_DISPATCH=sandbox`: the request records the job in MongoDB, starts one non-persistent sandbox from the snapshot (20 min hard timeout) and returns. `scripts/render-worker.mts` renders, reports progress, uploads to R2 and stops its own sandbox. Only pipeline keys are passed in (no auth or email secrets).
+  - Local and cloud renders share one executor (`run-executor.ts`).
+  - **Measured (90 s video, 4 vCPU, Kokoro):** 1080p 186 s, **485 s active CPU** (about 37 videos/month on Hobby's 5 h); 720p 150 s, **387 s** (about 46/month, 8.3 MB vs 12.9 MB). In the cloud 720p saves about 20%.
+  - Found: SDK sandboxes are persistent by default and auto-snapshot on stop; all ours are now `persistent: false`. Three throwaway auto-snapshots from tests remain (expire in about 30 days; deletion awaits approval). In-sandbox `poweroff` doesn't work, so the worker stops the sandbox through the API.
+  - **Tests:** 3 new dispatcher tests; web non-live suite 85 pass / 0 fail. The 27 live-Atlas tests can't run now that the database user is limited to `readWrite@explivio` (they use throwaway `explivio_test_*` databases); they need a separate test user or role.
+  - $0.
 
 - **2026-11-09** — F14 approved: (A) Vercel Sandbox only, (B) 720p public videos, (C) email through Resend (a domain must be verified in Resend for other users; a free subdomain will be researched in Step 5), (D) plan approved.
   - **Step 1 done: video status in MongoDB.**

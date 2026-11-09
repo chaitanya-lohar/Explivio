@@ -3,7 +3,7 @@
 import { Sandbox } from "@vercel/sandbox";
 
 const started = Date.now();
-const sandbox = await Sandbox.create({ resources: { vcpus: 4 }, timeout: 5 * 60_000 });
+const sandbox = await Sandbox.create({ resources: { vcpus: 4 }, timeout: 5 * 60_000, persistent: false });
 console.log(`sandbox created in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 try {
   for (const [label, cmd, args] of [

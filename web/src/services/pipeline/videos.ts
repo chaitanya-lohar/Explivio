@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import * as nodeFs from "node:fs";
 import * as nodeFsPromises from "node:fs/promises";
@@ -8,7 +8,8 @@ import type { VideoStorage } from "../../lib/db/collections.ts";
 import { objectStore, videoObjectKey } from "../../lib/storage/index.ts";
 import { startUpload, uploadInProgress } from "./cloud-upload.ts";
 import { ownership, type RunRecord } from "./ownership.ts";
-import { currentStage, PIPELINE_STAGE, readJson, safeDetail, storyboardTitle, superviseRun, type Manifest } from "./run-status.ts";
+import { executeRun } from "./run-executor.ts";
+import { currentStage, PIPELINE_STAGE, readJson, safeDetail, storyboardTitle, type Manifest } from "./run-status.ts";
 
 /*
  * Real video service: each video is a run of the Explivio pipeline CLI (repo root, `src/cli.ts`).
@@ -23,7 +24,8 @@ import { currentStage, PIPELINE_STAGE, readJson, safeDetail, storyboardTitle, su
  * in MongoDB (ownership.ts). Another user's run id behaves exactly like an unknown id.
  * Cloud storage (F11): with Cloudflare R2 configured, the MP4 is uploaded after rendering and the video is ready only
  * once the upload is verified; until then it shows the "finishing" stage.
- * Dispatch (F14): RENDER_DISPATCH=local (default: spawn the CLI here) or sandbox (Vercel Sandbox; Step 3).
+ * Dispatch (F14): RENDER_DISPATCH=local (default: spawn the CLI here) or sandbox (a Vercel Sandbox per video, started
+ * from SANDBOX_SNAPSHOT_ID; see sandbox-dispatch.ts and scripts/render-worker.mts).
  */
 
 const PIPELINE_ROOT = process.env.EXPLIVIO_PIPELINE_ROOT ? path.resolve(process.env.EXPLIVIO_PIPELINE_ROOT) : path.resolve(process.cwd(), "..");
@@ -32,8 +34,6 @@ const PIPELINE_ROOT = process.env.EXPLIVIO_PIPELINE_ROOT ? path.resolve(process.
 const existsSync = (p: string) => nodeFs.existsSync(/* turbopackIgnore: true */ p);
 const statSync = (p: string) => nodeFs.statSync(/* turbopackIgnore: true */ p);
 const readdirSync = (p: string) => nodeFs.readdirSync(/* turbopackIgnore: true */ p, { withFileTypes: true });
-const openSync = (p: string) => nodeFs.openSync(/* turbopackIgnore: true */ p, "a");
-const closeSync = nodeFs.closeSync;
 const mkdir = (p: string) => nodeFsPromises.mkdir(/* turbopackIgnore: true */ p, { recursive: true });
 const writeFile = (p: string, data: string) => nodeFsPromises.writeFile(/* turbopackIgnore: true */ p, data);
 const RUNS_DIR = path.join(PIPELINE_ROOT, "runs");
@@ -44,6 +44,8 @@ const STALE_MS = 15 * 60 * 1000;
 /** F12: new videos (renders) one account may start in 24 hours; protects the shared Gemini and ElevenLabs free quotas. */
 const dailyGenerations = () => Math.max(1, Number(process.env.EXPLIVIO_DAILY_GENERATIONS) || 10);
 export const renderDispatch = (): "local" | "sandbox" => (process.env.RENDER_DISPATCH === "sandbox" ? "sandbox" : "local");
+/** Output size for new renders (RENDER_RESOLUTION=720p|1080p, default 1080p). 720p saves no render time (measured). */
+export const renderResolution = (): "1080p" | "720p" => (process.env.RENDER_RESOLUTION === "720p" ? "720p" : "1080p");
 
 interface StoredRequest extends VideoRequest {
   createdAt: string;
@@ -181,16 +183,40 @@ async function startRun(request: VideoRequest, ownerUserId: string): Promise<Vid
     const used = await ownership().countGenerationsSince(ownerUserId, new Date(Date.now() - 86_400_000));
     const limit = dailyGenerations();
     if (used >= limit) throw new GenerationLimitError(limit);
-    if (dispatch === "sandbox") throw new Error("Cloud rendering (Vercel Sandbox) isn't set up yet.");
-    return await spawnRun(request, ownerUserId);
+    return dispatch === "sandbox" ? await sandboxRun(request, ownerUserId) : await spawnRun(request, ownerUserId);
   } finally {
     store.__explivioStarting = false;
   }
 }
 
+const newRunId = () => `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
+
+/**
+ * Sandbox dispatcher (production): records the job in MongoDB (queued), then starts a Vercel Sandbox whose worker
+ * renders it and uploads the MP4 to R2. Nothing is written to this server's disk; the request returns in seconds.
+ */
+async function sandboxRun(request: VideoRequest, ownerUserId: string): Promise<VideoProject> {
+  if (!objectStore()) throw new Error("Cloud rendering needs Cloudflare R2 storage, which isn't configured.");
+  const { dispatchToSandbox } = await import("./sandbox-dispatch.ts");
+  const id = newRunId();
+  const createdAt = new Date().toISOString();
+  const storage: VideoStorage = { kind: "r2", runId: id, key: videoObjectKey(ownerUserId, id), uploadStatus: "pending", attempts: 0 };
+  await ownership().record({ id, ownerUserId, title: titleFrom(request.prompt), prompt: request.prompt, durationSeconds: request.durationSeconds, createdAt, storage, request: { voice: request.voice, captions: request.captions, music: request.music }, dispatch: "sandbox" });
+  try {
+    const { sandboxId } = await dispatchToSandbox(id);
+    await ownership().recordSandbox(id, sandboxId).catch(() => {});
+  } catch (error) {
+    // Recorded as a failed render (it counts toward the daily limit, like a local start-up failure); details stay in the logs.
+    console.error(`[videos] sandbox dispatch failed for ${id}: ${error instanceof Error ? error.message : String(error)}`);
+    await ownership().recordProgress(id, { status: "failed", stage: "plan", safeError: "The cloud renderer couldn't be started. Please try again later." });
+    throw new Error("The cloud renderer couldn't be started. Please try again later.");
+  }
+  return { id, title: titleFrom(request.prompt), prompt: request.prompt, durationSeconds: request.durationSeconds, createdAt, request, status: "generating", stage: "plan", startedAt: createdAt };
+}
+
 /** Local dispatcher: runs the pipeline CLI on this computer and supervises it (progress → MongoDB, then upload). */
 async function spawnRun(request: VideoRequest, ownerUserId: string): Promise<VideoProject> {
-  const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
+  const id = newRunId();
   const dir = path.join(RUNS_DIR, id);
   await mkdir(dir);
   const stored: StoredRequest = { ...request, createdAt: new Date().toISOString(), ownerUserId };
@@ -206,26 +232,10 @@ async function spawnRun(request: VideoRequest, ownerUserId: string): Promise<Vid
     throw error;
   }
 
-  const args = [TSX_CLI, "src/cli.ts", "--prompt-file=" + path.join(dir, "prompt.txt"), "--duration", String(request.durationSeconds), `--voice=${request.voice}`, `--run-id=${id}`];
-  if (!request.captions) args.push("--no-captions");
-  if (request.music) args.push("--music");
-
-  // No shell: arguments are passed as-is. Output goes to a log in the run folder for debugging.
-  const log = openSync(path.join(dir, "pipeline.log"));
-  const child = spawn(process.execPath, args, { cwd: PIPELINE_ROOT, stdio: ["ignore", log, log], windowsHide: true, detached: true });
-  closeSync(log); // the child keeps its own handle
+  // Same path as the sandbox worker: spawn the CLI, supervise it (progress → MongoDB), upload when rendered.
+  const { child, done } = await executeRun({ id, pipelineRoot: PIPELINE_ROOT, request, storage, resolution: renderResolution() });
   running.set(id, child);
-  void superviseRun({ dir, child, report: (progress) => ownership().recordProgress(id, progress) }).then(async (final) => {
-    running.delete(id);
-    const manifest = readJson<Manifest>(path.join(dir, "manifest.json"));
-    // The CLI died before recording a final status (e.g. it crashed on start-up): record the failure in the folder too.
-    if (manifest?.status !== "succeeded" && manifest?.status !== "failed") {
-      await writeFile(path.join(dir, "manifest.json"), JSON.stringify({ ...(manifest ?? {}), status: "failed", error: manifest?.error ?? final.safeError ?? "The generation process exited unexpectedly." }, null, 2)).catch(() => {});
-    }
-    // Rendered: upload it now (cloud videos only; local ones are already finished).
-    const file = path.join(dir, "video.mp4");
-    if (final.status === "succeeded" && storage.kind === "r2" && existsSync(file)) void startUpload(id, file);
-  });
+  void done.catch(() => {}).finally(() => running.delete(id));
   child.unref();
   return { id, title: titleFrom(request.prompt), prompt: request.prompt, durationSeconds: request.durationSeconds, createdAt: stored.createdAt, request, status: "generating", stage: "plan", startedAt: stored.createdAt };
 }
