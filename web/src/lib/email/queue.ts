@@ -22,6 +22,14 @@ export async function enqueueEmail(kind: EmailKind, user: { id: string; email: s
   const id = `ej_${randomBytes(12).toString("hex")}`;
   await db.collection<EmailJobDoc>(COLLECTIONS.emailJobs).insertOne({ _id: id, kind, userId: user.id, to: user.email, name: user.name, status: "pending", attemptCount: 0, nextAttemptAt: now, createdAt: now, updatedAt: now });
   securityEvent("email_queued", { userId: user.id, reason: kind });
-  wake?.();
+  if (process.env.VERCEL) {
+    // Serverless (F14): no resident worker. Send right after the response, in this same invocation (after() is bound
+    // to the current request, so it must be scheduled here, not through a hook set at startup). The daily cron
+    // (/api/cron/email) catches anything left.
+    const [{ after }, { runEmailWorkerOnce }] = await Promise.all([import("next/server"), import("./worker.ts")]);
+    after(() => runEmailWorkerOnce().then(() => undefined, (error: unknown) => console.warn(`[email] send after response failed (${error instanceof Error ? error.name : "Error"})`)));
+  } else {
+    wake?.();
+  }
   return id;
 }

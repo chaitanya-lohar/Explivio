@@ -17,15 +17,8 @@ export async function register() {
   const { readEmailConfig } = await import("./lib/email/config");
   const email = readEmailConfig();
   if (!email.ok) console.warn(`[email] ${email.message}`);
-  if (config.ok && process.env.VERCEL) {
-    // Serverless (F14): no resident timer. Each queued email is sent right after the response (after()), within the
-    // same function invocation; the daily cron (/api/cron/email) catches anything left, e.g. retries.
-    const [{ after }, { runEmailWorkerOnce }, { setQueueWakeHook }] = await Promise.all([import("next/server"), import("./lib/email/worker"), import("./lib/email/queue")]);
-    setQueueWakeHook(() =>
-      after(() => runEmailWorkerOnce().then(() => undefined, (error: unknown) => console.warn(`[email] send after response failed (${error instanceof Error ? error.name : "Error"})`))),
-    );
-    return;
-  }
+  // Serverless (F14): no resident timer on Vercel; enqueueEmail sends each email right after the response instead.
+  if (process.env.VERCEL) return;
   if (config.ok && process.env.EXPLIVIO_EMAIL_WORKER !== "off") {
     const { startEmailWorker } = await import("./lib/email/worker");
     startEmailWorker();
