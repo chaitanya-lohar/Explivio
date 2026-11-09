@@ -1,6 +1,6 @@
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -369,4 +369,88 @@ test("F12: per-user generation limit: after the daily allowance the next render 
   } finally {
     process.env.EXPLIVIO_DAILY_GENERATIONS = "1000";
   }
+});
+
+// ---- F14 step 1: status from MongoDB (works without a run folder, as on Vercel) ----
+
+test("F14: the supervisor stores progress in MongoDB (title, stage, safe error) and the request settings are saved", async () => {
+  const ok = await service.createVideo(request("Explain auroras again [ok]"), A);
+  assert.deepEqual(owners.projects.get(ok.id)?.request, { voice: "male", captions: false, music: true }, "settings saved with the project");
+  assert.equal(owners.projects.get(ok.id)?.dispatch, "local");
+  assert.equal((await settle(ok.id)).status, "ready");
+  const okProgress = owners.attempts.get(ok.id)?.progress;
+  assert.equal(okProgress?.status, "succeeded");
+  assert.equal(okProgress?.title, "Stub: Explain auroras again", "storyboard title stored");
+  const bad = await service.createVideo(request("Explain glaciers again [fail-render]"), A);
+  await settle(bad.id);
+  const badProgress = owners.attempts.get(bad.id)?.progress;
+  assert.equal(badProgress?.status, "failed");
+  assert.equal(badProgress?.stage, "render");
+  assert.doesNotMatch(badProgress?.safeError ?? "", /Secret Folder|AIza|[A-Za-z]:\\/, "stored error is already safe");
+});
+
+test("F14: a tracked video keeps its status, title and request without its run folder (as on Vercel)", async () => {
+  await withStore(async () => {
+    const v = await service.createVideo(request("Explain volcano types [ok]"), A);
+    const done = await settle(v.id);
+    assert.equal(done.status, "ready");
+    rmSync(path.join(root, "runs", v.id), { recursive: true, force: true });
+    const again = await service.getVideo(v.id, A);
+    assert.equal(again?.status, "ready", "status from MongoDB, not the folder");
+    assert.equal(again?.title, "Stub: Explain volcano types");
+    assert.deepEqual(again?.request, { prompt: "Explain volcano types [ok]", durationSeconds: 30, voice: "male", captions: false, music: true });
+    assert.equal((await service.getVideoSource(v.id, A))?.kind, "r2", "playable from R2 with no local file");
+    assert.equal(await service.getVideoTitle(v.id, A), "Stub: Explain volcano types");
+  });
+});
+
+test("F14: a run that exists only in MongoDB shows as queued, and as failed if it never started", async () => {
+  const fresh = "2026-11-09T10-00-00-000Z-queued01";
+  await owners.record({ id: fresh, ownerUserId: A, title: "Queued video", prompt: "Explain wind", durationSeconds: 60, createdAt: new Date().toISOString(), request: { voice: "female", captions: true, music: false }, dispatch: "sandbox" });
+  const queued = await service.getVideo(fresh, A);
+  assert.equal(queued?.status, "generating");
+  assert.equal(queued?.stage, "plan");
+  const old = "2026-11-09T10-00-00-000Z-neverst1";
+  await owners.record({ id: old, ownerUserId: A, title: "Never started", prompt: "Explain wind", durationSeconds: 60, createdAt: new Date(Date.now() - 20 * 60_000).toISOString(), request: { voice: "female", captions: true, music: false } });
+  const never = await service.getVideo(old, A);
+  assert.equal(never?.status, "failed");
+  assert.match(never?.errorDetail ?? "", /didn't start/);
+  owners.attempts.delete(fresh); // not an active run for later tests
+});
+
+test("F14: a running video whose heartbeat stopped 15 minutes ago is reported as stopped", async () => {
+  const id = "2026-11-09T10-00-00-000Z-silent01";
+  await owners.record({ id, ownerUserId: A, title: "Silent", prompt: "Explain tides", durationSeconds: 30, createdAt: new Date().toISOString() });
+  await owners.recordProgress(id, { status: "running", stage: "render", safeError: null });
+  assert.equal((await service.getVideo(id, A))?.status, "generating");
+  const attempt = owners.attempts.get(id)!;
+  attempt.progress!.heartbeatAt = new Date(Date.now() - 16 * 60_000).toISOString();
+  attempt.heartbeatAt = new Date(Date.now() - 16 * 60_000);
+  const stopped = await service.getVideo(id, A);
+  assert.equal(stopped?.status, "failed");
+  assert.equal(stopped?.failedStage, "render");
+  assert.match(stopped?.errorDetail ?? "", /stopped before finishing/);
+});
+
+test("F14: a render active elsewhere (another instance or the sandbox) makes new requests wait", async () => {
+  const id = "2026-11-09T10-00-00-000Z-elsewhr1";
+  await owners.record({ id, ownerUserId: B, title: "Elsewhere", prompt: "p", durationSeconds: 30, createdAt: new Date().toISOString(), dispatch: "sandbox" });
+  try {
+    await assert.rejects(service.createVideo(request("Explain clouds [ok]"), A), (e: Error) => e.name === "PipelineBusyError");
+  } finally {
+    owners.attempts.delete(id);
+  }
+});
+
+test("F14: Try again works from MongoDB alone (no run folder) and reuses the saved settings", async () => {
+  const id = "2026-11-09T10-00-00-000Z-failedr1";
+  await owners.record({ id, ownerUserId: A, title: "Failed one", prompt: "Explain thunder [ok]", durationSeconds: 60, createdAt: new Date().toISOString(), request: { voice: "female", captions: true, music: false } });
+  await owners.recordProgress(id, { status: "failed", stage: "narration", safeError: "Narration failed." });
+  const before = calls().length;
+  const retried = await service.retryVideo(id, A);
+  assert.ok(retried && retried.id !== id, "a new run");
+  let call: { args: string[] } | undefined;
+  for (let i = 0; i < 50 && !call; i++, await sleep(100)) call = calls().slice(before).find((c) => c.runId === retried!.id);
+  assert.deepEqual(call?.args.filter((a: string) => !a.startsWith("--prompt-file")), ["--duration", "60", "--voice=female", `--run-id=${retried!.id}`]);
+  await settle(retried!.id);
 });

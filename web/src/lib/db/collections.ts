@@ -134,6 +134,9 @@ export interface VideoProjectDoc {
   updatedAt: Date;
   /** Set by the legacy ownership migration for runs created before accounts existed. */
   legacyClaimedAt?: Date;
+  /** F14: the user's settings for this video (with prompt and durationSeconds above), so retry and regenerate work
+   *  without the local run folder (Vercel has none). Absent on videos created before F14. */
+  request?: { voice: "female" | "male"; captions: boolean; music: boolean };
 }
 
 /** One execution of the pipeline for a project (a retry is a new attempt). Errors are already safe to display. */
@@ -146,6 +149,20 @@ export interface GenerationAttemptDoc {
   safeError: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /**
+   * F14 progress, written by the run supervisor (locally, or inside the Vercel Sandbox). When `tracked` is true the web
+   * app reads the video's status from here instead of runs/<id>/manifest.json.
+   */
+  tracked?: boolean;
+  /** Last sign of life from the supervisor; a running attempt without one for 15 minutes is treated as stopped. */
+  heartbeatAt?: Date | null;
+  startedAt?: Date | null;
+  /** The storyboard's title, once Gemini has written it. */
+  title?: string | null;
+  actualDurationSeconds?: number | null;
+  /** Where the render runs: "local" (this computer) or "sandbox" (Vercel Sandbox). */
+  dispatch?: "local" | "sandbox";
+  sandboxId?: string | null;
 }
 
 /** Per-user preferences (the F7 VideoPreferences shape, validated on write). */

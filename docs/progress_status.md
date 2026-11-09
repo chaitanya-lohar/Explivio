@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **Everything, including the free Kokoro voice, is on `main` (PR #9). F14 (Vercel) detailed plan written and waiting for your approval: [F14_PRODUCTION_PLAN.md](deployment/F14_PRODUCTION_PLAN.md).**
+Last updated: 2026-11-09. **F14 (Vercel) approved and in progress: Sandbox rendering, 720p, email through Resend. Step 1 done (video status in MongoDB). [Plan](deployment/F14_PRODUCTION_PLAN.md).**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -200,6 +200,16 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — F14 approved: (A) Vercel Sandbox only, (B) 720p public videos, (C) email through Resend (a domain must be verified in Resend for other users; a free subdomain will be researched in Step 5), (D) plan approved.
+  - **Step 1 done: video status in MongoDB.**
+    - A run supervisor (`services/pipeline/run-status.ts`) mirrors the pipeline's progress (status, stage, title, safe error, length) plus a 30 s heartbeat into `generationAttempts`.
+    - `videoProjects` now stores the request settings, so status, title, retry and regenerate work **without a run folder** (as on Vercel).
+    - Untracked runs keep the file view. A record-only run shows as queued, or fails after 15 min if it never started.
+    - The busy check uses the MongoDB heartbeat, so one render at a time across instances and the sandbox.
+    - `RENDER_DISPATCH=local|sandbox`; sandbox arrives in Step 3.
+  - **Tests:** web **109/109** with live Atlas (6 new pipeline tests and a new live `runs-mongo` test; all 23 earlier pipeline tests unchanged); pipeline 68 + 1 skipped; typecheck and lint pass.
+  - $0.
 
 - **2026-11-09** — F14 detailed plan written (not implemented): [deployment/F14_PRODUCTION_PLAN.md](deployment/F14_PRODUCTION_PLAN.md).
   - **Shape:** website on Vercel; rendering in Vercel Sandbox; run status in MongoDB; email via `after()` plus a daily cron; production config (`AUTH_SECRET` required: the app currently writes a secret file, which fails on Vercel); Terms and Privacy pages, which the sign-up checkbox references but don't exist; backups to R2.
