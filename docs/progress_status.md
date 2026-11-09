@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **F14 (Vercel): Steps 1, 3, 4, 5 (email part), 6 done. Waiting for the secret environment variables in Vercel, then a preview deployment. [Plan](deployment/F14_PRODUCTION_PLAN.md).**
+Last updated: 2026-11-09. **F14 (Vercel): preview deployment works end to end (sign-in, email, cloud render in Sandbox, R2, watch and download). Before production: Resend domain, Terms/Privacy, production variables. [Plan](deployment/F14_PRODUCTION_PLAN.md).**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -200,6 +200,13 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — **F14 preview deployment: works end to end** (tested by the user: sign-in → create a 60 s video → cloud render in Vercel Sandbox → watch → download).
+  - Fixed on the way: emails on Vercel were queued but never sent (a startup hook lives in a different module instance); now `enqueueEmail` schedules the send with `after()` itself. Confirmed in the logs (`email_accepted`).
+  - `R2_ACCOUNT_ID` in Vercel failed validation (paste problem); re-set from the local file through the CLI.
+  - Gemini needed 30–50 s per storyboard, so the 45 s timeout failed; now 90 s (default in code and `GEMINI_TIMEOUT_MS=90000` on Vercel).
+  - Mistake: the first `vercel deploy` went to **production** (the CLI's default for a project's first deploy). `explivio.vercel.app` serves pages but has no variables, so nothing works or leaks there. Removal awaits the user's decision. Later deploys use `--environment=preview`.
+  - Before production: a verified Resend domain (otherwise only the Resend account's own address receives email), Terms and Privacy pages, production variables, then promotion after approval.
 
 - **2026-11-09** — **F14 Steps 5–6: production configuration.**
   - Email on Vercel: each queued email is sent right after the response (`after()`); a daily cron (`/api/cron/email`, `CRON_SECRET`) sends anything left. The outbox is refused on Vercel. Email links use `EXPLIVIO_APP_URL` or Vercel's own URL variables (never the Host header).
