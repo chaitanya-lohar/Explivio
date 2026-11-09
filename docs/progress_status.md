@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **F14 (Vercel) in progress: Steps 1, 3 and 4 done (cloud rendering in Vercel Sandbox works). Next: production config and a preview deployment. [Plan](deployment/F14_PRODUCTION_PLAN.md).**
+Last updated: 2026-11-09. **F14 (Vercel): Steps 1, 3, 4, 5 (email part), 6 done. Waiting for the secret environment variables in Vercel, then a preview deployment. [Plan](deployment/F14_PRODUCTION_PLAN.md).**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -200,6 +200,13 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — **F14 Steps 5–6: production configuration.**
+  - Email on Vercel: each queued email is sent right after the response (`after()`); a daily cron (`/api/cron/email`, `CRON_SECRET`) sends anything left. The outbox is refused on Vercel. Email links use `EXPLIVIO_APP_URL` or Vercel's own URL variables (never the Host header).
+  - `AUTH_SECRET` is required on Vercel; client IP from Vercel's `x-real-ip`; HSTS on Vercel; `web/vercel.json` (Next.js, cron); Node 24.x.
+  - Vercel preview variables set (non-secret): RENDER_DISPATCH=sandbox, SANDBOX_SNAPSHOT_ID, RENDER_RESOLUTION=720p, NARRATION_PROVIDER=kokoro, EMAIL_TRANSPORT=resend, MONGODB_DB. The secrets are added by the user in the dashboard.
+  - Build, typecheck, lint pass; web non-live suite 85/85.
+  - Not done yet: free Resend domain (until then only the Resend account's own address receives email), Terms/Privacy pages, health/backup (Steps 7–8).
 
 - **2026-11-09** — **F14 Step 3 done: cloud rendering in Vercel Sandbox.**
   - Snapshot (`npm run sandbox:snapshot`): allow-listed code, Chrome libraries, npm packages, Remotion Chrome, Kokoro model; 2.3 GB, never expires, built in 59 s. Current id: `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` (set as `SANDBOX_SNAPSHOT_ID`).
