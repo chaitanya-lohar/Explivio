@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-08. **Everything through F13 is on `main`. New: a free, unlimited narration voice (Kokoro) is implemented and tested, so videos no longer fail when ElevenLabs credits run out. F14 (Vercel) starts when you ask.**
+Last updated: 2026-11-09. **Everything, including the free Kokoro narration voice, is on `main` (PR #9 merged). F14 (Vercel deployment) starts when you ask.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -108,7 +108,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 
 ## Git
 - Work on `dev`; `main` changes only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-- **2026-11-07:** `main` has the same content as `dev` (PRs #5–#8 merged; `main` also holds the 4 PR merge commits, which change no files).
+- **2026-11-09:** `main` has the same content as `dev` (PRs #5–#9 merged; `main` also holds the PR merge commits, which change no files).
 
 ## Milestones
 
@@ -200,6 +200,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — PR #9 merged: the free Kokoro narration voice, F13 email verification and the voice and Vercel docs are on `main`; `main` and `dev` are identical. After pulling `main` elsewhere, run `npm install` in the repo root; the voice model (about 311 MB) downloads on first use.
 
 - **2026-11-09** — Atlas access: your provider changed your IP again (157.48.221.175), so you allowed the range `157.48.0.0/16` in Atlas Network Access instead of single addresses. Connection confirmed (`db:check` ok, 715 ms). App servers stopped after your manual test. Documentation only; $0.
 
