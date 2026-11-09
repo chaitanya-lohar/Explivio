@@ -66,7 +66,8 @@ test('normal runs are unaffected: no badge, standard mode, narration provider st
   assert.match(cli, /mode: silent \? 'silent-evaluation' : 'standard'/);
   assert.match(cli, /\.\.\.\(silent \? \{badge:/, 'badge only in silent runs');
   assert.match(cli, /const runDir = silent \? path\.resolve\('runs', 'm7-silent', runId\) : path\.resolve\('runs', runId\);/);
-  assert.match(cli, /await import\('\.\/providers\/elevenlabs\.js'\)/, 'narrated path still calls the provider');
+  // Since the free-voice fallback, the narrated path loads the provider selector (ElevenLabs or Kokoro).
+  assert.match(cli, /await import\('\.\/providers\/narration\.js'\)/, 'narrated path still calls a narration provider');
   // The web app never passes --silent.
   const web = readFileSync('web/src/services/pipeline/videos.ts', 'utf8');
   assert.doesNotMatch(web, /--silent/);

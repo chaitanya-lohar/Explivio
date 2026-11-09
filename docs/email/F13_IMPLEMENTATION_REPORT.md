@@ -8,8 +8,8 @@ Date: 2026-11-06 · Branch: `dev` · Code commit: `907db56` (plus the docs commi
 |---|---|
 | Email service, durable queue, worker, providers, templates | ✅ Implemented |
 | Tested with mocks or the outbox | ✅ 8 offline tests (real provider code against a fake Resend endpoint); 9 live-Atlas queue tests; auth and security suites through the queue; browser regression 34/34 (outbox through the in-server worker) |
-| Tested against real Resend | ⏳ **Pending your action** (approved: at most 3 emails to your own Resend address; steps in [setup guide §6](F13_SETUP_GUIDE.md)) |
-| Verified in your Gmail inbox | ⏳ Pending the step above |
+| Tested against real Resend | ✅ 2026-11-06: 3 emails accepted (account-exists, reset, password changed; provider ids recorded; addresses erased from the jobs) |
+| Verified in your Gmail inbox | ✅ You confirmed all three arrived ("email is working fine") |
 | Delivery to other users | ⏳ **Pending a verified domain.** You have none, and none is bought. Resend's testing domain only delivers to your account address |
 | Production worker hosting, delivery webhooks | ⏳ F14 |
 
@@ -79,11 +79,11 @@ The browser regression covered:
 ## Free plan and cost
 - **Resend Free, checked on the official pages on 2026-11-05:** $0; 100 emails a day (UTC); 3,000 a month; 10 requests a second; no overage billing (over a limit, sends are refused with 429).
 - **App:** at most 90 a day, plus the F12 per-account limits.
-- **Real emails sent so far: 0.**
+- **Real emails sent: 3** (2026-11-06; the approved maximum), all to your Resend address.
 
 ## Remaining limitations
 1. **Other recipients:** nobody except your Resend account address can receive email until you verify a domain you own.
-2. **Real Resend test:** pending (approved, at most 3 emails).
+2. ~~Real Resend test~~: done 2026-11-06 (3/3).
 3. **Worker hosting:** the worker needs a long-running process; serverless hosting needs a separate worker or a scheduled call (F14).
 4. **Delivery confirmation:** no delivered or bounced status until webhooks arrive in F14. "Accepted" is not proof of delivery.
 5. **`unknown` outcomes:** never retried by design; the user can ask again, within the F12 limits.

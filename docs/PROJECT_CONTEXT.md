@@ -29,6 +29,7 @@ Browser ──► Next.js app (web/) ──────────────�
 | Part | Where | Technology |
 |---|---|---|
 | Pipeline | `src/` (cli, pipeline, providers, schemas, video templates) | TypeScript run with tsx; Zod; Remotion |
+| Narration voice | `src/providers/narration.ts`, `kokoro.ts`, `kokoro-worker.mjs` | `NARRATION_PROVIDER`: `auto` (ElevenLabs, falling back to the free Kokoro-82M voice), `kokoro`, `elevenlabs`. Kokoro is offline and unlimited; female `af_heart`, male `am_michael`; model in `models/kokoro` (gitignored) |
 | Web app | `web/src/` (app, features, services, lib, components) | Next.js 16.4 App Router (`cacheComponents`, `proxy.ts`), React 19, TypeScript strict, Tailwind 4 |
 | Database | `web/src/lib/db/` | Official `mongodb` driver 7.8 (no Mongoose), one cached client |
 | Auth | `web/src/lib/auth/`, `web/src/services/auth/`, `web/src/features/authentication/`, `web/src/lib/security/` | Self-managed: scrypt, hashed tokens, DB sessions. F12: per-account sign-in limit and durable MongoDB rate limits (`rateLimits`), equal-time sign-up/forgot, previous session revoked on sign-in, 256-character password cap, 10 renders per account per 24 h (`EXPLIVIO_DAILY_GENERATIONS`), security log (`[security]` JSON lines, no secrets), hardening headers in `next.config.ts` |

@@ -15,7 +15,7 @@ export const SILENT_TAIL = 0.4;
 
 export type SilentTiming = {sceneStarts: number[]; words: WordTime[]; captionCues: {start: number; end: number; text: string}[]; seconds: number; timing: 'estimated'};
 
-function wordSeconds(word: string): number {
+export function wordSeconds(word: string): number {
   const letters = (word.match(/[\p{L}\p{N}]/gu) ?? []).length;
   const pause = /[.!?]["')\]]?$/.test(word) ? SPEECH_MODEL.sentencePause : /[,;:–—]$/.test(word) ? SPEECH_MODEL.clausePause : 0;
   return letters * SPEECH_MODEL.secondsPerLetter + pause;

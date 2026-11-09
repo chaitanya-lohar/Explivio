@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-06. **F13 code is complete and on `dev`; the real Resend test is pending your action, and F13 is not yet merged into `main`.**
+Last updated: 2026-11-08. **Everything through F13 is on `main`. New: a free, unlimited narration voice (Kokoro) is implemented and tested, so videos no longer fail when ElevenLabs credits run out. F14 (Vercel) starts when you ask.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -12,7 +12,7 @@ This file is the concise current status; the newest changelog entries are at the
 | F11: Cloudflare R2 video storage | ✅ Done, verified on real R2 | Yes (PR #6/#7) |
 | F12: auth and authorisation hardening | ✅ Done | Yes (PR #7) |
 | Retest before F13 (43/43, prerender fix) | ✅ Done | Yes (PR #7) |
-| F13: transactional email (Resend, durable queue) | 🟡 Code done and tested; **real Resend test pending** | **No:** 2 commits on `dev` (`907db56`, `002f950`) |
+| F13: transactional email (Resend, durable queue) | ✅ Done; real delivery verified to your address (other recipients need a domain) | Yes (PR #8) |
 | F14: production readiness | ⬜ Next | — |
 | F15: final product validation | ⬜ Planned | — |
 
@@ -48,22 +48,17 @@ This file is the concise current status; the newest changelog entries are at the
   - F12 timing still equal (sign-up 1511 vs 1506 ms);
   - pipeline 63/63, `r2:check` 10/10; typecheck, lint and build pass.
 - **Pending:**
-  1. **Real Resend test (your action, approved, at most 3 emails):**
-     - add `EMAIL_TRANSPORT=resend` to `web/.env.local` and run `npm run dev`;
-     - sign up with your Resend account address;
-     - confirm the verification, reset and password-changed emails arrive ([setup guide §6](email/F13_SETUP_GUIDE.md)).
-
-     **Real emails sent so far: 0.**
+  1. ~~Real Resend test~~: ✅ **Real delivery verified 2026-11-06** (your Resend address only): Resend accepted 3 emails (account-exists notice, because the address already had an account; reset link; password changed), you confirmed they arrived, and the queue kept no addresses. Today's count: 3, within the approved 3.
   2. **Delivery to other users** needs a domain you own (none bought; Resend's testing domain only reaches your own address).
-  3. **Merge F13 into `main`** through a PR (only these 2 commits remain).
+  3. ~~Merge F13 into `main`~~: ✅ merged through PR #8 (2026-11-06).
   4. **F14:** keeping the worker running on a production host; delivery webhooks.
 - Reports: [architecture](email/F13_EMAIL_ARCHITECTURE.md), [implementation](email/F13_IMPLEMENTATION_REPORT.md), [setup guide](email/F13_SETUP_GUIDE.md).
 
 ## Your open actions
-1. Run the real Resend test (above) and tell me what arrived.
-2. Open and merge the F13 PR: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
+1. ~~Run the real Resend test~~: ✅ done 2026-11-06.
+2. ~~Open and merge the F13 PR~~: ✅ done (PR #8).
 3. In Atlas, reduce the `explivio_app` user from `atlasAdmin` to `readWrite` on `explivio` (F10 closeout).
-4. Delete the unused `SMTP_PORT` line from `web/.env.local`.
+4. ~~Delete the unused `SMTP_PORT` line~~: ✅ done (`EMAIL_TRANSPORT=resend` is now set).
 5. Optional: set a Cloudflare Budget Alert for R2 if you haven't.
 
 ## Next
@@ -75,6 +70,7 @@ This file is the concise current status; the newest changelog entries are at the
 Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 
 ## Optional backlog
+- ~~Parked: free fallback narration voice~~: **done 2026-11-08**; see the changelog and [FREE_VOICE_IMPLEMENTATION.md](voice/FREE_VOICE_IMPLEMENTATION.md).
 - M7 silent topics S8–S12 (Gemini quota).
 - Narrated evaluation after 2026-11-26.
 - Human audio review.
@@ -92,7 +88,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | Full browser regression (before F13) | **43/43** | 2026-11-05 |
 | F12 browser end-to-end | 36/36 | 2026-11-05 |
 | F11 browser end-to-end | 39/39 | 2026-11-05 |
-| Real Resend delivery | **Not run** | Waiting for your test |
+| Real Resend delivery | **3/3 accepted and received** | 2026-11-06, your Resend address |
 
 ## Risks
 | Risk | Impact | Owner | Resolution |
@@ -100,19 +96,19 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 | No email reaches other users until a domain you own is verified in Resend | New users can't verify by email in production | User | Verify a domain later (never bought under the $0 rule); until then the outbox or your own address only |
 | The email worker needs a long-running process | Emails wait in the queue on serverless hosting | Claude (F14) | Separate worker or scheduled run; jobs are durable meanwhile |
 | R2 needs an active Cloudflare subscription; overages bill automatically with no cap | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert; monitor R2 → Metrics |
-| Your public IPv4 address changes from time to time; Atlas then refuses this machine (TLS alert 80) | App can't sign in or list videos | User | Atlas → Network Access → add the new IPv4 address (the browser's "current IP" may add the IPv6 one) |
+| Your public IPv4 address changes often (Jio: 157.48.111.100 → 157.48.86.69 → 157.48.221.175 in 4 days) | Atlas blocked the app ("Accounts are temporarily unavailable") | User (done) | **2026-11-09:** Atlas Network Access now allows the range `157.48.0.0/16`, so changes inside it no longer block. Before Vercel: switch to `0.0.0.0/0` together with a readWrite-only user and a long random password |
 | Atlas user has `atlasAdmin` | Too much access if the URI leaks | User | Reduce to `readWrite` on `explivio` |
 | A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits, or resets the password | User (accepted) | Password reset lifts the lockout |
 | Per-address limits trust a forgeable header until there's a trusted proxy | Best effort only; per-account and global limits carry security | Claude (F14) | Proxy that overwrites `X-Forwarded-For` |
 | Rendered files pile up in `runs/` (no cleanup policy) | Disk growth | Claude (F14) | New videos go to R2; retention policy in F14 |
-| ElevenLabs credits about 270 characters (estimated) until 2026-11-26 | Narrated videos fail with a quota error | User | Use silent mode; wait for the reset |
+| ElevenLabs credits used up (until 2026-11-26) | None for availability: narration falls back to the free Kokoro voice (quality a little lower, +30–40 s per video) | Claude (done) | `NARRATION_PROVIDER=auto` (default); [details](voice/FREE_VOICE_IMPLEMENTATION.md) |
 | Gemini free-tier 429s | Generation fails until the quota resets | User | Retry later; no billing |
 | Render about 2 GB of RAM; free memory dipped to 1.6 GB | Render failures; hosting cost | Claude (F14) | Separate worker; measured sizing |
 | Only Chrome tested | Unknown issues in other browsers | Claude (F15) | Cross-browser pass |
 
 ## Git
 - Work on `dev`; `main` changes only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-- **2026-11-06:** `main` includes everything up to `e752338` (PRs #5, #6, #7). `dev` is 2 commits ahead (F13: `907db56`, `002f950`, plus this status update). `main` also holds the 3 PR merge commits, which change no files.
+- **2026-11-07:** `main` has the same content as `dev` (PRs #5–#8 merged; `main` also holds the 4 PR merge commits, which change no files).
 
 ## Milestones
 
@@ -204,6 +200,40 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — Atlas access: your provider changed your IP again (157.48.221.175), so you allowed the range `157.48.0.0/16` in Atlas Network Access instead of single addresses. Connection confirmed (`db:check` ok, 715 ms). App servers stopped after your manual test. Documentation only; $0.
+
+- **2026-11-08** — Free, unlimited narration voice (Kokoro-82M) implemented and tested: **feasible**.
+  - **Built:**
+    - `src/providers/kokoro.ts` and `kokoro-worker.mjs`: speech in its own process, measured sentence timing, captions, MP3 through the bundled ffmpeg;
+    - `providers/narration.ts`: `NARRATION_PROVIDER` = auto (ElevenLabs, otherwise Kokoro), kokoro or elevenlabs;
+    - the CLI uses the selector; `kokoro-js` 1.2.1 pinned; the model (311 MB) is in `models/kokoro` (gitignored).
+  - **Voices:** female `af_heart` (speed 1.0), male `am_michael` (speed 1.13, calibrated).
+  - **Tests (no Gemini calls):**
+    - full 90 s female video 13/13 (89 s of narration in 30 s);
+    - male video through automatic fallback after ElevenLabs refused (quota): 13/13 after the speed calibration (the first run was 101 s, +11 s, and failed);
+    - pipeline 69/69 including the real model; typecheck passes.
+  - **Bugs fixed:** the male voice ran too long; curly-quote sentence ends weren't split; one older test updated for the selector.
+  - **Known:** captions are timed per sentence (words estimated within each); `npm audit` flags 3 highs in `sharp` (images, never used here).
+  - $0. Report: [voice/FREE_VOICE_IMPLEMENTATION.md](voice/FREE_VOICE_IMPLEMENTATION.md).
+
+- **2026-11-07** — Decision: deploy on **Vercel**, later.
+  - **Constraints checked in Vercel's official docs:** Hobby is non-commercial only; functions are limited to 300 s, 2 GB / 1 vCPU and a read-only disk (except /tmp); cron runs once a day on Hobby; video rendering needs Vercel Sandbox (Remotion's documented path).
+  - **Recorded:** what has to change for Vercel in [deployment/VERCEL_NOTES.md](deployment/VERCEL_NOTES.md). F14 is not started. $0.
+
+- **2026-11-07** — Free narration voice researched, trialled and parked.
+  - **Problem:** a 60 s video failed because ElevenLabs credits are used up (267 left, 858 needed).
+  - **Research:** Kokoro-82M (Apache-2.0, local) and Gemini TTS (free API) are the only lasting $0 options. Cloud TTS from Google, Azure and Amazon needs a card; OpenAI is paid; Edge is unofficial; XTTS and F5 are non-commercial.
+  - **Kokoro trial on this laptop:** fp32 is 3.5× faster than q8 (0.6 s of work per second of audio; about 970 MB RAM). Samples are in `data/voice-trial/` (gitignored); the trial packages were removed again.
+  - **Your concern:** how a local voice works after deployment. Answer: it runs on the render server, which F14 needs anyway; an API voice needs no server.
+  - **Decision:** parked; F14 next. Nothing was added to the app. $0. Details: [voice/VOICE_FALLBACK_RESEARCH.md](voice/VOICE_FALLBACK_RESEARCH.md).
+
+- **2026-11-07** — F13 real delivery verified, and the ElevenLabs problem raised.
+  - **Email:** **Real delivery verified 2026-11-06** (your Resend address only): Resend accepted 3 emails (account-exists notice, because the address already had an account; reset link; password changed), you confirmed they arrived, and the queue kept no addresses. Today's count: 3, within the approved 3.
+  - **Setup changes:** your IP changed again (now 157.48.86.69) and was added to Atlas; `EMAIL_TRANSPORT=resend` set; `SMTP_PORT` removed.
+  - **New problem:** a 60 s video failed at narration because ElevenLabs free credits are used up (267 left; 858 needed; reset 2026-11-26). You asked for a free way to stop depending on ElevenLabs for voice; research is under way.
+
+- **2026-11-07** — PR #8 merged: F13 is on `main`, and `main` and `dev` have the same content. Still pending: the real Resend test (`EMAIL_TRANSPORT` not set yet; 0 real emails sent), the Atlas role reduction, and removing `SMTP_PORT` from `web/.env.local`. F14 is paused until you ask.
 
 - **2026-11-06** — Status tidy-up.
   - **Restructured:** the top of this file now has "At a glance" with `main` and `dev` status, Completed, In progress (F13), Your open actions, and current test results. F10–F13 entries were moved into the right sections.

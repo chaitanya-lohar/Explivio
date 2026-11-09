@@ -81,6 +81,8 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
 
 ## F14 — Production readiness and deployment
 
+> **2026-11-07: target platform is Vercel (your decision; deployment later).** Constraints and the changes they require are in [deployment/VERCEL_NOTES.md](deployment/VERCEL_NOTES.md): rendering moves to Vercel Sandbox or a separate worker; run status moves from `runs/` into MongoDB; email is sent with `after()` plus a daily cron; Atlas must allow Vercel's IP addresses. Hobby is for non-commercial use only.
+
 - **Starts only** after F11–F13 are reviewed and stable.
 - **Review:**
   - hosting, and splitting the Next.js app from a render worker;
@@ -100,6 +102,8 @@ There is no separate "F5": the auth screens were built between F3 and F4 and are
 - **Doc:** `docs/qa/F15_FINAL_PRODUCT_VALIDATION.md`.
 
 ## Optional backlog (kept separate; must not delay F11–F15)
+
+- **Parked 2026-11-07: free fallback narration voice** (ElevenLabs free credits used up). Options and trial: [voice/VOICE_FALLBACK_RESEARCH.md](voice/VOICE_FALLBACK_RESEARCH.md). Server memory for a local voice (about +1 GB) is an F14 sizing input.
 
 - M7 silent topics S8–S12 (when the Gemini free quota allows).
 - Narrated evaluation after the ElevenLabs reset on 2026-11-26.
