@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-08. **Everything through F13 is on `main`. New: a free, unlimited narration voice (Kokoro) is implemented and tested, so videos no longer fail when ElevenLabs credits run out. F14 (Vercel) starts when you ask.**
+Last updated: 2026-11-09. **F14: LIVE at https://explivio.vercel.app (production, approved by the user). Cloud rendering in Vercel Sandbox, 720p, Kokoro voice, Resend email.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -108,7 +108,7 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 
 ## Git
 - Work on `dev`; `main` changes only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-- **2026-11-07:** `main` has the same content as `dev` (PRs #5–#8 merged; `main` also holds the 4 PR merge commits, which change no files).
+- **2026-11-09:** `main` has the same content as `dev` (PRs #5–#9 merged; `main` also holds the PR merge commits, which change no files).
 
 ## Milestones
 
@@ -200,6 +200,48 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Merge `dev` into `main` through a PR after each reviewed phase.
 
 ## Changelog
+
+- **2026-11-09** — **Production deployment approved and done: https://explivio.vercel.app.** All 18 variables set for Production (the user added the secrets; new AUTH_SECRET and CRON_SECRET for production). Checked live: pages 200, `/api/health/db` ok, cron rejects unauthenticated calls (401), HSTS and frame headers present, no startup warnings. Known limit: until a domain is verified in Resend, only the Resend account owner's address receives email (user chose to leave this for now). Still open: Terms and Privacy pages, monthly render cap, backups, cleanup of 3 test snapshots.
+
+- **2026-11-09** — **F14 preview deployment: works end to end** (tested by the user: sign-in → create a 60 s video → cloud render in Vercel Sandbox → watch → download).
+  - Fixed on the way: emails on Vercel were queued but never sent (a startup hook lives in a different module instance); now `enqueueEmail` schedules the send with `after()` itself. Confirmed in the logs (`email_accepted`).
+  - `R2_ACCOUNT_ID` in Vercel failed validation (paste problem); re-set from the local file through the CLI.
+  - Gemini needed 30–50 s per storyboard, so the 45 s timeout failed; now 90 s (default in code and `GEMINI_TIMEOUT_MS=90000` on Vercel).
+  - Mistake: the first `vercel deploy` went to **production** (the CLI's default for a project's first deploy). `explivio.vercel.app` serves pages but has no variables, so nothing works or leaks there. Removal awaits the user's decision. Later deploys use `--environment=preview`.
+  - Before production: a verified Resend domain (otherwise only the Resend account's own address receives email), Terms and Privacy pages, production variables, then promotion after approval.
+
+- **2026-11-09** — **F14 Steps 5–6: production configuration.**
+  - Email on Vercel: each queued email is sent right after the response (`after()`); a daily cron (`/api/cron/email`, `CRON_SECRET`) sends anything left. The outbox is refused on Vercel. Email links use `EXPLIVIO_APP_URL` or Vercel's own URL variables (never the Host header).
+  - `AUTH_SECRET` is required on Vercel; client IP from Vercel's `x-real-ip`; HSTS on Vercel; `web/vercel.json` (Next.js, cron); Node 24.x.
+  - Vercel preview variables set (non-secret): RENDER_DISPATCH=sandbox, SANDBOX_SNAPSHOT_ID, RENDER_RESOLUTION=720p, NARRATION_PROVIDER=kokoro, EMAIL_TRANSPORT=resend, MONGODB_DB. The secrets are added by the user in the dashboard.
+  - Build, typecheck, lint pass; web non-live suite 85/85.
+  - Not done yet: free Resend domain (until then only the Resend account's own address receives email), Terms/Privacy pages, health/backup (Steps 7–8).
+
+- **2026-11-09** — **F14 Step 3 done: cloud rendering in Vercel Sandbox.**
+  - Snapshot (`npm run sandbox:snapshot`): allow-listed code, Chrome libraries, npm packages, Remotion Chrome, Kokoro model; 2.3 GB, never expires, built in 59 s. Current id: `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` (set as `SANDBOX_SNAPSHOT_ID`).
+  - `RENDER_DISPATCH=sandbox`: the request records the job in MongoDB, starts one non-persistent sandbox from the snapshot (20 min hard timeout) and returns. `scripts/render-worker.mts` renders, reports progress, uploads to R2 and stops its own sandbox. Only pipeline keys are passed in (no auth or email secrets).
+  - Local and cloud renders share one executor (`run-executor.ts`).
+  - **Measured (90 s video, 4 vCPU, Kokoro):** 1080p 186 s, **485 s active CPU** (about 37 videos/month on Hobby's 5 h); 720p 150 s, **387 s** (about 46/month, 8.3 MB vs 12.9 MB). In the cloud 720p saves about 20%.
+  - Found: SDK sandboxes are persistent by default and auto-snapshot on stop; all ours are now `persistent: false`. Three throwaway auto-snapshots from tests remain (expire in about 30 days; deletion awaits approval). In-sandbox `poweroff` doesn't work, so the worker stops the sandbox through the API.
+  - **Tests:** 3 new dispatcher tests; web non-live suite 85 pass / 0 fail. The 27 live-Atlas tests can't run now that the database user is limited to `readWrite@explivio` (they use throwaway `explivio_test_*` databases); they need a separate test user or role.
+  - $0.
+
+- **2026-11-09** — F14 approved: (A) Vercel Sandbox only, (B) 720p public videos, (C) email through Resend (a domain must be verified in Resend for other users; a free subdomain will be researched in Step 5), (D) plan approved.
+  - **Step 1 done: video status in MongoDB.**
+    - A run supervisor (`services/pipeline/run-status.ts`) mirrors the pipeline's progress (status, stage, title, safe error, length) plus a 30 s heartbeat into `generationAttempts`.
+    - `videoProjects` now stores the request settings, so status, title, retry and regenerate work **without a run folder** (as on Vercel).
+    - Untracked runs keep the file view. A record-only run shows as queued, or fails after 15 min if it never started.
+    - The busy check uses the MongoDB heartbeat, so one render at a time across instances and the sandbox.
+    - `RENDER_DISPATCH=local|sandbox`; sandbox arrives in Step 3.
+  - **Tests:** web **109/109** with live Atlas (6 new pipeline tests and a new live `runs-mongo` test; all 23 earlier pipeline tests unchanged); pipeline 68 + 1 skipped; typecheck and lint pass.
+  - $0.
+
+- **2026-11-09** — F14 detailed plan written (not implemented): [deployment/F14_PRODUCTION_PLAN.md](deployment/F14_PRODUCTION_PLAN.md).
+  - **Shape:** website on Vercel; rendering in Vercel Sandbox; run status in MongoDB; email via `after()` plus a daily cron; production config (`AUTH_SECRET` required: the app currently writes a secret file, which fails on Vercel); Terms and Privacy pages, which the sign-up checkbox references but don't exist; backups to R2.
+  - **Decisions needed:** render host (Sandbox recommended; Hugging Face free compute ended, GitHub Actions terms forbid it, Oracle and Cloud Run need a card); 720p for public videos; email to all users (Gmail SMTP, a free subdomain, or MMM's approach).
+  - Documentation only; $0.
+
+- **2026-11-09** — PR #9 merged: the free Kokoro narration voice, F13 email verification and the voice and Vercel docs are on `main`; `main` and `dev` are identical. After pulling `main` elsewhere, run `npm install` in the repo root; the voice model (about 311 MB) downloads on first use.
 
 - **2026-11-09** — Atlas access: your provider changed your IP again (157.48.221.175), so you allowed the range `157.48.0.0/16` in Atlas Network Access instead of single addresses. Connection confirmed (`db:check` ok, 715 ms). App servers stopped after your manual test. Documentation only; $0.
 

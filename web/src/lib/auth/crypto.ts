@@ -59,6 +59,8 @@ export function dataDir(): string {
 let cachedSecret: string | null = null;
 function secret(): string {
   if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  // On Vercel the disk is read-only and every instance would generate its own secret: the setting is required (F14).
+  if (process.env.VERCEL) throw new Error("AUTH_SECRET must be set on Vercel (a long random value).");
   if (cachedSecret) return cachedSecret;
   const file = path.join(dataDir(), "auth-secret");
   if (!existsSync(file)) {

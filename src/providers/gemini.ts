@@ -15,8 +15,9 @@ ${VISUAL_GUIDE}`;
 export type GeminiCall = {model: string; ms: number; outcome: 'ok' | 'timeout' | 'overloaded' | 'invalid_output' | 'error'; note?: string};
 export type StoryboardResult = {storyboard: Storyboard; model: string; attempts: number; calls: GeminiCall[]; skippedModel?: string; wordBudget: {target: number; min: number; max: number; actual: number; withinBudget: boolean}; scriptChecks: ScriptChecks; visualPlan: {scenes: SceneVisualReport[]; problems: string[]; templateScenes: number; fallbackScenes: number}};
 
-// Storyboards for 60–90 s videos took up to ~30 s in M6 testing, so 30 s was too tight (run A4).
-const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45_000;
+// Storyboards for 60–90 s videos took up to ~30 s in M6 testing (30 s was too tight, run A4); in F14 testing Gemini often
+// needed 30–50 s, so 45 s timed out repeatedly. 90 s per call (at most 3 calls).
+const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 90_000;
 const SKIP_MINUTES = Number(process.env.GEMINI_SKIP_FAILED_MODEL_MINUTES) || 30;
 const MAX_CALLS = 3; // primary/fallback + one repair: bounded, never open-ended
 const HEALTH_FILE = path.resolve('runs', '.gemini-health.json');

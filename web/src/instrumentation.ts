@@ -17,6 +17,8 @@ export async function register() {
   const { readEmailConfig } = await import("./lib/email/config");
   const email = readEmailConfig();
   if (!email.ok) console.warn(`[email] ${email.message}`);
+  // Serverless (F14): no resident timer on Vercel; enqueueEmail sends each email right after the response instead.
+  if (process.env.VERCEL) return;
   if (config.ok && process.env.EXPLIVIO_EMAIL_WORKER !== "off") {
     const { startEmailWorker } = await import("./lib/email/worker");
     startEmailWorker();

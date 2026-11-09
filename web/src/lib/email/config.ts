@@ -19,6 +19,8 @@ const FROM = /^(?:[^<>\r\n"]{1,80} <[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>|[^\s@<>]+@[^
 
 export function readEmailConfig(env: Record<string, string | undefined> = process.env): EmailConfig {
   const transport = (env.EMAIL_TRANSPORT ?? "outbox").trim().toLowerCase() || "outbox";
+  // The outbox writes files, and nothing would be delivered: never on Vercel (F14).
+  if (transport === "outbox" && env.VERCEL) return { ok: false, transport: "outbox", message: "EMAIL_TRANSPORT must be resend on Vercel (the outbox writes local files). No email will be sent." };
   if (transport === "outbox" || transport === "test") return { ok: true, transport };
   if (transport !== "resend") return { ok: false, transport: "unknown", message: 'EMAIL_TRANSPORT must be "outbox", "resend" or "test".' };
   const apiKey = env.RESEND_API_KEY?.trim() ?? "";
@@ -30,7 +32,11 @@ export function readEmailConfig(env: Record<string, string | undefined> = proces
   return { ok: true, transport: "resend", apiKey, from };
 }
 
-/** Base URL for links in emails: the trusted, configured address — never the request's Host header. */
+/**
+ * Base URL for links in emails: the trusted, configured address — never the request's Host header. On Vercel without
+ * EXPLIVIO_APP_URL, Vercel's own system variables are used (production domain, or the preview branch's stable URL).
+ */
 export function appUrl(env: Record<string, string | undefined> = process.env): string {
-  return (env.EXPLIVIO_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+  const vercelHost = env.VERCEL_ENV === "production" ? env.VERCEL_PROJECT_PRODUCTION_URL : env.VERCEL_BRANCH_URL || env.VERCEL_URL;
+  return (env.EXPLIVIO_APP_URL ?? (vercelHost ? `https://${vercelHost}` : "http://localhost:3000")).replace(/\/+$/, "");
 }
