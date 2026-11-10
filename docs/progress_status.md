@@ -40,7 +40,7 @@ This file is the concise current status; the newest changelog entries are at the
 ## Your open actions
 1. **Tomorrow:** the email domain steps above (you're signed in to DigitalPlat).
 2. **Merge `dev` into `main`:** https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-3. **Decide:** delete the 3 test snapshots (about 4 GB, from my test sandboxes; they expire on their own in about 30 days) or let them expire.
+3. ~~Test snapshots~~: deleted 2026-11-10 (only the production snapshot remains).
 4. Optional: rotate the Atlas user's password to a long random one (update Vercel Production + Preview and `web/.env.local`).
 
 ## Next
@@ -182,6 +182,12 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-10** — **Cost check: $0.**
+  - Vercel: Hobby, no subscription, no invoices. Sandbox CPU 25 of 300 min this month.
+  - Atlas: about 0.8 MB used. R2: 13.7 MB of 10 GB. Brevo: within the free plan.
+  - Snapshot storage was 11.8 of 15 GB: with the user's approval, the 6 unused test snapshots (9.5 GB) were deleted; only `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` (2.3 GB, production) remains.
+  - For the user to confirm in dashboards: Gemini key on the Free tier (no billing on its Google Cloud project), Atlas cluster M0, Cloudflare R2 $0 with a budget alert.
 
 - **2026-11-10** — **Email works for every tester.**
   - Production deployed with the SMTP provider. The user's dashboard "Redeploy" had rebuilt the old code; the project isn't connected to GitHub, so deploys go through `vercel deploy --prod` from `web/`.
