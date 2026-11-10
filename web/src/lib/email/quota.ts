@@ -11,7 +11,8 @@ import { getDatabase } from "../db/mongo.ts";
 
 type DayDoc = { _id: string; count: number; resetAt: Date };
 
-export const dailyLimit = () => Math.max(0, Number(process.env.EXPLIVIO_EMAIL_DAILY_LIMIT) || 90);
+// SMTP (Brevo free: 300/day) defaults to 250; Resend (free: 100/day) to 90. Always below the provider's own limit.
+export const dailyLimit = () => Math.max(0, Number(process.env.EXPLIVIO_EMAIL_DAILY_LIMIT) || ((process.env.EMAIL_TRANSPORT ?? "").trim().toLowerCase() === "smtp" ? 250 : 90));
 const dayKey = (now: Date) => `emailday:${now.toISOString().slice(0, 10)}`;
 export const nextUtcMidnight = (now: Date) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
 

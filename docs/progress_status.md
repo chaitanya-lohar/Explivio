@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **F14: LIVE at https://explivio.vercel.app. Next (paused until 2026-11-10): verify a free email domain in Resend so other users receive email.**
+Last updated: 2026-11-10. **Pilot open to testers: https://explivio.vercel.app. Email works for any address (Brevo SMTP), verified by the user with a second address.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -27,7 +27,7 @@ This file is the concise current status; the newest changelog entries are at the
   - **Production settings:** email sent after each response plus a daily cron; `AUTH_SECRET` required; Vercel's client IP; HSTS; Gemini timeout 90 s.
   - **Tested by you in production:** sign-in → create a video → cloud render → watch → download.
 
-## In progress: email for every user (resume 2026-11-10)
+## Resolved 2026-11-10: email for every user (Brevo SMTP; history below)
 - **Problem:** a sign-up from a second Gmail address got no email (job `failed`). Resend's test sender only delivers to the Resend account owner.
 - **Plan (no code change):**
   1. Get a free DigitalPlat domain (e.g. `explivio.dpdns.org`; one per account).
@@ -35,7 +35,7 @@ This file is the concise current status; the newest changelog entries are at the
   3. Add the domain in Resend and copy its 3 records into Cloudflare (MX and SPF TXT on `send`, DKIM TXT on `resend._domainkey`), then verify.
   4. Set `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`).
   5. Redeploy and test with a second address.
-- Hold the LinkedIn post until this works.
+- Explivio is a **pilot** (not a public launch): the goal is that other people can sign up and test it, at $0.
 
 ## Your open actions
 1. **Tomorrow:** the email domain steps above (you're signed in to DigitalPlat).
@@ -44,6 +44,7 @@ This file is the concise current status; the newest changelog entries are at the
 4. Optional: rotate the Atlas user's password to a long random one (update Vercel Production + Preview and `web/.env.local`).
 
 ## Next
+- **Milestone plan: [Pilot open to testers](deployment/NEXT_MILESTONE_PILOT_TESTERS.md).** Explivio is a $0 pilot, not a public launch; the only blocker is email for testers.
 - Email domain (above), then **F14 leftovers:**
   - Terms of Service and Privacy pages (the sign-up checkbox refers to them);
   - a monthly render cap with a "paused" message;
@@ -181,6 +182,20 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-10** — **Email works for every tester.**
+  - Production deployed with the SMTP provider. The user's dashboard "Redeploy" had rebuilt the old code; the project isn't connected to GitHub, so deploys go through `vercel deploy --prod` from `web/`.
+  - The user received the verification email on a second address. Brevo shows the sender as `explivio <…@…brevosend.com>`: it rewrites free-mail senders to its own domain, which is what lets the email pass DMARC.
+  - The pilot milestone's blocker is resolved.
+
+- **2026-11-10** — **Email switched to Brevo SMTP** (free, about 300/day). The free domain `explivio.dpdns.org` was registered and added to Cloudflare, but Resend refuses free public domains and Brevo couldn't add it. So the pilot sends from **one verified Brevo sender address** instead.
+  - New `smtp` provider (Nodemailer 10.2.1, port 587 with STARTTLS required, TLS 1.2+), `EMAIL_TRANSPORT=smtp`, `SMTP_HOST/PORT/USER/PASS`, `EMAIL_FROM`; daily guard 250; same queue, templates and retry rules; `npm run email:test`.
+  - Tests 88/88 (3 new); typecheck, lint and build pass.
+  - Vercel (Production + Preview): EMAIL_TRANSPORT, SMTP_HOST, SMTP_PORT and EMAIL_FROM set. Waiting for the user to add SMTP_USER and SMTP_PASS (secrets), then redeploy.
+
+- **2026-11-10** — Scope corrected by the user: **Explivio is a pilot, not a public launch.** It stays at $0; paid services only if we decide to scale later. Milestone renamed to [Pilot open to testers](deployment/NEXT_MILESTONE_PILOT_TESTERS.md): Step 1 email domain (the only blocker), Step 2 two-account tester check, Step 3 merge. Terms/Privacy, monthly cap, backups and F15 moved to optional.
+
+- **2026-11-10** — Next milestone planned: [NEXT_MILESTONE_PUBLIC_LAUNCH.md](deployment/NEXT_MILESTONE_PILOT_TESTERS.md). Part A (F14 completion): email domain, Terms/Privacy, monthly render cap, health and backup, security tidy-up, merge. Part B (F15): full two-account journey, isolation, failure recovery, devices and browsers, data integrity, launch decision.
 
 - **2026-11-09** — Production tested; a sign-up from a second Gmail address got no email: the job is `failed` because Resend's test sender only delivers to the account owner. **Plan for 2026-11-10:** free DigitalPlat domain (e.g. `explivio.dpdns.org`, 1 free domain per account) → DNS in the existing Cloudflare account (Free plan, nameservers set at DigitalPlat) → add the domain in Resend and copy its 3 records (MX `send`, SPF TXT `send`, DKIM TXT `resend._domainkey`) into Cloudflare → verify → change `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`) → redeploy → test with a second address. No code change needed. Hold the LinkedIn post until then. Also pending: 3 test snapshots (about 4 GB, expire in about 30 days) and a PR from dev to main.
 

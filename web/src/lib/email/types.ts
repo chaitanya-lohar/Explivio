@@ -6,7 +6,7 @@
 /** The transactional emails Explivio sends. No marketing. */
 export type EmailKind = "verify_email" | "reset_password" | "password_changed" | "account_exists";
 
-export type Transport = "outbox" | "resend" | "test";
+export type Transport = "outbox" | "resend" | "smtp" | "test";
 
 export interface OutgoingEmail {
   to: string;

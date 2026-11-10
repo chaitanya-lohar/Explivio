@@ -1,6 +1,7 @@
 import { readEmailConfig } from "./config.ts";
 import { outboxProvider } from "./providers/outbox.ts";
 import { createResendProvider } from "./providers/resend.ts";
+import { createSmtpProvider } from "./providers/smtp.ts";
 import { testProvider } from "./providers/test.ts";
 import type { EmailProvider } from "./types.ts";
 
@@ -21,7 +22,15 @@ const misconfigured: EmailProvider = {
 export function emailProvider(): EmailProvider {
   if (holder.__explivioEmailProvider) return holder.__explivioEmailProvider;
   const config = readEmailConfig();
-  holder.__explivioEmailProvider = !config.ok ? misconfigured : config.transport === "resend" ? createResendProvider({ apiKey: config.apiKey, from: config.from }) : config.transport === "test" ? testProvider() : outboxProvider;
+  holder.__explivioEmailProvider = !config.ok
+    ? misconfigured
+    : config.transport === "resend"
+      ? createResendProvider({ apiKey: config.apiKey, from: config.from })
+      : config.transport === "smtp"
+        ? createSmtpProvider({ host: config.host, port: config.port, user: config.user, pass: config.pass, from: config.from })
+        : config.transport === "test"
+          ? testProvider()
+          : outboxProvider;
   return holder.__explivioEmailProvider;
 }
 
@@ -37,5 +46,6 @@ export function setEmailProvider(provider: EmailProvider | null): void {
  */
 export function deliveryMode(): "resend" | "outbox" {
   const config = readEmailConfig();
-  return config.transport === "resend" ? "resend" : "outbox";
+  // "resend" here means "a real email was sent" (Resend or SMTP): the screens say "check your inbox".
+  return config.transport === "resend" || config.transport === "smtp" ? "resend" : "outbox";
 }
