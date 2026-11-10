@@ -44,6 +44,7 @@ This file is the concise current status; the newest changelog entries are at the
 4. Optional: rotate the Atlas user's password to a long random one (update Vercel Production + Preview and `web/.env.local`).
 
 ## Next
+- **Milestone plan: [Public launch (finish F14, then F15)](deployment/NEXT_MILESTONE_PUBLIC_LAUNCH.md)**, 12 steps with owners and done criteria.
 - Email domain (above), then **F14 leftovers:**
   - Terms of Service and Privacy pages (the sign-up checkbox refers to them);
   - a monthly render cap with a "paused" message;
@@ -181,6 +182,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-10** — Next milestone planned: [NEXT_MILESTONE_PUBLIC_LAUNCH.md](deployment/NEXT_MILESTONE_PUBLIC_LAUNCH.md). Part A (F14 completion): email domain, Terms/Privacy, monthly render cap, health and backup, security tidy-up, merge. Part B (F15): full two-account journey, isolation, failure recovery, devices and browsers, data integrity, launch decision.
 
 - **2026-11-09** — Production tested; a sign-up from a second Gmail address got no email: the job is `failed` because Resend's test sender only delivers to the account owner. **Plan for 2026-11-10:** free DigitalPlat domain (e.g. `explivio.dpdns.org`, 1 free domain per account) → DNS in the existing Cloudflare account (Free plan, nameservers set at DigitalPlat) → add the domain in Resend and copy its 3 records (MX `send`, SPF TXT `send`, DKIM TXT `resend._domainkey`) into Cloudflare → verify → change `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`) → redeploy → test with a second address. No code change needed. Hold the LinkedIn post until then. Also pending: 3 test snapshots (about 4 GB, expire in about 30 days) and a PR from dev to main.
 
