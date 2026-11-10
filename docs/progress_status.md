@@ -183,6 +183,11 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-10** — **Fix: the first themed video was still dark, and symbols showed as boxes.**
+  - The theme was chosen from the title plus the learning objective, with the tech rules first. A water-cycle objective mentions "clouds", which matched the tech word "cloud". Now the title decides first (the objective only when the title matches nothing), and the tech rule says "cloud computing". Regression tests added.
+  - The cloud renderer had only Liberation fonts: ✓ and ↻ rendered as boxes. `fonts-dejavu-core` added to the snapshot and to the font stack; checked with a frame rendered in the cloud.
+  - New snapshot `snap_KnH9KGQeGOBVWDJHtei3prT8suqd` in Vercel Production and Preview; production redeployed.
+
 - **2026-11-10** — **Themes and motion deployed to production.**
   - New Sandbox snapshot `snap_E75tzhxZwyIhNbqD1IYTR6JGF7NF` (built in 87 s), set as `SANDBOX_SNAPSHOT_ID` in Vercel Production and Preview; production redeployed. Health ok.
   - Measured, 90 s video at 720p in the Sandbox: 146 s wall, **362 s active CPU** (before: 387 s), so no extra cost; about 46–49 such videos per month.

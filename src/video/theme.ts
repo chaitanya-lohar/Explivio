@@ -40,7 +40,8 @@ export type Palette = {
   bodyFont: string;
 };
 
-const SANS = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
+// DejaVu Sans covers the symbols the templates draw (✓ ↻ ≈ ↔ subscripts); it is installed in the cloud renderer.
+const SANS = '"Segoe UI", "Helvetica Neue", Arial, "DejaVu Sans", sans-serif';
 
 export const PALETTES: Record<ThemeName, Palette> = {
   // The original look: deep navy, violet and teal.
@@ -55,15 +56,21 @@ export const PALETTES: Record<ThemeName, Palette> = {
 
 // Topic words → theme. Checked in this order; the first theme with a match wins.
 const RULES: [ThemeName, RegExp][] = [
-  ['midnight', /\b(space|planet|star|galax|universe|black hole|orbit|moon|astronom|comput|software|program|code|coding|algorithm|internet|network|server|database|api|cloud|cyber|security|hack|encrypt|blockchain|crypto|ai\b|artificial intelligence|machine learning|neural|robot|quantum|chip|processor|gpu)\w*/i],
+  ['midnight', /\b(space|planet|star|galax|universe|black hole|orbit|moon|astronom|comput|software|program|code|coding|algorithm|internet|network|server|database|api|cloud computing|cyber|security|hack|encrypt|blockchain|crypto|ai\b|artificial intelligence|machine learning|neural|robot|quantum|chip|processor|gpu)\w*/i],
   ['paper', /\b(history|histor|ancient|empire|war\b|revolution|civili[sz]ation|king|queen|dynasty|philosoph|ethic|literature|poem|poetry|novel|language|grammar|religio|myth|culture|art\b|painting|music theory|economy|economic|inflation|money|market|finance|politic|democra|law\b|constitution|psycholog|habit|productiv)\w*/i],
   ['clean', /\b(biolog|cell|dna|gene|protein|body|heart|brain|blood|health|disease|virus|bacteria|immune|vaccine|medic|nutrition|vitamin|plant|photosynth|ecosystem|animal|evolution|chemi|atom|molecule|reaction|physics|gravity|energy|electric|magnet|light|sound|wave|climate|weather|rain|water|ocean|earth|volcano|earthquake|math|geometry|fraction|equation|engineer)\w*/i],
 ];
 
-/** Picks the theme for a video from its title and prompt. Topics with no match get "vibrant". */
+/**
+ * Picks the theme for a video. The texts are tried in order (title first, then e.g. the learning objective): the
+ * first text with any match decides, so a word in a longer description (a water cycle's "clouds") can't outweigh the
+ * title. Topics with no match get "vibrant".
+ */
 export function chooseTheme(...texts: (string | undefined)[]): ThemeName {
-  const text = texts.filter(Boolean).join(' ');
-  for (const [theme, pattern] of RULES) if (pattern.test(text)) return theme;
+  for (const text of texts) {
+    if (!text) continue;
+    for (const [theme, pattern] of RULES) if (pattern.test(text)) return theme;
+  }
   return 'vibrant';
 }
 
