@@ -1,14 +1,12 @@
 import React from 'react';
 import type {Visual} from '../../schemas/visual';
-import {CARD, INK, MUTED, TEAL, TEXT, VIOLET, WARM, delayFor, useReveal, type TemplateProps} from './shared';
+import {CARD, INK, MUTED, TEAL, TEXT, VIOLET, WARM, delayFor, useReveal, type TemplateProps, SHADOW} from './shared';
 
 type Comparison = Extract<Visual, {template: 'comparison'}>;
 
-const BADGE: Record<Comparison['relation'], {mark: string; caption: string; color: string}> = {
-  vs: {mark: 'VS', caption: '', color: WARM},
-  like: {mark: '≈', caption: 'is like', color: TEAL},
-  related: {mark: '↔', caption: '', color: TEAL}
-};
+// A function, not a constant: the colours follow the active theme.
+const badgeFor = (relation: Comparison['relation']): {mark: string; caption: string; color: string} =>
+  relation === 'vs' ? {mark: 'VS', caption: '', color: WARM} : relation === 'like' ? {mark: '≈', caption: 'is like', color: TEAL} : {mark: '↔', caption: '', color: TEAL};
 
 /**
  * Two things side by side. Each column's title and points appear as they are mentioned; the badge between them
@@ -21,14 +19,14 @@ export const ComparisonTemplate: React.FC<TemplateProps<Comparison>> = ({visual,
   // Without timings the right column follows the left one, as in M6.
   const leftDelays = [left.title, ...left.points].map((_, i) => delay(i));
   const rightDelays = [right.title, ...right.points].map((_, i) => reveal ? delay(rightStart + i) : 24 + i * 9);
-  const badge = BADGE[visual.relation];
+  const badge = badgeFor(visual.relation);
   const badgeIn = useReveal(rightDelays[0] - 8);
   const tall = left.points.length + right.points.length === 0;
   return <div style={{position: 'relative', display: 'flex', alignItems: 'stretch', gap: 120, width: '100%'}}>
     <Column title={left.title} points={left.points} delays={leftDelays} color={VIOLET} from={-60} tall={tall} />
     <Column title={right.title} points={right.points} delays={rightDelays} color={visual.relation === 'vs' ? WARM : TEAL} from={60} tall={tall} />
     <div style={{position: 'absolute', left: '50%', top: '50%', width: 0, height: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{flex: '0 0 auto', width: 108, height: 108, borderRadius: 54, display: 'flex', alignItems: 'center', justifyContent: 'center', background: badge.color, color: INK, fontSize: badge.mark === 'VS' ? 38 : 56, fontWeight: 900, boxShadow: '0 0 40px rgba(0,0,0,.45)', opacity: badgeIn, transform: `scale(${0.5 + badgeIn * 0.5})`}}>{badge.mark}</div>
+      <div style={{flex: '0 0 auto', width: 108, height: 108, borderRadius: 54, display: 'flex', alignItems: 'center', justifyContent: 'center', background: badge.color, color: INK, fontSize: badge.mark === 'VS' ? 38 : 56, fontWeight: 900, boxShadow: SHADOW, opacity: badgeIn, transform: `scale(${0.5 + badgeIn * 0.5})`}}>{badge.mark}</div>
       {badge.caption ? <div style={{flex: '0 0 auto', marginTop: 12, fontSize: 26, fontStyle: 'italic', color: MUTED, whiteSpace: 'nowrap', opacity: badgeIn}}>{badge.caption}</div> : null}
     </div>
   </div>;

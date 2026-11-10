@@ -183,6 +183,20 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-10** — **Video themes and motion upgrade** (code done; samples awaiting the user's review; cloud snapshot not rebuilt yet).
+  - **Four themes chosen automatically from the topic:** Midnight (tech, space), Clean (science, nature, health), Paper (history, ideas, economics) and Vibrant (everything else). `--theme=` forces one for testing; `manifest.theme` records it.
+  - **Motion:**
+    - a moving backdrop (drifting colour blobs, floating particles) behind all scenes;
+    - springy scene entrances from alternating sides;
+    - word-by-word headings and a slow push-in on the diagram;
+    - items pop in with a slight bounce;
+    - captions highlight the spoken word;
+    - a progress bar along the top;
+    - the header and footer stay fixed.
+  - Fixed during review: headings overlapped during scene changes (the overlap is 2 × transition), and the highlighted ring label had low contrast.
+  - Tests: pipeline 68 + 4 new theme tests; typecheck passes. Samples (22 s, 720p) render in about 18 s locally.
+  - Next: the user's OK on the samples, then rebuild the Sandbox snapshot, measure render CPU, deploy. Queued after that: prompt suggestions and "polish my prompt".
+
 - **2026-11-10** — **Delete videos** (requested before tester sharing).
   - A Delete button with an in-app confirmation on gallery cards, list rows, the video page and the failed-video screen; hidden while a video is being made.
   - The server checks ownership (others get not found), refuses while generating or uploading, deletes the R2 object (or local run folder) first, then the record.

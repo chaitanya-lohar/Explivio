@@ -1,7 +1,7 @@
 import React from 'react';
 import {interpolate, useCurrentFrame} from 'remotion';
 import type {Visual} from '../../schemas/visual';
-import {BORDER, CARD, INK, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps} from './shared';
+import {BORDER, CARD, INK, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, secondaryAlpha, MUTED, SHADOW} from './shared';
 
 /* The four M6 layouts, now fed by the v2 format. Without narration timings they animate exactly as in M6. */
 
@@ -23,8 +23,8 @@ export const Steps: React.FC<TemplateProps<Of<'steps'>>> = ({visual, durationInF
 const Step: React.FC<{index: number; delay: number; text: string; active: boolean; done: boolean; last: boolean}> = ({index, delay, text, active, done, last}) => {
   const reveal = useReveal(delay);
   return <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', opacity: reveal, transform: `translateY(${(1 - reveal) * 24}px)`}}>
-    <div style={{display: 'flex', alignItems: 'center', gap: 26, width: '100%', padding: '24px 30px', borderRadius: 26, background: active ? 'rgba(139,124,255,.22)' : CARD, border: `2px solid ${active ? VIOLET : BORDER}`, boxShadow: active ? '0 0 50px rgba(139,124,255,.35)' : 'none'}}>
-      <div style={{flex: '0 0 auto', width: 64, height: 64, borderRadius: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800, color: INK, background: done ? TEAL : active ? VIOLET : 'rgba(244,245,250,.75)'}}>{done ? '✓' : index + 1}</div>
+    <div style={{display: 'flex', alignItems: 'center', gap: 26, width: '100%', padding: '24px 30px', borderRadius: 26, background: active ? `${primaryAlpha(.22)}` : CARD, border: `2px solid ${active ? VIOLET : BORDER}`, boxShadow: active ? `0 0 50px ${primaryAlpha(.35)}` : SHADOW}}>
+      <div style={{flex: '0 0 auto', width: 64, height: 64, borderRadius: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800, color: INK, background: done ? TEAL : active ? VIOLET : MUTED}}>{done ? '✓' : index + 1}</div>
       <div style={{fontSize: 38, lineHeight: 1.2, fontWeight: 700, color: TEXT}}>{text}</div>
     </div>
     {last ? null : <div style={{width: 6, height: 46, background: `linear-gradient(${done || active ? VIOLET : BORDER}, ${done ? TEAL : BORDER})`, borderRadius: 3}} />}
@@ -42,7 +42,7 @@ export const Hub: React.FC<TemplateProps<Of<'hub'>>> = ({visual, reveal}) => {
     <svg width={940} height={760} style={{position: 'absolute', inset: 0}}>
       {positions.map(([x, y], i) => <Spoke key={i} delay={at(i) - 6} x2={470 + x * 300} y2={380 + y * 250} />)}
     </svg>
-    <div style={{position: 'absolute', left: 470 - 170, top: 380 - 170, width: 340, height: 340, borderRadius: 170, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 34, boxSizing: 'border-box', background: 'radial-gradient(circle, rgba(139,124,255,.45), rgba(139,124,255,.15))', border: `3px solid ${VIOLET}`, fontSize: 40, fontWeight: 800, lineHeight: 1.15, color: TEXT, transform: `scale(${0.7 + centerReveal * 0.3})`, opacity: centerReveal}}>{center}</div>
+    <div style={{position: 'absolute', left: 470 - 170, top: 380 - 170, width: 340, height: 340, borderRadius: 170, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 34, boxSizing: 'border-box', background: `radial-gradient(circle, ${primaryAlpha(.45)}, ${primaryAlpha(.15)})`, border: `3px solid ${VIOLET}`, fontSize: 40, fontWeight: 800, lineHeight: 1.15, color: TEXT, transform: `scale(${0.7 + centerReveal * 0.3})`, opacity: centerReveal}}>{center}</div>
     {spokes.map((item, i) => <Satellite key={i} delay={at(i)} text={item} x={470 + positions[i][0] * 300} y={380 + positions[i][1] * 250} />)}
   </div>;
 };
@@ -53,7 +53,7 @@ const Spoke: React.FC<{delay: number; x2: number; y2: number}> = ({delay, x2, y2
   const length = Math.hypot(x2 - 470, y2 - 380);
   const x1 = 470 + ((x2 - 470) / length) * 172;
   const y1 = 380 + ((y2 - 380) / length) * 172;
-  return <line x1={x1} y1={y1} x2={x1 + (x2 - x1) * reveal} y2={y1 + (y2 - y1) * reveal} stroke={TEAL} strokeWidth={5} strokeLinecap="round" opacity={0.85} />;
+  return <line x1={x1} y1={y1} x2={x1 + (x2 - x1) * Math.min(1, reveal)} y2={y1 + (y2 - y1) * Math.min(1, reveal)} stroke={TEAL} strokeWidth={5} strokeLinecap="round" opacity={0.85} />;
 };
 
 const Satellite: React.FC<{delay: number; text: string; x: number; y: number}> = ({delay, text, x, y}) => {
@@ -83,7 +83,7 @@ export const Focus: React.FC<TemplateProps<Of<'focus'>>> = ({visual, reveal}) =>
   const pulse = 1 + Math.sin(frame / 14) * 0.03;
   const chipAt = (i: number) => reveal?.[i + 1] ?? 14 + i * 7;
   return <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 46, width: '100%'}}>
-    <div style={{width: 380, height: 380, borderRadius: 190, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 46, boxSizing: 'border-box', border: `4px solid ${VIOLET}`, boxShadow: `0 0 ${60 * ring}px rgba(139,124,255,.45), inset 0 0 60px rgba(77,214,200,.18)`, fontSize: 40, fontWeight: 800, lineHeight: 1.15, color: TEXT, opacity: ring, transform: `scale(${(0.75 + ring * 0.25) * pulse})`}}>{visual.title}</div>
+    <div style={{width: 380, height: 380, borderRadius: 190, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 46, boxSizing: 'border-box', border: `4px solid ${VIOLET}`, boxShadow: `0 0 ${60 * ring}px ${primaryAlpha(.45)}, inset 0 0 60px ${secondaryAlpha(.18)}`, fontSize: 40, fontWeight: 800, lineHeight: 1.15, color: TEXT, opacity: ring, transform: `scale(${(0.75 + ring * 0.25) * pulse})`}}>{visual.title}</div>
     <div style={{display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16}}>
       {visual.chips.map((item, i) => <Chip key={i} delay={chipAt(i)} text={item} />)}
     </div>
@@ -92,5 +92,5 @@ export const Focus: React.FC<TemplateProps<Of<'focus'>>> = ({visual, reveal}) =>
 
 const Chip: React.FC<{delay: number; text: string}> = ({delay, text}) => {
   const reveal = useReveal(delay);
-  return <div style={{padding: '14px 24px', borderRadius: 999, background: 'rgba(77,214,200,.14)', border: `2px solid ${TEAL}`, fontSize: 30, fontWeight: 700, color: TEXT, opacity: reveal, transform: `translateY(${(1 - reveal) * 16}px)`}}>{text}</div>;
+  return <div style={{padding: '14px 24px', borderRadius: 999, background: `${secondaryAlpha(.14)}`, border: `2px solid ${TEAL}`, fontSize: 30, fontWeight: 700, color: TEXT, opacity: reveal, transform: `translateY(${(1 - reveal) * 16}px)`}}>{text}</div>;
 };

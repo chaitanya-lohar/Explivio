@@ -1,7 +1,7 @@
 import React from 'react';
 import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import type {Visual} from '../../schemas/visual';
-import {AREA, BORDER, CARD, MUTED, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps} from './shared';
+import {AREA, BORDER, CARD, MUTED, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, SHADOW} from './shared';
 
 type Flow = Extract<Visual, {template: 'flow'}>;
 
@@ -31,7 +31,7 @@ export const FlowTemplate: React.FC<TemplateProps<Flow>> = ({visual, reveal}) =>
 const Node: React.FC<{text: string; index: number; count: number; top: number; height: number; delay: number; active: boolean}> = ({text, index, count, top, height, delay, active}) => {
   const reveal = useReveal(delay);
   const edge = index === 0 ? VIOLET : index === count - 1 ? TEAL : BORDER;
-  return <div style={{position: 'absolute', left: 150, width: 640, top, height, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 22, padding: '0 34px', borderRadius: height / 2, background: active ? 'rgba(139,124,255,.22)' : CARD, border: `3px solid ${active ? VIOLET : edge}`, boxShadow: active ? '0 0 46px rgba(139,124,255,.38)' : 'none', opacity: reveal, transform: `scale(${0.88 + reveal * 0.12})`}}>
+  return <div style={{position: 'absolute', left: 150, width: 640, top, height, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 22, padding: '0 34px', borderRadius: height / 2, background: active ? `${primaryAlpha(.22)}` : CARD, border: `3px solid ${active ? VIOLET : edge}`, boxShadow: active ? `0 0 46px ${primaryAlpha(.38)}` : SHADOW, opacity: reveal, transform: `scale(${0.88 + reveal * 0.12})`}}>
     <div style={{flex: '0 0 auto', width: 22, height: 22, borderRadius: 11, background: index === count - 1 ? TEAL : VIOLET}} />
     <div style={{fontSize: height > 100 ? 38 : 32, lineHeight: 1.15, fontWeight: 700, color: TEXT}}>{text}</div>
   </div>;
@@ -43,7 +43,7 @@ const Link: React.FC<{from: number; to: number; delay: number}> = ({from, to, de
   const {fps} = useVideoConfig();
   const draw = useReveal(delay);
   const x = AREA.width / 2;
-  const end = from + (to - from) * draw;
+  const end = from + (to - from) * Math.min(1, draw);
   // Once drawn, a packet loops down the link (one trip per second).
   const loop = ((frame - delay - 12) / fps) % 1;
   const packet = draw > 0.95 && frame > delay + 12 ? from + (to - from - 14) * loop : null;
