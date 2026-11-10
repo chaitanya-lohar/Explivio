@@ -183,6 +183,11 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-10** — **Email switched to Brevo SMTP** (free, about 300/day). The free domain `explivio.dpdns.org` was registered and added to Cloudflare, but Resend refuses free public domains and Brevo couldn't add it. So the pilot sends from **one verified Brevo sender address** instead.
+  - New `smtp` provider (Nodemailer 10.2.1, port 587 with STARTTLS required, TLS 1.2+), `EMAIL_TRANSPORT=smtp`, `SMTP_HOST/PORT/USER/PASS`, `EMAIL_FROM`; daily guard 250; same queue, templates and retry rules; `npm run email:test`.
+  - Tests 88/88 (3 new); typecheck, lint and build pass.
+  - Vercel (Production + Preview): EMAIL_TRANSPORT, SMTP_HOST, SMTP_PORT and EMAIL_FROM set. Waiting for the user to add SMTP_USER and SMTP_PASS (secrets), then redeploy.
+
 - **2026-11-10** — Scope corrected by the user: **Explivio is a pilot, not a public launch.** It stays at $0; paid services only if we decide to scale later. Milestone renamed to [Pilot open to testers](deployment/NEXT_MILESTONE_PILOT_TESTERS.md): Step 1 email domain (the only blocker), Step 2 two-account tester check, Step 3 merge. Terms/Privacy, monthly cap, backups and F15 moved to optional.
 
 - **2026-11-10** — Next milestone planned: [NEXT_MILESTONE_PUBLIC_LAUNCH.md](deployment/NEXT_MILESTONE_PILOT_TESTERS.md). Part A (F14 completion): email domain, Terms/Privacy, monthly render cap, health and backup, security tidy-up, merge. Part B (F15): full two-account journey, isolation, failure recovery, devices and browsers, data integrity, launch decision.
