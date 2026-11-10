@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **F14: LIVE at https://explivio.vercel.app. Next (paused until 2026-11-10): verify a free email domain in Resend so other users receive email.**
+Last updated: 2026-11-10. **Pilot open to testers: https://explivio.vercel.app. Email works for any address (Brevo SMTP), verified by the user with a second address.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -27,7 +27,7 @@ This file is the concise current status; the newest changelog entries are at the
   - **Production settings:** email sent after each response plus a daily cron; `AUTH_SECRET` required; Vercel's client IP; HSTS; Gemini timeout 90 s.
   - **Tested by you in production:** sign-in → create a video → cloud render → watch → download.
 
-## In progress: email for every user (resume 2026-11-10)
+## Resolved 2026-11-10: email for every user (Brevo SMTP; history below)
 - **Problem:** a sign-up from a second Gmail address got no email (job `failed`). Resend's test sender only delivers to the Resend account owner.
 - **Plan (no code change):**
   1. Get a free DigitalPlat domain (e.g. `explivio.dpdns.org`; one per account).
@@ -182,6 +182,11 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-10** — **Email works for every tester.**
+  - Production deployed with the SMTP provider. The user's dashboard "Redeploy" had rebuilt the old code; the project isn't connected to GitHub, so deploys go through `vercel deploy --prod` from `web/`.
+  - The user received the verification email on a second address. Brevo shows the sender as `explivio <…@…brevosend.com>`: it rewrites free-mail senders to its own domain, which is what lets the email pass DMARC.
+  - The pilot milestone's blocker is resolved.
 
 - **2026-11-10** — **Email switched to Brevo SMTP** (free, about 300/day). The free domain `explivio.dpdns.org` was registered and added to Cloudflare, but Resend refuses free public domains and Brevo couldn't add it. So the pilot sends from **one verified Brevo sender address** instead.
   - New `smtp` provider (Nodemailer 10.2.1, port 587 with STARTTLS required, TLS 1.2+), `EMAIL_TRANSPORT=smtp`, `SMTP_HOST/PORT/USER/PASS`, `EMAIL_FROM`; daily guard 250; same queue, templates and retry rules; `npm run email:test`.
