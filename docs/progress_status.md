@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-09. **F14: LIVE at https://explivio.vercel.app (production, approved by the user). Cloud rendering in Vercel Sandbox, 720p, Kokoro voice, Resend email.**
+Last updated: 2026-11-09. **F14: LIVE at https://explivio.vercel.app. Next (paused until 2026-11-10): verify a free email domain in Resend so other users receive email.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -8,66 +8,51 @@ This file is the concise current status; the newest changelog entries are at the
 | Phase | Status | On `main`? |
 |---|---|---|
 | M1–M7, F1–F4, auth screens, F6, F7, F9 | ✅ Done | Yes |
-| F10: MongoDB Atlas and self-managed auth | ✅ Done (1 closeout item left, yours) | Yes (PR #5) |
-| F11: Cloudflare R2 video storage | ✅ Done, verified on real R2 | Yes (PR #6/#7) |
+| F10: MongoDB Atlas and self-managed auth | ✅ Done (Atlas user now `readWrite@explivio` only) | Yes (PR #5) |
+| F11: Cloudflare R2 video storage | ✅ Done | Yes (PR #6/#7) |
 | F12: auth and authorisation hardening | ✅ Done | Yes (PR #7) |
-| Retest before F13 (43/43, prerender fix) | ✅ Done | Yes (PR #7) |
-| F13: transactional email (Resend, durable queue) | ✅ Done; real delivery verified to your address (other recipients need a domain) | Yes (PR #8) |
-| F14: production readiness | ⬜ Next | — |
+| F13: transactional email (Resend, durable queue) | ✅ Done; delivers to your address only until a domain is verified | Yes (PR #8) |
+| Free voice (Kokoro) | ✅ Done | Yes (PR #9) |
+| **F14: production on Vercel** | ✅ **Live at https://explivio.vercel.app**; email domain pending | **No** (on `dev`; PR to open) |
 | F15: final product validation | ⬜ Planned | — |
 
 ## Completed
-- **M1–M7:** the pipeline (Gemini storyboard → ElevenLabs narration → Remotion render), captions, music, six animated templates. M7 is also called F8.
-- **F1–F4, auth screens, F6, F7, F9:** web app, real pipeline, My Videos, Settings, end-to-end QA.
-- **F10: MongoDB Atlas and authentication** (2026-11-03/04; commits `cc36dad`, `8532210`, `a47976a`, `34cb666`, `d2dce3e`, `9be6dec`).
-  - Self-managed accounts in the `explivio` database, sessions, per-user ownership of videos and settings.
-- **F11: Cloudflare R2 video storage** ✅ (2026-11-05; `0760ca5`, `71c5e8e`, `f2b6ea9`, `f1a35ab`).
-  - New videos upload to the private bucket `explivio-assets` and are verified before they're ready.
-  - Playback streams from R2 with seeking; downloads use 5-minute signed links; Try again re-uploads without re-rendering; a free-tier guard stops uploads at 80%.
-  - Verified: `r2:check` 10/10; browser end-to-end 39/39.
-  - Reports: [architecture](storage/F11_R2_STORAGE_ARCHITECTURE.md), [implementation](storage/F11_R2_IMPLEMENTATION_REPORT.md).
-- **F12: authentication and authorisation hardening** ✅ (2026-11-05; `2cdf66f`, `7cde3d7`, `d5d98c0`, `44199cc`).
-  - **Audit:** 11 findings, one High: the sign-in limit could be bypassed by forging the client address, reproduced on the old code and fixed.
-  - **Fixed:** per-account sign-in limit in durable MongoDB counters; equal-time sign-up and forgot-password; old session revoked on re-sign-in; 256-character password cap; 10 new videos per account per 24 h; secret-free security log; hardening headers; keys file ignored.
-  - Verified: browser end-to-end 36/36.
-  - Reports: [audit](security/F12_SECURITY_AUDIT.md), [implementation](security/F12_SECURITY_IMPLEMENTATION_REPORT.md), [test matrix](security/F12_SECURITY_TEST_MATRIX.md).
-- **Clean-up and retest** (2026-11-05; `8346b9c`, `e752338`).
-  - Every old video deleted at your request; `NODE_ENV` and `APP_ENV` removed from `web/.env.local`.
-  - Full browser regression 43/43, replacing the old F6/F7/F9 suites behind sign-in.
-  - Fixed the "`new Date()` while prerendering" error logged on signed-in pages.
+- **M1–M7, F1–F4, F6, F7, F9:** pipeline (Gemini → narration → Remotion), captions, music, six animated templates; web app, My Videos, Settings, end-to-end QA.
+- **F10–F13:** MongoDB Atlas accounts and sessions; R2 video storage; security hardening; email through a durable queue and Resend. Reports in [storage/](storage/), [security/](security/), [email/](email/).
+- **Free voice (2026-11-08):** Kokoro-82M narration when ElevenLabs is unavailable ([details](voice/FREE_VOICE_IMPLEMENTATION.md)).
+- **F14: production on Vercel (2026-11-09).** [Plan](deployment/F14_PRODUCTION_PLAN.md).
+  - **Hosting:** Vercel Hobby, team `make-my-marriage1`, project `explivio` (root `web/`). Production: https://explivio.vercel.app.
+  - **Rendering:** each video runs in its own temporary Vercel Sandbox, started from the snapshot `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa`; the worker reports progress to MongoDB, uploads to R2 and stops its sandbox. 720p, Kokoro voice.
+  - **Measured:** a 90 s video uses about 387 s of active CPU at 720p (485 s at 1080p), so about 46 such videos per month fit Hobby's free 5 h. When the allowance is used, rendering pauses; nothing is billed.
+  - **Production settings:** email sent after each response plus a daily cron; `AUTH_SECRET` required; Vercel's client IP; HSTS; Gemini timeout 90 s.
+  - **Tested by you in production:** sign-in → create a video → cloud render → watch → download.
 
-## In progress: F13 transactional email (Resend)
-- **Code complete and tested** (2026-11-06; `907db56`, `002f950`):
-  - **Queue and worker:** a durable MongoDB queue (`emailJobs`), sent by a worker inside the server or by `npm run email:worker`.
-  - **Providers:** outbox (default), Resend and test.
-  - **Templates:** responsive HTML and text for verification, reset, password changed and existing account.
-  - **Safety:** link tokens are created at send time (never stored in the queue); uncertain sends are never repeated; at most 90 emails per UTC day (below Resend Free's 100).
-- **Verified:**
-  - web 102/102 with live Atlas (8 email tests, 9 live queue tests);
-  - browser regression 34/34 through the in-server worker;
-  - F12 timing still equal (sign-up 1511 vs 1506 ms);
-  - pipeline 63/63, `r2:check` 10/10; typecheck, lint and build pass.
-- **Pending:**
-  1. ~~Real Resend test~~: ✅ **Real delivery verified 2026-11-06** (your Resend address only): Resend accepted 3 emails (account-exists notice, because the address already had an account; reset link; password changed), you confirmed they arrived, and the queue kept no addresses. Today's count: 3, within the approved 3.
-  2. **Delivery to other users** needs a domain you own (none bought; Resend's testing domain only reaches your own address).
-  3. ~~Merge F13 into `main`~~: ✅ merged through PR #8 (2026-11-06).
-  4. **F14:** keeping the worker running on a production host; delivery webhooks.
-- Reports: [architecture](email/F13_EMAIL_ARCHITECTURE.md), [implementation](email/F13_IMPLEMENTATION_REPORT.md), [setup guide](email/F13_SETUP_GUIDE.md).
+## In progress: email for every user (resume 2026-11-10)
+- **Problem:** a sign-up from a second Gmail address got no email (job `failed`). Resend's test sender only delivers to the Resend account owner.
+- **Plan (no code change):**
+  1. Get a free DigitalPlat domain (e.g. `explivio.dpdns.org`; one per account).
+  2. Manage its DNS in your Cloudflare account (Free plan).
+  3. Add the domain in Resend and copy its 3 records into Cloudflare (MX and SPF TXT on `send`, DKIM TXT on `resend._domainkey`), then verify.
+  4. Set `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`).
+  5. Redeploy and test with a second address.
+- Hold the LinkedIn post until this works.
 
 ## Your open actions
-1. ~~Run the real Resend test~~: ✅ done 2026-11-06.
-2. ~~Open and merge the F13 PR~~: ✅ done (PR #8).
-3. In Atlas, reduce the `explivio_app` user from `atlasAdmin` to `readWrite` on `explivio` (F10 closeout).
-4. ~~Delete the unused `SMTP_PORT` line~~: ✅ done (`EMAIL_TRANSPORT=resend` is now set).
-5. Optional: set a Cloudflare Budget Alert for R2 if you haven't.
+1. **Tomorrow:** the email domain steps above (you're signed in to DigitalPlat).
+2. **Merge `dev` into `main`:** https://github.com/chaitanya-lohar/Explivio/compare/main...dev
+3. **Decide:** delete the 3 test snapshots (about 4 GB, from my test sandboxes; they expire on their own in about 30 days) or let them expire.
+4. Optional: rotate the Atlas user's password to a long random one (update Vercel Production + Preview and `web/.env.local`).
 
 ## Next
-- **Paused at your request (2026-11-06):** the next phase, F14 production readiness, starts later, when you ask. Until then, only your open actions above remain.
+- Email domain (above), then **F14 leftovers:**
+  - Terms of Service and Privacy pages (the sign-up checkbox refers to them);
+  - a monthly render cap with a "paused" message;
+  - `/api/health` and `db:backup`;
+  - a test database user so the 27 live-Atlas tests can run again.
+- Then F15, final product validation.
 
 ## Planned
-- F15: final product validation.
-
-Scope and dependencies: [ROADMAP.md](ROADMAP.md).
+- F15: final product validation. Scope: [ROADMAP.md](ROADMAP.md).
 
 ## Optional backlog
 - ~~Parked: free fallback narration voice~~: **done 2026-11-08**; see the changelog and [FREE_VOICE_IMPLEMENTATION.md](voice/FREE_VOICE_IMPLEMENTATION.md).
@@ -77,38 +62,35 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 - Accessibility (screen-reader) review.
 - Image-generation trial (unapproved); leftover Stitch fixes.
 
-## Current test results (2026-11-06)
+## Current test results (2026-11-09)
 | Suite | Result | When / notes |
 |---|---|---|
-| Web (`web: npm test` with `MONGODB_URI_TEST`) | **102/102** | 2026-11-06 after F13, including live Atlas (offline: 76 pass, 26 skipped) |
-| Pipeline (`npm test`, root) | **63/63** | 2026-11-06 |
-| Real R2 (`npm run r2:check`) | **10/10** | 2026-11-06 |
-| Typecheck, lint, production build | Pass | 2026-11-06 |
-| F13 browser regression (email queue, real Atlas and R2) | **34/34** | 2026-11-06 |
-| Full browser regression (before F13) | **43/43** | 2026-11-05 |
-| F12 browser end-to-end | 36/36 | 2026-11-05 |
-| F11 browser end-to-end | 39/39 | 2026-11-05 |
-| Real Resend delivery | **3/3 accepted and received** | 2026-11-06, your Resend address |
+| Production journey (you, explivio.vercel.app and preview) | **Pass** | 2026-11-09: sign-in, email to your address, 60 s video rendered in the cloud, watched, downloaded |
+| Live production checks | **Pass** | pages 200, `/api/health/db` ok, cron 401 without its secret, HSTS and frame headers |
+| Sandbox render (90 s, fixture storyboard) | **Pass** | 1080p 186 s / 485 s CPU; 720p 150 s / 387 s CPU |
+| Web (`web: npm test`, offline) | **85/85** (27 live tests skipped) | 2026-11-09; the live-Atlas tests need a test user with access to `explivio_test_*` databases |
+| Typecheck, lint, production build | Pass | 2026-11-09 |
+| Pipeline (`npm test`, root) | 68 + 1 skipped | 2026-11-09 |
+| Full browser regression | 43/43 | 2026-11-05 (before F13/F14) |
 
 ## Risks
 | Risk | Impact | Owner | Resolution |
 |---|---|---|---|
-| No email reaches other users until a domain you own is verified in Resend | New users can't verify by email in production | User | Verify a domain later (never bought under the $0 rule); until then the outbox or your own address only |
-| The email worker needs a long-running process | Emails wait in the queue on serverless hosting | Claude (F14) | Separate worker or scheduled run; jobs are durable meanwhile |
-| R2 needs an active Cloudflare subscription; overages bill automatically with no cap | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert; monitor R2 → Metrics |
-| Your public IPv4 address changes often (Jio: 157.48.111.100 → 157.48.86.69 → 157.48.221.175 in 4 days) | Atlas blocked the app ("Accounts are temporarily unavailable") | User (done) | **2026-11-09:** Atlas Network Access now allows the range `157.48.0.0/16`, so changes inside it no longer block. Before Vercel: switch to `0.0.0.0/0` together with a readWrite-only user and a long random password |
-| Atlas user has `atlasAdmin` | Too much access if the URI leaks | User | Reduce to `readWrite` on `explivio` |
-| A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits, or resets the password | User (accepted) | Password reset lifts the lockout |
-| Per-address limits trust a forgeable header until there's a trusted proxy | Best effort only; per-account and global limits carry security | Claude (F14) | Proxy that overwrites `X-Forwarded-For` |
-| Rendered files pile up in `runs/` (no cleanup policy) | Disk growth | Claude (F14) | New videos go to R2; retention policy in F14 |
-| ElevenLabs credits used up (until 2026-11-26) | None for availability: narration falls back to the free Kokoro voice (quality a little lower, +30–40 s per video) | Claude (done) | `NARRATION_PROVIDER=auto` (default); [details](voice/FREE_VOICE_IMPLEMENTATION.md) |
-| Gemini free-tier 429s | Generation fails until the quota resets | User | Retry later; no billing |
-| Render about 2 GB of RAM; free memory dipped to 1.6 GB | Render failures; hosting cost | Claude (F14) | Separate worker; measured sizing |
+| No verified email domain | Other users get no verification email, so they can't sign up | User + Claude | Free DigitalPlat domain + Cloudflare DNS + Resend (2026-11-10) |
+| Emails from a new free domain may go to spam | Users miss the verification email | User | Tell users to check spam; reputation improves with use |
+| Vercel Hobby: 5 h Sandbox CPU per month | About 46 × 90 s videos a month; then rendering pauses until next month | Claude | Monthly cap with a clear "paused" message (to do); never billed |
+| Vercel Hobby is for non-commercial use only | Must not be used commercially | User | Keep it a free, personal project |
+| Atlas reachable from any IP (`0.0.0.0/0`, needed for Vercel) | A leaked URI would be usable from anywhere | User | User limited to `readWrite@explivio`; rotate to a long random password |
+| Atlas M0 has no automatic backups | Data loss on a mistake | Claude | `db:backup` to R2 (to do) |
+| R2 overages bill automatically | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert |
+| Gemini slow (30–50 s per storyboard) or free-tier 429s | Slow or failed plans | User | 90 s timeout with one retry; failed videos can be retried |
+| ElevenLabs credits used up (until 2026-11-26) | None: Kokoro is used on Vercel | — | `NARRATION_PROVIDER=kokoro` in production |
+| A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits or resets the password | User (accepted) | Password reset lifts the lockout |
 | Only Chrome tested | Unknown issues in other browsers | Claude (F15) | Cross-browser pass |
 
 ## Git
 - Work on `dev`; `main` changes only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-- **2026-11-09:** `main` has the same content as `dev` (PRs #5–#9 merged; `main` also holds the PR merge commits, which change no files).
+- **2026-11-09:** `dev` is ahead of `main` with all of F14. Production was deployed from `dev` with the Vercel CLI (the Vercel project isn't connected to GitHub, so merging doesn't deploy).
 
 ## Milestones
 
@@ -158,11 +140,10 @@ Scope and dependencies: [ROADMAP.md](ROADMAP.md).
 - **Gemini 3.8 Flash is hanging (2026-11-01):** `gemini-3.8-flash` (and 3.7, flash-latest) didn't respond, even to a one-word prompt, while `gemini-3.6-flash` answered in about 2s. The pipeline now falls back to 3.6 on timeouts, but the wait cost about 170s per video. Recommended: set `GEMINI_MODEL=gemini-3.6-flash` in the root `.env` until 3.8 recovers.
 - **Generic video visuals are basic:** topics other than the rain and photosynthesis demos get a neutral background and storyboard-based step cards. That's correct but plain, with no illustrations. Before 2026-11-01 they wrongly reused the rain photo and rain text. Reusable visual templates (M3) are the fix.
 - **Captions-off and music-off renders not yet visually checked:** the flags are wired and verified in the render input; the real test used captions on and music on.
-- **One video at a time:** rendering is CPU-heavy on this machine. Restarting the web server while a video renders loses its live process tracking. The render continues, and a run silent for 15 minutes is marked failed.
+- **One video at a time:** across the whole app (local or cloud), by design, to protect the free render allowance. A run silent for 15 minutes is marked failed.
 
-- **Terms and Privacy pages missing:** the sign-up terms checkbox refers to a Terms of Service and Privacy Policy that don't exist yet. (Real authentication has existed since F10.)
-- **Email:** the outbox stays the default. With `EMAIL_TRANSPORT=resend`, Resend Free delivers **only to your Resend account address** until a domain you own is verified (F13).
-- **Video files are local only:** `runs/` on this laptop; there's no R2 integration yet (F11).
+- **Terms and Privacy pages missing:** the sign-up terms checkbox refers to a Terms of Service and Privacy Policy that don't exist yet.
+- **Email:** Resend Free delivers **only to your Resend account address** until a domain is verified (in progress, see top).
 
 - **Indian-English voice unavailable:** ElevenLabs returns HTTP 402 for library voices through the API on the free plan. Set `ELEVENLABS_NARRATOR_VOICE_ID` after upgrading.
 - **ElevenLabs credits:** free plan, 10,000 characters per month. Each API video render uses about 700.
@@ -194,12 +175,14 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Next steps
 
-1. Your open actions (top of this file): the real Resend test, the F13 PR, and the Atlas role.
-2. **F14: production readiness**, paused until you ask; then F15 ([ROADMAP.md](ROADMAP.md)).
-3. Optional backlog, without delaying the above.
-4. Merge `dev` into `main` through a PR after each reviewed phase.
+1. **2026-11-10:** email domain (DigitalPlat → Cloudflare → Resend), then test sign-up from a second address.
+2. F14 leftovers: Terms/Privacy, monthly render cap, health and backup, test database user.
+3. Merge `dev` into `main` (PR), then F15.
+4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-09** — Production tested; a sign-up from a second Gmail address got no email: the job is `failed` because Resend's test sender only delivers to the account owner. **Plan for 2026-11-10:** free DigitalPlat domain (e.g. `explivio.dpdns.org`, 1 free domain per account) → DNS in the existing Cloudflare account (Free plan, nameservers set at DigitalPlat) → add the domain in Resend and copy its 3 records (MX `send`, SPF TXT `send`, DKIM TXT `resend._domainkey`) into Cloudflare → verify → change `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`) → redeploy → test with a second address. No code change needed. Hold the LinkedIn post until then. Also pending: 3 test snapshots (about 4 GB, expire in about 30 days) and a PR from dev to main.
 
 - **2026-11-09** — **Production deployment approved and done: https://explivio.vercel.app.** All 18 variables set for Production (the user added the secrets; new AUTH_SECRET and CRON_SECRET for production). Checked live: pages 200, `/api/health/db` ok, cron rejects unauthenticated calls (401), HSTS and frame headers present, no startup warnings. Known limit: until a domain is verified in Resend, only the Resend account owner's address receives email (user chose to leave this for now). Still open: Terms and Privacy pages, monthly render cap, backups, cleanup of 3 test snapshots.
 
