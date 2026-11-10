@@ -183,6 +183,13 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-10** — **Delete videos** (requested before tester sharing).
+  - A Delete button with an in-app confirmation on gallery cards, list rows, the video page and the failed-video screen; hidden while a video is being made.
+  - The server checks ownership (others get not found), refuses while generating or uploading, deletes the R2 object (or local run folder) first, then the record.
+  - The generation attempt is kept with its title cleared, so deleting doesn't bypass the daily limit.
+  - Tests: 3 new; web 91/91 in 3 of 4 full runs. One run failed 9 older pipeline tests (sub-millisecond, likely timing under load; delete tests passed) and is being watched.
+  - Typecheck, lint and build pass. Preview deployed for the user's check; production after approval.
+
 - **2026-11-10** — **Cost check: $0.**
   - Vercel: Hobby, no subscription, no invoices. Sandbox CPU 25 of 300 min this month.
   - Atlas: about 0.8 MB used. R2: 13.7 MB of 10 GB. Brevo: within the free plan.
