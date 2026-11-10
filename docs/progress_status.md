@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-10. **Pilot open to testers: https://explivio.vercel.app. Email works for any address (Brevo SMTP), verified by the user with a second address.**
+Last updated: 2026-11-10. **Pilot live at https://explivio.vercel.app ($0): email via Brevo, delete videos, topic-based themes and motion. Next (2026-11-11): cover frame + real thumbnails, then stock photos in videos (Pixabay).**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -44,6 +44,7 @@ This file is the concise current status; the newest changelog entries are at the
 4. Optional: rotate the Atlas user's password to a long random one (update Vercel Production + Preview and `web/.env.local`).
 
 ## Next
+- **2026-11-11:** (1) cover frame + real thumbnails; (2) Pixabay photos in videos (needs `PIXABAY_API_KEY`); then prompt suggestions and "Polish my prompt" (Gemini).
 - **Milestone plan: [Pilot open to testers](deployment/NEXT_MILESTONE_PILOT_TESTERS.md).** Explivio is a $0 pilot, not a public launch; the only blocker is email for testers.
 - Email domain (above), then **F14 leftovers:**
   - Terms of Service and Privacy pages (the sign-up checkbox refers to them);
@@ -182,6 +183,17 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-10** — **User feedback on the first themed video and next steps (paused until 2026-11-11).**
+  - Confirmed working in production: "how raining cycle work" rendered in the Clean (white) theme; ↻ draws correctly.
+  - Feedback: (1) no thumbnail for the video; (2) the video looks basic, like slides (no images).
+  - Diagnosis: the gallery thumbnail is the frame at 1 s, which is now almost empty (heading still building, diagram not yet shown); the first frame is just background.
+  - Plan:
+    - (1) **Cover frame and real thumbnails:** heading and topic fully visible from frame 0; a thumbnail image saved with each video in R2 and used in My Videos and as the player poster. No key needed.
+    - (2) **Stock photos per scene:** Gemini gives search words per scene; a portrait photo is shown full-screen with a slow zoom and pan, with the heading and a compact diagram on a glass card; fallback to the themed background; "Images: Pixabay" credit. Photos first; video clips later only if render cost allows (about 46 videos/month today).
+  - Image source: Pexels has paused new API keys. **Pixabay** recommended (free key, 100 requests/min, licence allows use in videos; download, don't hotlink; cache 24 h; terms to be checked in the official docs). Openverse as fallback (no key, per-image CC licences).
+  - **User action:** create a Pixabay account, get the API key at pixabay.com/api/docs, add `PIXABAY_API_KEY` to the root `.env` and Vercel (Production + Preview).
+  - Snapshots: production `snap_KnH9KGQeGOBVWDJHtei3prT8suqd`. Kept for rollback: `snap_E75tzhxZwyIhNbqD1IYTR6JGF7NF` (has the theme bug) and `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` (pre-themes). About 7 of 15 GB.
 
 - **2026-11-10** — **Fix: the first themed video was still dark, and symbols showed as boxes.**
   - The theme was chosen from the title plus the learning objective, with the tech rules first. A water-cycle objective mentions "clouds", which matched the tech word "cloud". Now the title decides first (the objective only when the title matches nothing), and the tech rule says "cloud computing". Regression tests added.
