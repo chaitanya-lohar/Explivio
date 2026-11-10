@@ -159,6 +159,8 @@ export interface GenerationAttemptDoc {
   startedAt?: Date | null;
   /** The storyboard's title, once Gemini has written it. */
   title?: string | null;
+  /** Set when the user deleted the video; the attempt stays so the daily limit still counts it. */
+  deletedAt?: Date;
   actualDurationSeconds?: number | null;
   /** Where the render runs: "local" (this computer) or "sandbox" (Vercel Sandbox). */
   dispatch?: "local" | "sandbox";

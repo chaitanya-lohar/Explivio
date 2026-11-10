@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { formatDate, formatLength } from "@/lib/format";
 import type { VideoProject } from "@/types/video";
 import { VideoPlaceholder, VideoPlayer } from "./video-player";
+import { DeleteVideoButton } from "./delete-video-button";
 import { VideoStatusBadge } from "./video-status-badge";
 
 /** Video ready / expired details. Generating and failed videos are shown on the progress screen instead. */
@@ -86,6 +87,7 @@ export function VideoDetail({ video }: { video: VideoProject }) {
                 My Videos
               </Link>
             </div>
+            <DeleteVideoButton videoId={video.id} title={video.title} afterDelete="library" fullWidth />
           </div>
         </Card>
       </div>

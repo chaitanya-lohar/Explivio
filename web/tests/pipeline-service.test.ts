@@ -454,3 +454,37 @@ test("F14: Try again works from MongoDB alone (no run folder) and reuses the sav
   assert.deepEqual(call?.args.filter((a: string) => !a.startsWith("--prompt-file")), ["--duration", "60", "--voice=female", `--run-id=${retried!.id}`]);
   await settle(retried!.id);
 });
+
+// ---- Delete (2026-11-10): owner only, not while generating, file (R2 / local) and record removed, limit unaffected ----
+
+test("delete: a failed video is removed with its run folder; another user can't delete it; the daily count is unchanged", async () => {
+  const v = await service.createVideo(request("Explain glaciers [fail-render]"), A);
+  assert.equal((await settle(v.id)).status, "failed");
+  const countBefore = await owners.countGenerationsSince(A, new Date(Date.now() - 86_400_000));
+  assert.equal(await service.deleteVideo(v.id, B), "not_found", "B can't delete A's video");
+  assert.equal(await service.deleteVideo(v.id, A), "deleted");
+  assert.equal(existsSync(path.join(root, "runs", v.id)), false, "run folder removed");
+  assert.equal(await service.getVideo(v.id, A), null);
+  assert.ok(!(await service.listVideos(A)).some((x) => x.id === v.id), "gone from My Videos");
+  assert.equal(await owners.countGenerationsSince(A, new Date(Date.now() - 86_400_000)), countBefore, "deleting doesn't give extra renders");
+  assert.equal(await service.deleteVideo(v.id, A), "not_found", "deleting twice is harmless");
+});
+
+test("delete: refused while the video is still being made", async () => {
+  const v = await service.createVideo(request("Explain volcanoes [ok]"), A);
+  assert.equal(await service.deleteVideo(v.id, A), "busy");
+  assert.equal((await settle(v.id)).status, "ready");
+  assert.equal(await service.deleteVideo(v.id, A), "deleted");
+});
+
+test("delete: a cloud video's R2 object is deleted too", async () => {
+  await withStore(async (store) => {
+    const v = await service.createVideo(request("Explain comets [ok]"), A);
+    assert.equal((await settle(v.id)).status, "ready");
+    const s = storageOf(v.id);
+    assert.ok(s?.kind === "r2" && store.objects.has(s.key));
+    assert.equal(await service.deleteVideo(v.id, A), "deleted");
+    assert.equal(s.kind === "r2" && store.objects.has(s.key), false, "R2 object deleted");
+    assert.equal(await service.getVideoSource(v.id, A), null);
+  });
+});

@@ -5,6 +5,7 @@ import { formatDate, formatVideoLength } from "@/lib/format";
 import { videoHref } from "@/lib/routes";
 import type { VideoProject } from "@/types/video";
 import { isPlayable, openLabel, unavailableNote } from "./video-card";
+import { DeleteVideoButton } from "./delete-video-button";
 import { VideoPreviewButton } from "./video-preview-button";
 import { VideoStatusBadge } from "./video-status-badge";
 import { VideoThumbnail } from "./video-thumbnail";
@@ -54,6 +55,7 @@ export function VideoListItem({ video }: { video: VideoProject }) {
               </a>
             </>
           ) : null}
+          {video.status !== "generating" ? <DeleteVideoButton videoId={video.id} title={video.title} compact /> : null}
         </div>
       </div>
     </div>
