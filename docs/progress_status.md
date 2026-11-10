@@ -183,6 +183,11 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-10** — **Themes and motion deployed to production.**
+  - New Sandbox snapshot `snap_E75tzhxZwyIhNbqD1IYTR6JGF7NF` (built in 87 s), set as `SANDBOX_SNAPSHOT_ID` in Vercel Production and Preview; production redeployed. Health ok.
+  - Measured, 90 s video at 720p in the Sandbox: 146 s wall, **362 s active CPU** (before: 387 s), so no extra cost; about 46–49 such videos per month.
+  - The previous snapshot `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` is kept for rollback (2.3 GB; total 4.6 of 15 GB).
+
 - **2026-11-10** — **Video themes and motion upgrade** (code done; samples awaiting the user's review; cloud snapshot not rebuilt yet).
   - **Four themes chosen automatically from the topic:** Midnight (tech, space), Clean (science, nature, health), Paper (history, ideas, economics) and Vibrant (everything else). `--theme=` forces one for testing; `manifest.theme` records it.
   - **Motion:**
