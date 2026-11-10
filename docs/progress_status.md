@@ -35,7 +35,7 @@ This file is the concise current status; the newest changelog entries are at the
   3. Add the domain in Resend and copy its 3 records into Cloudflare (MX and SPF TXT on `send`, DKIM TXT on `resend._domainkey`), then verify.
   4. Set `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`).
   5. Redeploy and test with a second address.
-- Hold the LinkedIn post until this works.
+- Explivio is a **pilot** (not a public launch): the goal is that other people can sign up and test it, at $0.
 
 ## Your open actions
 1. **Tomorrow:** the email domain steps above (you're signed in to DigitalPlat).
@@ -44,7 +44,7 @@ This file is the concise current status; the newest changelog entries are at the
 4. Optional: rotate the Atlas user's password to a long random one (update Vercel Production + Preview and `web/.env.local`).
 
 ## Next
-- **Milestone plan: [Public launch (finish F14, then F15)](deployment/NEXT_MILESTONE_PUBLIC_LAUNCH.md)**, 12 steps with owners and done criteria.
+- **Milestone plan: [Pilot open to testers](deployment/NEXT_MILESTONE_PILOT_TESTERS.md).** Explivio is a $0 pilot, not a public launch; the only blocker is email for testers.
 - Email domain (above), then **F14 leftovers:**
   - Terms of Service and Privacy pages (the sign-up checkbox refers to them);
   - a monthly render cap with a "paused" message;
@@ -183,7 +183,9 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
-- **2026-11-10** — Next milestone planned: [NEXT_MILESTONE_PUBLIC_LAUNCH.md](deployment/NEXT_MILESTONE_PUBLIC_LAUNCH.md). Part A (F14 completion): email domain, Terms/Privacy, monthly render cap, health and backup, security tidy-up, merge. Part B (F15): full two-account journey, isolation, failure recovery, devices and browsers, data integrity, launch decision.
+- **2026-11-10** — Scope corrected by the user: **Explivio is a pilot, not a public launch.** It stays at $0; paid services only if we decide to scale later. Milestone renamed to [Pilot open to testers](deployment/NEXT_MILESTONE_PILOT_TESTERS.md): Step 1 email domain (the only blocker), Step 2 two-account tester check, Step 3 merge. Terms/Privacy, monthly cap, backups and F15 moved to optional.
+
+- **2026-11-10** — Next milestone planned: [NEXT_MILESTONE_PUBLIC_LAUNCH.md](deployment/NEXT_MILESTONE_PILOT_TESTERS.md). Part A (F14 completion): email domain, Terms/Privacy, monthly render cap, health and backup, security tidy-up, merge. Part B (F15): full two-account journey, isolation, failure recovery, devices and browsers, data integrity, launch decision.
 
 - **2026-11-09** — Production tested; a sign-up from a second Gmail address got no email: the job is `failed` because Resend's test sender only delivers to the account owner. **Plan for 2026-11-10:** free DigitalPlat domain (e.g. `explivio.dpdns.org`, 1 free domain per account) → DNS in the existing Cloudflare account (Free plan, nameservers set at DigitalPlat) → add the domain in Resend and copy its 3 records (MX `send`, SPF TXT `send`, DKIM TXT `resend._domainkey`) into Cloudflare → verify → change `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`) → redeploy → test with a second address. No code change needed. Hold the LinkedIn post until then. Also pending: 3 test snapshots (about 4 GB, expire in about 30 days) and a PR from dev to main.
 
