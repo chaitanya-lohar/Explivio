@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-10. **Pilot live at https://explivio.vercel.app ($0): email via Brevo, delete videos, topic-based themes and motion. Next (2026-11-11): cover frame + real thumbnails, then stock photos in videos (Pixabay).**
+Last updated: 2026-11-11. **Pilot live at https://explivio.vercel.app ($0): always the light Clean theme, icons + scene illustrations + varied transitions, thumbnails, "Improve my prompt", Brevo email, delete videos.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -183,6 +183,12 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-11** — **Deployed (approved by the user): graphics upgrade, always-Clean theme, "Improve my prompt".**
+  - At the user's request all old snapshots were deleted, production's last (after the switch, so rendering never broke).
+  - Only `snap_2qMMww5Zro50ElMp2MPlPwJccpP2` remains (2.3 of 15 GB), set in Vercel Production + Preview; production redeployed; login 200, health ok.
+  - Verified on this snapshot: a 90 s render at 720p succeeded in the Clean theme (533 s CPU this run; today's range 373–533 s, so about 34–48 videos/month).
+  - Rule from now on: after each successful switch, delete the superseded snapshot.
 
 - **2026-11-11** — **Clean theme always; "Improve my prompt"; snapshot storage full.**
   - **Always the Clean (light) theme** (user decision after the sample): topic-based choice removed; other palettes only via `--theme` for tests.
