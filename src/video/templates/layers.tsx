@@ -2,7 +2,7 @@ import React from 'react';
 import {useCurrentFrame} from 'remotion';
 import type {Visual} from '../../schemas/visual';
 import {label as shortLabel} from '../../pipeline/visual-plan';
-import {AREA, INK, MUTED, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, CARD, SHADOW, HILITE} from './shared';
+import {AREA, INK, MUTED, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, CARD, SHADOW, HILITE, ItemIcon} from './shared';
 
 type Layers = Extract<Visual, {template: 'layers'}>;
 
@@ -46,6 +46,7 @@ const Band: React.FC<{index: number; count: number; text: string; note?: string;
   const color = layerColor(index, count);
   return <div style={{position: 'relative', height, display: 'flex', alignItems: 'center', gap: 22, padding: '0 30px', borderRadius: 22, overflow: 'hidden', background: `linear-gradient(90deg, ${color}55, ${color}22)`, border: `3px solid ${active ? HILITE : color}`, boxShadow: active ? `0 0 44px ${color}88` : SHADOW, opacity: reveal, transform: `translateX(${(1 - reveal) * (index % 2 ? 60 : -60)}px) scale(${active ? 1.02 : 1})`}}>
     <div style={{flex: '0 0 auto', width: 14, alignSelf: 'stretch', margin: '18px 0', borderRadius: 7, background: color}} />
+    <ItemIcon label={text} size={height > 110 ? 48 : 40} color={color} reveal={reveal} />
     <div style={{minWidth: 0}}>
       <div style={{fontSize: height > 110 ? 40 : 34, fontWeight: 800, lineHeight: 1.1, color: TEXT}}>{shortLabel(text, 30)}</div>
       {note && height > 96 ? <div style={{marginTop: 6, fontSize: 26, lineHeight: 1.2, color: MUTED}}>{shortLabel(note, 48)}</div> : null}

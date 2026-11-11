@@ -1,7 +1,7 @@
 import React from 'react';
 import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import type {Visual} from '../../schemas/visual';
-import {AREA, BORDER, CARD, MUTED, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, SHADOW} from './shared';
+import {AREA, BORDER, CARD, MUTED, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, SHADOW, ItemIcon} from './shared';
 
 type Flow = Extract<Visual, {template: 'flow'}>;
 
@@ -32,7 +32,7 @@ const Node: React.FC<{text: string; index: number; count: number; top: number; h
   const reveal = useReveal(delay);
   const edge = index === 0 ? VIOLET : index === count - 1 ? TEAL : BORDER;
   return <div style={{position: 'absolute', left: 150, width: 640, top, height, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 22, padding: '0 34px', borderRadius: height / 2, background: active ? `${primaryAlpha(.22)}` : CARD, border: `3px solid ${active ? VIOLET : edge}`, boxShadow: active ? `0 0 46px ${primaryAlpha(.38)}` : SHADOW, opacity: reveal, transform: `scale(${0.88 + reveal * 0.12})`}}>
-    <div style={{flex: '0 0 auto', width: 22, height: 22, borderRadius: 11, background: index === count - 1 ? TEAL : VIOLET}} />
+    <ItemIcon label={text} size={height > 100 ? 46 : 38} color={index === count - 1 ? TEAL : VIOLET} reveal={reveal} fallback={<div style={{flex: '0 0 auto', width: 22, height: 22, borderRadius: 11, background: index === count - 1 ? TEAL : VIOLET}} />} />
     <div style={{fontSize: height > 100 ? 38 : 32, lineHeight: 1.15, fontWeight: 700, color: TEXT}}>{text}</div>
   </div>;
 };

@@ -17,7 +17,7 @@ const INCLUDE = [
   "web/package.json", "web/package-lock.json", "web/tsconfig.json", "web/src", "web/scripts",
 ];
 // Chrome headless shell needs these on Ubuntu (Remotion's documented list; 24.04+ renamed libasound2 to libasound2t64).
-const APT = "libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 fonts-liberation fonts-dejavu-core";
+const APT = "libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 fonts-liberation fonts-dejavu-core fonts-noto-color-emoji";
 
 const t0 = Date.now();
 const step = (label: string) => console.log(`[${((Date.now() - t0) / 1000).toFixed(0).padStart(4)} s] ${label}`);

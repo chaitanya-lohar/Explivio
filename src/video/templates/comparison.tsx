@@ -1,6 +1,6 @@
 import React from 'react';
 import type {Visual} from '../../schemas/visual';
-import {CARD, INK, MUTED, TEAL, TEXT, VIOLET, WARM, delayFor, useReveal, type TemplateProps, SHADOW} from './shared';
+import {CARD, INK, MUTED, TEAL, TEXT, VIOLET, WARM, delayFor, useReveal, type TemplateProps, SHADOW, ItemIcon} from './shared';
 
 type Comparison = Extract<Visual, {template: 'comparison'}>;
 
@@ -35,7 +35,7 @@ export const ComparisonTemplate: React.FC<TemplateProps<Comparison>> = ({visual,
 const Column: React.FC<{title: string; points: string[]; delays: number[]; color: string; from: number; tall: boolean}> = ({title, points, delays, color, from, tall}) => {
   const reveal = useReveal(delays[0]);
   return <div style={{flex: 1, minWidth: 0, minHeight: tall ? 340 : 0, display: 'flex', flexDirection: 'column', borderRadius: 30, background: CARD, border: `3px solid ${color}`, overflow: 'hidden', opacity: reveal, transform: `translateX(${(1 - reveal) * from}px)`}}>
-    <div style={{flex: tall ? 1 : '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '28px 24px', background: tall ? 'transparent' : `${color}2e`, fontSize: 40, fontWeight: 800, lineHeight: 1.15, color: TEXT}}>{title}</div>
+    <div style={{flex: tall ? 1 : '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '28px 24px', background: tall ? 'transparent' : `${color}2e`, fontSize: 40, fontWeight: 800, lineHeight: 1.15, color: TEXT, gap: 14, flexDirection: tall ? 'column' : 'row'}}><ItemIcon label={title} size={tall ? 72 : 44} color={color} reveal={reveal} />{title}</div>
     {points.length ? <div style={{display: 'flex', flexDirection: 'column', gap: 18, padding: '26px 24px 30px'}}>
       {points.map((point, i) => <Point key={i} text={point} delay={delays[i + 1]} color={color} />)}
     </div> : null}

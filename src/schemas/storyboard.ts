@@ -11,6 +11,8 @@ export const SceneSchema = z.object({
   key_elements: z.array(z.string()).default([]),
   estimated_duration_seconds: z.number().positive(),
   caption_text: z.string().optional(),
+  // One emoji that pictures the scene (2026-11-11), shown as its illustration. Optional; an invalid value is ignored.
+  emoji: z.string().max(16).optional().catch(undefined),
   // Storyboard v2 (optional): template + data, validated separately in pipeline/visual-plan so a bad scene falls back.
   visual: z.unknown().optional()
 });

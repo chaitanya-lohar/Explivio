@@ -5,10 +5,12 @@ import type {VideoProps} from './video.js';
 import {sceneFramesFromStarts} from '../pipeline/scene-timing';
 import {ConceptVisual, type SceneTiming} from './concept-visual';
 import {PALETTES, chooseTheme, isThemeName, tint, type Palette} from './theme';
+import {emojiFor} from './concepts';
 import {setActivePalette} from './templates/shared';
 
 type Scene = Storyboard['scenes'][number];
 const TRANSITION = 16;
+const TRANSITIONS = ['circle', 'zoom', 'wipe', 'slide'] as const;
 /** Animations of the first heading/header start this many frames "before" frame 0, so frame 0 is a finished cover. */
 const COVER_SETTLED = -45;
 const photosynthesisSteps = [
@@ -142,7 +144,13 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
   const intro = spring({frame, fps, config: {damping: 22, stiffness: 110, mass: 0.8}});
   const xShift = index % 2 === 0 ? -1.6 : 1.6;
   const opacity = Math.min(1, enter) * leave;
-  const sceneTransform = `translateX(${(1 - Math.min(1, enter)) * 90 * fromSide}px) translateY(${(1 - leave) * -18}px) scale(${(0.94 + 0.06 * Math.min(1, enter)) * (1 + (1 - leave) * 0.03)})`;
+  // A different entrance per scene (slide, circle reveal, zoom-through, wipe), so changes don't feel repetitive.
+  const kind = isFirst || themed ? 'slide' : TRANSITIONS[(index - 1) % TRANSITIONS.length];
+  const p = Math.min(1, enter);
+  const leaveMove = `translateY(${(1 - leave) * -18}px) scale(${1 + (1 - leave) * 0.03})`;
+  const sceneTransform = kind === 'zoom' ? `scale(${1.22 - 0.22 * p}) ${leaveMove}` : kind === 'slide' ? `translateX(${(1 - p) * 90 * fromSide}px) scale(${0.94 + 0.06 * p}) ${leaveMove}` : leaveMove;
+  const clipPath = kind === 'circle' && p < 1 ? `circle(${p * 120}% at 50% 45%)` : kind === 'wipe' && p < 1 ? `inset(0 ${(1 - p) * 100}% 0 0 round 0 40px 40px 0)` : undefined;
+  const sceneOpacity = kind === 'circle' || kind === 'wipe' ? leave : opacity;
   // A slow camera push-in on the diagram for the whole scene.
   const camera = 1 + frameProgress * 0.035;
   const calloutDelay = Math.round(fps * 0.2);
@@ -151,7 +159,7 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
   const muted = themed ? 'rgba(248,245,236,.64)' : palette.muted;
   const heading = scene.on_screen_text.replace(/\s*->\s*/g, ' → ');
   const bar = spring({frame: frame - (isFirst ? COVER_SETTLED : TRANSITION + 8), fps, config: {damping: 20, stiffness: 90}});
-  return <AbsoluteFill style={{opacity, overflow: 'hidden', color: text, transform: sceneTransform}}>
+  return <AbsoluteFill style={{opacity: sceneOpacity, overflow: 'hidden', color: text, transform: sceneTransform, clipPath}}>
     {image ? <>
       <Img src={staticFile(image)} style={{width: '100%', height: '100%', objectFit: 'cover', transform: `translateX(${xShift * frameProgress}%) scale(${1.035 + frameProgress * 0.055})`, filter: 'saturate(0.91) contrast(1.04)'}} />
       <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(4,12,19,.74) 0%, rgba(4,12,19,.30) 28%, rgba(4,12,19,.10) 46%, rgba(4,12,19,.50) 70%, rgba(3,9,14,.94) 100%)'}} />
@@ -159,9 +167,10 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
     </> : null}
 
     {themed ? <Header section={section} topic={topic} accent={accent} color={text} reveal={intro} /> : null}
+    {themed ? null : <SceneEmoji emoji={emojiFor(scene.emoji, scene.on_screen_text, scene.narration_text, topic)} startFrame={isFirst ? COVER_SETTLED : TRANSITION + 6} palette={palette} />}
     <div style={{position: 'absolute', top: 155, left: 78, right: 78}}>
       <div style={{height: 23}} />
-      <KineticHeading startFrame={isFirst ? COVER_SETTLED : TRANSITION + 2} text={heading} font={themed ? 'Georgia, serif' : palette.headingFont} color={text} shadow={themed || palette.name === 'midnight' ? '0 3px 32px rgba(0,0,0,.42)' : 'none'} />
+      <KineticHeading maxWidth={themed ? 920 : 720} startFrame={isFirst ? COVER_SETTLED : TRANSITION + 2} text={heading} font={themed ? 'Georgia, serif' : palette.headingFont} color={text} shadow={themed || palette.name === 'midnight' ? '0 3px 32px rgba(0,0,0,.42)' : 'none'} />
       <div style={{width: 120 * Math.min(1, bar), height: 6, marginTop: 26, background: warm, borderRadius: 4}} />
     </div>
 
@@ -215,12 +224,30 @@ const FixedFooter: React.FC<{starts: number[]; accent: string; palette: Palette}
   return <Footer label="A SHORT EXPLAINER" index={index} total={starts.length} accent={accent} color={palette.muted} dot={tint(palette.text, 0.35)} />;
 };
 
+/**
+ * The scene's illustration: a big emoji in a soft theme-coloured disc beside the heading. It pops in (bounce and a
+ * little spin), then floats gently; the disc pulses slowly. Uses Noto Color Emoji in the cloud renderer.
+ */
+const SceneEmoji: React.FC<{emoji: string; startFrame: number; palette: Palette}> = ({emoji, startFrame, palette}) => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const pop = spring({frame: frame - startFrame, fps, config: {damping: 9, stiffness: 120, mass: 0.7}});
+  const t = frame / fps;
+  const float = Math.sin(t * 1.6) * 10;
+  const tilt = Math.sin(t * 1.1) * 5 + (1 - Math.min(1, pop)) * -30;
+  const pulse = 1 + Math.sin(t * 2.2) * 0.04;
+  return <div style={{position: 'absolute', top: 178, right: 62, width: 210, height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: Math.min(1, pop * 1.4), transform: `translateY(${float}px) scale(${pop})`}}>
+    <div style={{position: 'absolute', inset: 0, borderRadius: '50%', background: `radial-gradient(circle at 40% 35%, ${tint(palette.primary, 0.28)}, ${tint(palette.secondary, 0.12)} 70%, transparent 72%)`, transform: `scale(${pulse})`}} />
+    <div style={{fontSize: 130, lineHeight: 1, fontFamily: '"Noto Color Emoji", "Segoe UI Emoji", "Apple Color Emoji", sans-serif', transform: `rotate(${tilt}deg)`, filter: 'drop-shadow(0 10px 18px rgba(0,0,0,.22))'}}>{emoji}</div>
+  </div>;
+};
+
 /** The scene heading, word by word: each word springs up into place a moment after the previous one. */
-const KineticHeading: React.FC<{startFrame: number; text: string; font: string; color: string; shadow: string}> = ({startFrame, text, font, color, shadow}) => {
+const KineticHeading: React.FC<{maxWidth: number; startFrame: number; text: string; font: string; color: string; shadow: string}> = ({maxWidth, startFrame, text, font, color, shadow}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const words = text.split(/\s+/).filter(Boolean);
-  return <div style={{fontFamily: font, fontSize: text.length > 48 ? 58 : 72, lineHeight: 1.08, fontWeight: 800, marginTop: 22, maxWidth: 920, color, textShadow: shadow, display: 'flex', flexWrap: 'wrap', columnGap: '0.26em'}}>
+  return <div style={{fontFamily: font, fontSize: text.length > 40 ? 58 : 72, lineHeight: 1.08, fontWeight: 800, marginTop: 22, maxWidth, color, textShadow: shadow, display: 'flex', flexWrap: 'wrap', columnGap: '0.26em'}}>
     {words.map((word, i) => {
       const s = spring({frame: frame - startFrame - i * 3, fps, config: {damping: 14, stiffness: 150, mass: 0.6}});
       return <span key={i} style={{display: 'inline-block', opacity: Math.min(1, s), transform: `translateY(${(1 - s) * 34}px)`}}>{word}</span>;

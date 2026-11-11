@@ -1,7 +1,7 @@
 import React from 'react';
 import {interpolate, useCurrentFrame} from 'remotion';
 import type {Visual} from '../../schemas/visual';
-import {BORDER, CARD, INK, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, secondaryAlpha, MUTED, SHADOW} from './shared';
+import {BORDER, CARD, INK, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, secondaryAlpha, MUTED, SHADOW, ItemIcon} from './shared';
 
 /* The four M6 layouts, now fed by the v2 format. Without narration timings they animate exactly as in M6. */
 
@@ -25,6 +25,7 @@ const Step: React.FC<{index: number; delay: number; text: string; active: boolea
   return <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', opacity: reveal, transform: `translateY(${(1 - reveal) * 24}px)`}}>
     <div style={{display: 'flex', alignItems: 'center', gap: 26, width: '100%', padding: '24px 30px', borderRadius: 26, background: active ? `${primaryAlpha(.22)}` : CARD, border: `2px solid ${active ? VIOLET : BORDER}`, boxShadow: active ? `0 0 50px ${primaryAlpha(.35)}` : SHADOW}}>
       <div style={{flex: '0 0 auto', width: 64, height: 64, borderRadius: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800, color: INK, background: done ? TEAL : active ? VIOLET : MUTED}}>{done ? '✓' : index + 1}</div>
+      <ItemIcon label={text} size={44} color={active ? VIOLET : TEAL} reveal={reveal} />
       <div style={{fontSize: 38, lineHeight: 1.2, fontWeight: 700, color: TEXT}}>{text}</div>
     </div>
     {last ? null : <div style={{width: 6, height: 46, background: `linear-gradient(${done || active ? VIOLET : BORDER}, ${done ? TEAL : BORDER})`, borderRadius: 3}} />}
@@ -58,7 +59,7 @@ const Spoke: React.FC<{delay: number; x2: number; y2: number}> = ({delay, x2, y2
 
 const Satellite: React.FC<{delay: number; text: string; x: number; y: number}> = ({delay, text, x, y}) => {
   const reveal = useReveal(delay);
-  return <div style={{position: 'absolute', left: x - 170, top: y - 70, width: 340, minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '18px 22px', boxSizing: 'border-box', borderRadius: 24, background: CARD, border: `2px solid ${TEAL}`, fontSize: 32, fontWeight: 700, lineHeight: 1.2, color: TEXT, opacity: reveal, transform: `scale(${0.8 + reveal * 0.2})`}}>{text}</div>;
+  return <div style={{position: 'absolute', left: x - 170, top: y - 70, width: 340, minHeight: 140, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '18px 22px', boxSizing: 'border-box', borderRadius: 24, background: CARD, border: `2px solid ${TEAL}`, fontSize: 32, fontWeight: 700, lineHeight: 1.2, color: TEXT, opacity: reveal, transform: `scale(${0.8 + reveal * 0.2})`}}><ItemIcon label={text} size={46} color={TEAL} reveal={reveal} />{text}</div>;
 };
 
 export const Checklist: React.FC<TemplateProps<Of<'checklist'>>> = ({visual, reveal}) => {
@@ -73,6 +74,7 @@ const CheckRow: React.FC<{delay: number; text: string}> = ({delay, text}) => {
   const tick = useReveal(delay + 8);
   return <div style={{display: 'flex', alignItems: 'center', gap: 28, padding: '26px 32px', borderRadius: 26, background: CARD, border: `2px solid ${BORDER}`, opacity: reveal, transform: `translateX(${(1 - reveal) * -40}px)`}}>
     <div style={{flex: '0 0 auto', width: 62, height: 62, borderRadius: 31, background: TEAL, color: INK, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, fontWeight: 900, transform: `scale(${tick})`}}>✓</div>
+    <ItemIcon label={text} size={42} color={VIOLET} reveal={reveal} />
     <div style={{fontSize: 38, lineHeight: 1.2, fontWeight: 700, color: TEXT}}>{text}</div>
   </div>;
 };
@@ -92,5 +94,5 @@ export const Focus: React.FC<TemplateProps<Of<'focus'>>> = ({visual, reveal}) =>
 
 const Chip: React.FC<{delay: number; text: string}> = ({delay, text}) => {
   const reveal = useReveal(delay);
-  return <div style={{padding: '14px 24px', borderRadius: 999, background: `${secondaryAlpha(.14)}`, border: `2px solid ${TEAL}`, fontSize: 30, fontWeight: 700, color: TEXT, opacity: reveal, transform: `translateY(${(1 - reveal) * 16}px)`}}>{text}</div>;
+  return <div style={{padding: '14px 24px', borderRadius: 999, background: `${secondaryAlpha(.14)}`, border: `2px solid ${TEAL}`, fontSize: 30, fontWeight: 700, color: TEXT, display: 'flex', alignItems: 'center', gap: 10, opacity: reveal, transform: `translateY(${(1 - reveal) * 16}px)`}}><ItemIcon label={text} size={30} color={TEAL} reveal={reveal} />{text}</div>;
 };

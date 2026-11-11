@@ -1,7 +1,7 @@
 import React from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
 import type {Visual} from '../../schemas/visual';
-import {AREA, CARD, MUTED, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, SHADOW} from './shared';
+import {AREA, CARD, MUTED, TEAL, TEXT, VIOLET, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, SHADOW, ItemIcon} from './shared';
 
 type Cycle = Extract<Visual, {template: 'cycle'}>;
 
@@ -36,7 +36,7 @@ export const CycleTemplate: React.FC<TemplateProps<Cycle>> = ({visual, reveal}) 
 
 const Stage: React.FC<{text: string; x: number; y: number; r: number; delay: number; active: boolean}> = ({text, x, y, r, delay, active}) => {
   const reveal = useReveal(delay);
-  return <div style={{position: 'absolute', left: x - r, top: y - r, width: 2 * r, height: 2 * r, boxSizing: 'border-box', borderRadius: r, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 22, background: active ? `${primaryAlpha(.30)}` : CARD, border: `3px solid ${active ? VIOLET : TEAL}`, boxShadow: active ? `0 0 50px ${primaryAlpha(.45)}` : SHADOW, fontSize: r > 100 ? 32 : 27, fontWeight: 700, lineHeight: 1.15, color: TEXT, opacity: reveal, transform: `scale(${(0.8 + reveal * 0.2) * (active ? 1.05 : 1)})`}}>{text}</div>;
+  return <div style={{position: 'absolute', left: x - r, top: y - r, width: 2 * r, height: 2 * r, boxSizing: 'border-box', borderRadius: r, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 22, background: active ? `${primaryAlpha(.30)}` : CARD, border: `3px solid ${active ? VIOLET : TEAL}`, boxShadow: active ? `0 0 50px ${primaryAlpha(.45)}` : SHADOW, fontSize: r > 100 ? 32 : 27, fontWeight: 700, lineHeight: 1.15, color: TEXT, flexDirection: 'column', gap: 8, opacity: reveal, transform: `scale(${(0.8 + reveal * 0.2) * (active ? 1.05 : 1)})`}}><ItemIcon label={text} size={r > 100 ? 48 : 40} color={active ? VIOLET : TEAL} reveal={reveal} />{text}</div>;
 };
 
 /** Clockwise arc of the ring between two stages, drawn progressively, with an arrowhead once complete. */

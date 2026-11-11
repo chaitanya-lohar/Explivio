@@ -1,4 +1,6 @@
+import React from 'react';
 import {spring, useCurrentFrame, useVideoConfig} from 'remotion';
+import {iconFor} from '../concepts';
 import {PALETTES, tint, type Palette} from '../theme';
 
 /*
@@ -34,6 +36,16 @@ export const activePalette = (): Palette => active;
 /** The theme's primary colour at an alpha (glows and highlighted fills). */
 export const primaryAlpha = (alpha: number) => tint(VIOLET, alpha);
 export const secondaryAlpha = (alpha: number) => tint(TEAL, alpha);
+
+/**
+ * A matching icon for a diagram label (see concepts.ts), or `fallback` when nothing fits. It pops in with the item
+ * (`reveal`), with a small extra bounce.
+ */
+export const ItemIcon: React.FC<{label: string; size: number; color: string; reveal?: number; fallback?: React.ReactNode}> = ({label, size, color, reveal = 1, fallback = null}) => {
+  const Icon = iconFor(label);
+  if (!Icon) return <>{fallback}</>;
+  return <span style={{flex: '0 0 auto', display: 'inline-flex', transform: `scale(${0.6 + 0.4 * reveal}) rotate(${(1 - Math.min(1, reveal)) * -25}deg)`}}><Icon size={size} color={color} strokeWidth={2.2} absoluteStrokeWidth /></span>;
+};
 
 /** The middle of the frame that every template draws into (px, inside the 1080×1920 video). */
 export const AREA = {width: 940, height: 820};
