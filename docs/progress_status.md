@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-11. **Pilot live at https://explivio.vercel.app ($0): AI via Groq (openai/gpt-oss-120b) first, Gemini as backup; light Clean theme with icons, illustrations and transitions; thumbnails; "Improve my prompt"; Brevo email.**
 
-This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
+**New to the project? Start with the [learning guide](LEARNING_GUIDE.md)** (every model and service, why we chose it, and the complete video flow). This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
 ## At a glance
 | Phase | Status | On `main`? |
@@ -177,6 +177,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 3. Optional pilot items (see "Next" at the top).
 
 ## Changelog
+
+- **2026-11-11** — Added [docs/LEARNING_GUIDE.md](LEARNING_GUIDE.md): the big picture; every model and service (AI chain Groq → Gemini, Kokoro voice, Vercel + Sandbox + snapshots, Atlas, R2, Brevo, Remotion, icons and emoji) with free limits and why each was chosen; what we tried before and why we moved on (laptop rendering, ElevenLabs, Resend, the free domain, ChatGPT API, Llama on Groq, Pexels/Pixabay, dark and topic themes); the step-by-step flow of a video; capacity; security; glossary; code map.
 
 - **2026-11-11** — **Groq-first deployed** (approved by the user). Snapshot `snap_jUQFNKyx0TFvN7HlN0lvotKFNiDb` in Vercel Production + Preview; production redeployed; login 200, health ok. Old `snap_2qMM…` deleted, so only the one in use remains. **User confirmed a video was created successfully after the deploy.** Which model wrote it can't be shown: the run manifest stays in the deleted sandbox and MongoDB doesn't store the model. Proposed: record the storyboard model on the generation attempt.
 
