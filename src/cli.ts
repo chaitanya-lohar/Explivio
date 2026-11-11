@@ -9,7 +9,7 @@ import {StoryboardSchema, type Storyboard} from './schemas/storyboard.js';
 import {apiStoryboard, buildApiVideo} from './api-explainer.js';
 import {sceneStartsFromWords, splitCuesAtScenes} from './pipeline/scene-timing.js';
 import {silentTiming} from './pipeline/silent-timing.js';
-import {chooseTheme, isThemeName} from './video/theme.js';
+import {DEFAULT_THEME, isThemeName} from './video/theme.js';
 
 const execFileAsync = promisify(execFile);
 const args = process.argv.slice(2);
@@ -31,7 +31,7 @@ const storyboardFile = flagValue('storyboard-file');
 // Output size: 1080p (default, 1080x1920) or 720p (720x1280, about half the render work; used for public cloud renders).
 // The composition stays 1080x1920 and Remotion scales it by 2/3, so every layout is identical.
 const resolution = flagValue('resolution') === '720p' ? '720p' : '1080p';
-// Visual theme: chosen automatically from the topic (src/video/theme.ts). --theme=midnight|clean|vibrant|paper forces one (testing).
+// Visual theme: always the clean (light) theme (src/video/theme.ts). --theme=midnight|clean|vibrant|paper forces one (testing).
 const requestedTheme = flagValue('theme');
 if (requestedTheme && !isThemeName(requestedTheme)) throw new Error('--theme must be midnight, clean, vibrant or paper.');
 // Tests only: stop before the (slow) render.
@@ -136,7 +136,7 @@ try {
   manifest.durationDifferenceSeconds = actualSeconds - seconds;
   manifest.status = 'rendering'; await saveManifest();
   const outputPath = path.join(runDir, 'video.mp4');
-  const theme = requestedTheme && isThemeName(requestedTheme) ? requestedTheme : chooseTheme(storyboard.title, storyboard.learning_objective);
+  const theme = requestedTheme && isThemeName(requestedTheme) ? requestedTheme : DEFAULT_THEME;
   manifest.theme = theme;
   const propsPath = path.join(runDir, 'render-props.json');
   await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, wordTimes, handwrittenSteps: demo, theme, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : '', ...(silent ? {badge: 'SILENT EVALUATION · estimated timing'} : {})}));

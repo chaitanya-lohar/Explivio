@@ -1,6 +1,7 @@
 /*
- * Visual themes for generated videos (2026-11-10). Each video gets ONE palette, chosen automatically from its topic
- * (chooseTheme), so videos no longer all share the app's dark look. Colours only: no images, no extra render work.
+ * Visual themes for generated videos. Every video uses the bright "clean" theme (DEFAULT_THEME): the user chose it on
+ * 2026-11-11 after trying topic-based themes (no dark videos). The other palettes stay available only through
+ * --theme (testing).
  *
  * Remotion renders one video (one theme) per bundle instance, so the active palette is a render-scoped value set
  * once by the root composition before any scene renders (setActivePalette); the templates read it through the live
@@ -54,33 +55,8 @@ export const PALETTES: Record<ThemeName, Palette> = {
   paper: {name: 'paper', base: 'linear-gradient(180deg, #faf4e6 0%, #f1e6cf 100%)', blobA: 'rgba(194,65,12,.12)', blobB: 'rgba(47,111,106,.13)', particle: 'rgba(120,84,40,.22)', text: '#2b2118', muted: 'rgba(43,33,24,.64)', card: '#fffaf0', border: 'rgba(43,33,24,.18)', ink: '#fffaf0', primary: '#c2410c', secondary: '#2f6f6a', warm: '#b7791f', hilite: '#2b2118', shadow: '0 12px 34px rgba(91,63,25,.16)', captionBg: '#2b2118', captionText: '#fffaf0', captionActive: '#f6c26b', headingFont: 'Georgia, "Times New Roman", serif', bodyFont: SANS},
 };
 
-// Topic words → theme. Checked in this order; the first theme with a match wins.
-const RULES: [ThemeName, RegExp][] = [
-  ['midnight', /\b(space|planet|star|galax|universe|black hole|orbit|moon|astronom|comput|software|program|code|coding|algorithm|internet|network|server|database|api|cloud computing|cyber|security|hack|encrypt|blockchain|crypto|ai\b|artificial intelligence|machine learning|neural|robot|quantum|chip|processor|gpu)\w*/i],
-  ['paper', /\b(history|histor|ancient|empire|war\b|revolution|civili[sz]ation|king|queen|dynasty|philosoph|ethic|literature|poem|poetry|novel|language|grammar|religio|myth|culture|art\b|painting|music theory|economy|economic|inflation|money|market|finance|politic|democra|law\b|constitution|psycholog|habit|productiv)\w*/i],
-  ['clean', /\b(biolog|cell|dna|gene|protein|body|heart|brain|blood|health|disease|virus|bacteria|immune|vaccine|medic|nutrition|vitamin|plant|photosynth|ecosystem|animal|evolution|chemi|atom|molecule|reaction|physics|gravity|energy|electric|magnet|light|sound|wave|climate|weather|rain|water|ocean|earth|volcano|earthquake|math|geometry|fraction|equation|engineer)\w*/i],
-];
-
-/**
- * Picks the theme for a video. The texts are tried in order (title first, then e.g. the learning objective): the
- * first text with any match decides, so a word in a longer description (a water cycle's "clouds") can't outweigh the
- * title. Topics with no match get "vibrant".
- */
-export function chooseTheme(...texts: (string | undefined)[]): ThemeName {
-  for (const text of texts) {
-    if (!text) continue;
-    // The theme with the most topic words in this text wins ("water and weather … planet" → clean, 2 to 1); a tie
-    // keeps the rule order (midnight, paper, clean).
-    let best: ThemeName | null = null;
-    let bestCount = 0;
-    for (const [theme, pattern] of RULES) {
-      const count = new Set([...text.matchAll(new RegExp(pattern.source, 'gi'))].map((m) => m[0].toLowerCase())).size;
-      if (count > bestCount) [best, bestCount] = [theme, count];
-    }
-    if (best) return best;
-  }
-  return 'vibrant';
-}
+/** The theme every video uses (the user's choice, 2026-11-11: always light, never dark). */
+export const DEFAULT_THEME: ThemeName = 'clean';
 
 export const isThemeName = (value: unknown): value is ThemeName => typeof value === 'string' && (THEME_NAMES as readonly string[]).includes(value);
 

@@ -4,7 +4,7 @@ import type {Storyboard} from '../schemas/storyboard.js';
 import type {VideoProps} from './video.js';
 import {sceneFramesFromStarts} from '../pipeline/scene-timing';
 import {ConceptVisual, type SceneTiming} from './concept-visual';
-import {PALETTES, chooseTheme, isThemeName, tint, type Palette} from './theme';
+import {DEFAULT_THEME, PALETTES, isThemeName, tint, type Palette} from './theme';
 import {emojiFor} from './concepts';
 import {setActivePalette} from './templates/shared';
 
@@ -46,13 +46,13 @@ export function usesHandwrittenCards(theme: Theme, handwrittenSteps: boolean | u
 }
 
 /**
- * The palette for this video: the requested theme, else one chosen from the topic. The photo demos keep the dark
- * look their hand-made overlays were designed for.
+ * The palette for this video: the requested theme (testing), else the default clean theme. The photo demos keep the
+ * dark look their hand-made overlays were designed for.
  */
-export function paletteFor(storyboard: Storyboard, requested: unknown, photoDemo: boolean): Palette {
+export function paletteFor(requested: unknown, photoDemo: boolean): Palette {
   if (photoDemo) return PALETTES.midnight;
   if (isThemeName(requested)) return PALETTES[requested];
-  return PALETTES[chooseTheme(storyboard.title, storyboard.learning_objective)];
+  return PALETTES[DEFAULT_THEME];
 }
 
 export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = '', sceneStarts, handwrittenSteps, wordTimes, badge, theme: requestedTheme}) => {
@@ -60,7 +60,7 @@ export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, sec
   const scenes = storyboard.scenes;
   const theme = themeFor(storyboard.title);
   const photoDemo = usesHandwrittenCards(theme, handwrittenSteps);
-  const palette = paletteFor(storyboard, requestedTheme, photoDemo);
+  const palette = paletteFor(requestedTheme, photoDemo);
   // One palette per render: set before any scene or template draws (see templates/shared.tsx).
   setActivePalette(palette);
   const accent = photoDemo ? theme.accent : palette.primary;
