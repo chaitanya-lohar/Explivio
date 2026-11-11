@@ -184,6 +184,14 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-11** — **Groq is the first AI model (user's choice); ready to deploy.**
+  - Llama 3.3 is no longer offered on Groq (404). Groq's best available model is **`openai/gpt-oss-120b`** (OpenAI's open model), used with low reasoning effort.
+  - Order for storyboards: Groq, then Gemini 3.6 Flash, 3.5 Flash, 3.5 Flash-Lite. Prompt helper: Groq, then lite Gemini models. **Any** provider error (not only 429/503) now moves on to the next model; before, one Groq 404 ended the attempt.
+  - Live: storyboard "how photosynthesis work" in **6 s** (5 scenes, 5/5 valid diagrams, emojis; one length correction; 129 words, a little short for 60 s, accepted with a warning). Prompt helper in **0.7 s** with correct science ("scattering").
+  - `GROQ_API_KEY` set by the user in Vercel Production + Preview and the root `.env`.
+  - New snapshot `snap_jUQFNKyx0TFvN7HlN0lvotKFNiDb`; unused `snap_A5ul…` deleted; production still on `snap_2qMM…` until the deploy.
+  - Tests: pipeline 75/75, web 98/98. The web suite failed intermittently again (9 older pipeline-service tests) in 1 of 2 runs; to investigate.
+
 - **2026-11-11** — **Gemini daily quota found and Groq added as the last fallback.**
   - Google's error showed `GenerateRequestsPerDayPerProjectPerModel-FreeTier limit=20`: only **20 requests per day per model**. Both `gemini-3.6-flash` and `gemini-3.5-flash` were used up (reset about 14.8 h later); `gemini-3.5-flash-lite` still worked.
   - The ChatGPT/OpenAI API has no free tier, so it isn't usable at $0. The user chose **Groq** (free tier; Llama 3.3 70B about 1,000 requests/day as reported by third parties).
