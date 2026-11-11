@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-11. **Pilot live at https://explivio.vercel.app ($0): always the light Clean theme, icons + scene illustrations + varied transitions, thumbnails, "Improve my prompt", Brevo email, delete videos.**
+Last updated: 2026-11-11. **Pilot live at https://explivio.vercel.app ($0): AI via Groq (openai/gpt-oss-120b) first, Gemini as backup; light Clean theme with icons, illustrations and transitions; thumbnails; "Improve my prompt"; Brevo email.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -183,6 +183,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-11** — **Groq-first deployed** (approved by the user). Snapshot `snap_jUQFNKyx0TFvN7HlN0lvotKFNiDb` in Vercel Production + Preview; production redeployed; login 200, health ok. Old `snap_2qMM…` deleted, so only the one in use remains. End-to-end check pending: the user's next video (or Try again) should show `groq:openai/gpt-oss-120b` in its storyboard calls.
 
 - **2026-11-11** — **Groq is the first AI model (user's choice); ready to deploy.**
   - Llama 3.3 is no longer offered on Groq (404). Groq's best available model is **`openai/gpt-oss-120b`** (OpenAI's open model), used with low reasoning effort.
