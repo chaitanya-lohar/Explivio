@@ -184,6 +184,8 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-11** — **Pixabay photos dropped (user decision; never deployed).** Commit `0a03775` reverted. Kept: the smaller font for long headings and the measure script's `--storyboard=` option. Production unchanged (snapshot `snap_XQ07S0riOhUdGz2QtYtUY4rMvhf6`, thumbnails live). Snapshot `snap_zCNETi7G26bJNOOhzvyNl9yUYGpk` (with photos) is unused. `PIXABAY_API_KEY` can be removed from Vercel and `.env`. Next: better animation and graphics without photos. Tests: pipeline 72/72, web 93/93.
+
 - **2026-11-11** — **Scene photos (Pixabay): built and tested; deploy awaits approval.**
   - Gemini writes an `image_query` per scene. One landscape photo per scene is downloaded (never hot-linked), with no repeats, a 24 h search cache and an "Images: Pixabay" footer credit. Pixabay terms (20 Oct 2026) checked: use in videos allowed, standalone redistribution not.
   - **Relevance check:** the photo's tags must contain the search words. The first test with heading-based searches gave skyscrapers for "one trip around the Sun" and puppies for "rivers carry the land away"; those are now rejected (no photo instead of a wrong one).
