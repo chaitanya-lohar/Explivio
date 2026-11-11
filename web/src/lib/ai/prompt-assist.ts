@@ -51,20 +51,26 @@ export function parseAssist(raw: string): AssistResult {
 export async function assistPrompt(userText: string, env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch): Promise<AssistResult> {
   const key = env.GEMINI_API_KEY?.trim();
   if (!key) return { ok: false, reason: 'not_configured' };
-  const model = env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
-  try {
-    const response = await fetchImpl(ENDPOINT(model), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: instructions(userText.slice(0, 600)) }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4, // Gemini 3 models spend part of this on thinking (about 470 tokens seen) before the ~150-token answer.
-        maxOutputTokens: 2048 } }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!response.ok) return { ok: false, reason: 'unavailable' };
-    const body = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
-    return parseAssist(text);
-  } catch {
-    return { ok: false, reason: 'unavailable' };
+  const primary = env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
+  const fallback = env.GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.5-flash';
+  // Free quota is per model: when the primary is rate-limited (429) or overloaded (503), try the fallback once.
+  for (const model of primary === fallback ? [primary] : [primary, fallback]) {
+    try {
+      const response = await fetchImpl(ENDPOINT(model), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: instructions(userText.slice(0, 600)) }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4, // Gemini 3 models spend part of this on thinking (about 470 tokens seen) before the ~150-token answer.
+          maxOutputTokens: 2048 } }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (response.status === 429 || response.status === 503) continue;
+      if (!response.ok) return { ok: false, reason: 'unavailable' };
+      const body = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+      const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+      return parseAssist(text);
+    } catch {
+      // Timeout or network error: try the next model.
+    }
   }
+  return { ok: false, reason: 'unavailable' };
 }

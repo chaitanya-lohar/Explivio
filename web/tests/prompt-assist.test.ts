@@ -35,3 +35,15 @@ test("assistPrompt: no key → not configured; HTTP error → unavailable; the k
   const sent = JSON.parse(seen.body).contents[0].parts[0].text as string;
   assert.equal(sent.match(/<\/user_text>/g)?.length, 1, "the user can't close the data block early");
 });
+
+test("assistPrompt: a rate-limited primary model (429) falls back to a different model once", async () => {
+  const models: string[] = [];
+  const fake = (async (url: string) => {
+    models.push(decodeURIComponent(url.split("/models/")[1].split(":")[0]));
+    if (models.length === 1) return new Response("{}", { status: 429 });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"polished":"Explain tides to complete beginners.","suggestions":[],"note":""}' }] } }] }));
+  }) as unknown as typeof fetch;
+  const r = await assistPrompt("tides", { GEMINI_API_KEY: "k", GEMINI_MODEL: "primary-x", GEMINI_FALLBACK_MODEL: "fallback-y" }, fake);
+  assert.equal(r.ok, true);
+  assert.deepEqual(models, ["primary-x", "fallback-y"]);
+});

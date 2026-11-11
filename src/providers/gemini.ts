@@ -78,7 +78,8 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is missing. Copy .env.example to .env and add your Google AI Studio key.');
   const primary = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-  const fallback = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.6-flash';
+  // A DIFFERENT model by default: Google counts free quota per model, so a busy primary (429) has a real second chance.
+  const fallback = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash';
   const client = new GoogleGenAI({apiKey, httpOptions: {timeout: TIMEOUT_MS, retryOptions: {attempts: 1}}});
   const input = `${INSTRUCTIONS}\n${lengthInstruction(seconds)}\n\nTopic: ${prompt}\nTarget video duration: ${seconds} seconds.`;
 
