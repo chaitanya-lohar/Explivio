@@ -23,7 +23,7 @@ try {
   const result = await sandbox.runCommand({ cmd: "npx", args, cwd: "app" });
   const wall = (Date.now() - started) / 1000;
   step(`render finished: exit ${result.exitCode}, ${wall.toFixed(0)} s wall`);
-  const info = await sandbox.runCommand({ cmd: "node", args: ["-e", "const m=require('./runs/measure1/manifest.json');const s=require('fs').statSync('./runs/measure1/video.mp4');console.log(JSON.stringify({status:m.status,error:m.error,actual:m.actualDurationSeconds,stages:Object.fromEntries(Object.entries(m.stages).map(([k,v])=>[k,Math.round(v.elapsedMs/100)/10])),mb:+(s.size/1e6).toFixed(1)}))"], cwd: "app" });
+  const info = await sandbox.runCommand({ cmd: "node", args: ["-e", "const m=require('./runs/measure1/manifest.json');const s=require('fs').statSync('./runs/measure1/video.mp4');console.log(JSON.stringify({status:m.status,error:m.error,actual:m.actualDurationSeconds,stages:Object.fromEntries(Object.entries(m.stages).map(([k,v])=>[k,Math.round(v.elapsedMs/100)/10])),mb:+(s.size/1e6).toFixed(1),thumbnailKB:require('fs').existsSync('./runs/measure1/thumbnail.jpg')?Math.round(require('fs').statSync('./runs/measure1/thumbnail.jpg').size/1024):(m.thumbnailError||'missing'),theme:m.theme}))"], cwd: "app" });
   console.log("        " + ((await info.stdout()).trim() || (await info.stderr()).split("\n").slice(-3).join(" ")));
   if (result.exitCode !== 0) console.log((await result.stderr()).split("\n").filter(Boolean).slice(-8).join("\n"));
 } finally {

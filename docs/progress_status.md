@@ -184,6 +184,15 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-11** — **Cover frame and real thumbnails: built and tested, awaiting deploy approval.**
+  - Frame 0 shows the first heading and header (cover).
+  - The CLI saves `thumbnail.jpg` (a frame late in scene 1, about 23 KB), uploaded to R2 next to the video (`thumbnailKey`).
+  - Owner-only `/api/videos/[id]/thumbnail`; used in My Videos and as the player poster; deleted with the video. Older videos keep the frame preview.
+  - Snapshot `snap_XQ07S0riOhUdGz2QtYtUY4rMvhf6` built; not yet set in Vercel.
+  - Measured 90 s at 720p: 175 s wall, 447 s CPU (previous run 362 s; part is run-to-run variation, the thumbnail step adds about 10–20 s), so about 40–46 videos/month.
+  - Tests: web 93/93, pipeline 72/72; build passes.
+  - `PIXABAY_API_KEY` added by the user (root `.env`, Vercel Production + Preview); a test search worked (500 portrait hits for "rain clouds"). Next: stock photos in videos.
+
 - **2026-11-10** — **User feedback on the first themed video and next steps (paused until 2026-11-11).**
   - Confirmed working in production: "how raining cycle work" rendered in the Clean (white) theme; ↻ draws correctly.
   - Feedback: (1) no thumbnail for the video; (2) the video looks basic, like slides (no images).
