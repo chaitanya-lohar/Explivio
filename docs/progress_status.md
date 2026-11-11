@@ -184,7 +184,7 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
-- **2026-11-11** — **Groq-first deployed** (approved by the user). Snapshot `snap_jUQFNKyx0TFvN7HlN0lvotKFNiDb` in Vercel Production + Preview; production redeployed; login 200, health ok. Old `snap_2qMM…` deleted, so only the one in use remains. End-to-end check pending: the user's next video (or Try again) should show `groq:openai/gpt-oss-120b` in its storyboard calls.
+- **2026-11-11** — **Groq-first deployed** (approved by the user). Snapshot `snap_jUQFNKyx0TFvN7HlN0lvotKFNiDb` in Vercel Production + Preview; production redeployed; login 200, health ok. Old `snap_2qMM…` deleted, so only the one in use remains. **User confirmed a video was created successfully after the deploy.** Which model wrote it can't be shown: the run manifest stays in the deleted sandbox and MongoDB doesn't store the model. Proposed: record the storyboard model on the generation attempt.
 
 - **2026-11-11** — **Groq is the first AI model (user's choice); ready to deploy.**
   - Llama 3.3 is no longer offered on Groq (404). Groq's best available model is **`openai/gpt-oss-120b`** (OpenAI's open model), used with low reasoning effort.
