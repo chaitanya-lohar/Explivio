@@ -184,6 +184,11 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-11** — **Gemini 429 on a user video ("training data in AI"):** a short-term rate limit; a call a minute later succeeded, so not the daily quota.
+  - The pipeline fallback was the same model (`gemini-3.6-flash`), so it had no real second chance. Now the default fallback is **`gemini-3.5-flash`** (quota is per model; tested OK, 2.5 s), and the prompt helper also falls back on 429/503.
+  - Tests: pipeline 74/74, web 97/97.
+  - **To go live:** set `GEMINI_FALLBACK_MODEL=gemini-3.5-flash` in Vercel (Production + Preview) and redeploy production (awaits the user's approval). The renderer receives `GEMINI_*` from the site, so no snapshot rebuild is needed.
+
 - **2026-11-11** — **Deployed (approved by the user): graphics upgrade, always-Clean theme, "Improve my prompt".**
   - At the user's request all old snapshots were deleted, production's last (after the switch, so rendering never broke).
   - Only `snap_2qMMww5Zro50ElMp2MPlPwJccpP2` remains (2.3 of 15 GB), set in Vercel Production + Preview; production redeployed; login 200, health ok.
