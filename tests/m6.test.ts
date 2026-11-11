@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {deflateSync} from 'node:zlib';
 import {budgetProblem, narrationWords, wordBudget} from '../src/pipeline/word-budget.js';
 import {sceneFramesFromStarts, sceneStartsFromWords} from '../src/pipeline/scene-timing.js';
-import {afterTransientFailure, classify, isRecentlyUnhealthy} from '../src/providers/gemini.js';
+import {afterTransientFailure, classify, isRecentlyUnhealthy, modelChain} from '../src/providers/gemini.js';
 import {label, layoutFor} from '../src/video/concept-visual.js';
 // @ts-expect-error plain JS validator module without type declarations
 import {captionIssues, decodeGrayPng, durationCheck} from '../scripts/m6/validate-run.mjs';
@@ -116,10 +116,12 @@ test('schema validation errors are repairable (invalid_output)', async () => {
 // Regression (M6 run A4): a single timeout on the only usable model must get one retry, not fail the video.
 test('after a timeout: switch to fallback once, then retry the same model once, then fail (bounded)', () => {
   const none = new Set<string>();
-  assert.deepEqual(afterTransientFailure({model: 'a', fallback: 'b', switched: false, retriedModels: none, callsLeft: 2}), {action: 'switch', model: 'b'});
-  assert.deepEqual(afterTransientFailure({model: 'b', fallback: 'b', switched: true, retriedModels: none, callsLeft: 2}), {action: 'retry'});
-  assert.deepEqual(afterTransientFailure({model: 'b', fallback: 'b', switched: true, retriedModels: new Set(['b']), callsLeft: 1}), {action: 'fail'});
-  assert.deepEqual(afterTransientFailure({model: 'a', fallback: 'b', switched: false, retriedModels: none, callsLeft: 0}), {action: 'fail'});
+  const chain = ['a', 'b', 'groq:c'];
+  assert.deepEqual(afterTransientFailure({model: 'a', chain, tried: new Set(['a']), retriedModels: none, callsLeft: 3}), {action: 'switch', model: 'b'});
+  assert.deepEqual(afterTransientFailure({model: 'b', chain, tried: new Set(['a', 'b']), retriedModels: none, callsLeft: 2}), {action: 'switch', model: 'groq:c'}, 'Groq is the last resort');
+  assert.deepEqual(afterTransientFailure({model: 'groq:c', chain, tried: new Set(chain), retriedModels: none, callsLeft: 2}), {action: 'retry'}, 'all tried: retry once');
+  assert.deepEqual(afterTransientFailure({model: 'groq:c', chain, tried: new Set(chain), retriedModels: new Set(['groq:c']), callsLeft: 1}), {action: 'fail'});
+  assert.deepEqual(afterTransientFailure({model: 'a', chain, tried: new Set(['a']), retriedModels: none, callsLeft: 0}), {action: 'fail'});
 });
 
 // Regression (M6 run A3): a generated video whose title matches a demo theme must not get the demo's hand-written cards.
@@ -130,4 +132,11 @@ test('hand-written step cards only for demo scripts', async () => {
   assert.equal(usesHandwrittenCards(photo, undefined), false);
   assert.equal(usesHandwrittenCards(photo, true), true);
   assert.equal(usesHandwrittenCards(themeFor('What is AI?'), true), false);
+});
+
+test('model chain (2026-11-11): several Gemini models (20 free requests/day each), Groq last only when its key is set', () => {
+  assert.deepEqual(modelChain({}), ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite']);
+  assert.deepEqual(modelChain({GROQ_API_KEY: 'k'}), ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'groq:llama-3.3-70b-versatile']);
+  assert.deepEqual(modelChain({GEMINI_MODEL: 'a', GEMINI_FALLBACK_MODEL: 'a', GEMINI_EXTRA_MODELS: 'b, c', GROQ_API_KEY: 'k', GROQ_MODEL: 'm'}), ['a', 'b', 'c', 'groq:m'], 'duplicates removed, order kept');
+  assert.equal(classify('Groq request failed (HTTP 429, rate limit)'), 'overloaded');
 });
