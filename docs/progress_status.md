@@ -8,53 +8,53 @@ This file is the concise current status; the newest changelog entries are at the
 | Phase | Status | On `main`? |
 |---|---|---|
 | M1–M7, F1–F4, auth screens, F6, F7, F9 | ✅ Done | Yes |
-| F10: MongoDB Atlas and self-managed auth | ✅ Done (Atlas user now `readWrite@explivio` only) | Yes (PR #5) |
-| F11: Cloudflare R2 video storage | ✅ Done | Yes (PR #6/#7) |
-| F12: auth and authorisation hardening | ✅ Done | Yes (PR #7) |
-| F13: transactional email (Resend, durable queue) | ✅ Done; delivers to your address only until a domain is verified | Yes (PR #8) |
+| F10–F13: MongoDB auth, R2 storage, security hardening, email queue | ✅ Done | Yes (PRs #5–#8) |
 | Free voice (Kokoro) | ✅ Done | Yes (PR #9) |
-| **F14: production on Vercel** | ✅ **Live at https://explivio.vercel.app**; email domain pending | **No** (on `dev`; PR to open) |
-| F15: final product validation | ⬜ Planned | — |
+| **F14: production on Vercel** | ✅ **Live at https://explivio.vercel.app** ($0 pilot) | **No** (on `dev`; PR to open) |
+| **Pilot improvements (2026-11-10/11)** | ✅ Live: email for every tester, delete videos, thumbnails, graphics upgrade, Clean theme, "Improve my prompt", Groq-first AI | **No** (on `dev`) |
+| F15: final product validation | ⬜ Optional (pilot, not a public launch) | — |
 
-## Completed
-- **M1–M7, F1–F4, F6, F7, F9:** pipeline (Gemini → narration → Remotion), captions, music, six animated templates; web app, My Videos, Settings, end-to-end QA.
-- **F10–F13:** MongoDB Atlas accounts and sessions; R2 video storage; security hardening; email through a durable queue and Resend. Reports in [storage/](storage/), [security/](security/), [email/](email/).
-- **Free voice (2026-11-08):** Kokoro-82M narration when ElevenLabs is unavailable ([details](voice/FREE_VOICE_IMPLEMENTATION.md)).
-- **F14: production on Vercel (2026-11-09).** [Plan](deployment/F14_PRODUCTION_PLAN.md).
-  - **Hosting:** Vercel Hobby, team `make-my-marriage1`, project `explivio` (root `web/`). Production: https://explivio.vercel.app.
-  - **Rendering:** each video runs in its own temporary Vercel Sandbox, started from the snapshot `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa`; the worker reports progress to MongoDB, uploads to R2 and stops its sandbox. 720p, Kokoro voice.
-  - **Measured:** a 90 s video uses about 387 s of active CPU at 720p (485 s at 1080p), so about 46 such videos per month fit Hobby's free 5 h. When the allowance is used, rendering pauses; nothing is billed.
-  - **Production settings:** email sent after each response plus a daily cron; `AUTH_SECRET` required; Vercel's client IP; HSTS; Gemini timeout 90 s.
-  - **Tested by you in production:** sign-in → create a video → cloud render → watch → download.
+## What's live now (2026-11-11)
+**Explivio is a $0 pilot, not a public launch:** other people can sign up and test it. Paid services are considered only if we decide to scale.
 
-## Resolved 2026-11-10: email for every user (Brevo SMTP; history below)
-- **Problem:** a sign-up from a second Gmail address got no email (job `failed`). Resend's test sender only delivers to the Resend account owner.
-- **Plan (no code change):**
-  1. Get a free DigitalPlat domain (e.g. `explivio.dpdns.org`; one per account).
-  2. Manage its DNS in your Cloudflare account (Free plan).
-  3. Add the domain in Resend and copy its 3 records into Cloudflare (MX and SPF TXT on `send`, DKIM TXT on `resend._domainkey`), then verify.
-  4. Set `EMAIL_FROM` (Vercel Production + Preview and `web/.env.local`).
-  5. Redeploy and test with a second address.
-- Explivio is a **pilot** (not a public launch): the goal is that other people can sign up and test it, at $0.
+- **Hosting:** Vercel Hobby, team `make-my-marriage1`, project `explivio` (root `web/`). Deployed with `vercel deploy --prod` from `web/`: the project isn't connected to GitHub, and the dashboard's Redeploy rebuilds old code.
+- **Video rendering:** one temporary Vercel Sandbox per video, from snapshot `snap_jUQFNKyx0TFvN7HlN0lvotKFNiDb` (the only one kept; the free plan allows 15 GB and each is about 2.3 GB). The worker reports progress to MongoDB, uploads the MP4 and a thumbnail to R2, then stops its sandbox. 720p, Kokoro voice.
+- **AI (video plans and "Improve my prompt"):**
+  - **Groq first:** `openai/gpt-oss-120b`, OpenAI's open model hosted free by Groq; about 6 s per plan, 0.7 s per prompt.
+  - **Gemini backup:** 3.6 Flash → 3.5 Flash → 3.5 Flash-Lite; the prompt helper uses the lite models. Google's free tier is only **20 requests per day per model**.
+  - Any failure moves on to the next model.
+- **Video look:**
+  - always the light **Clean** theme (user decision; no dark, no stock photos);
+  - icons on diagram items and an animated emoji illustration per scene (Noto Color Emoji);
+  - varied transitions, captions that highlight the spoken word, a progress bar;
+  - the first frame is a cover, and each video has a thumbnail.
+- **App:**
+  - sign-up with email to any address (Brevo SMTP; shown as `explivio <…@brevosend.com>`);
+  - My Videos with real thumbnails; delete video (record and R2 files; the daily limit still counts deleted videos);
+  - "Improve my prompt" (30 a day per account).
+- **Capacity (free):**
+  - **Rendering:** about **34–48 ninety-second videos a month** (373–533 s of CPU each, out of Hobby's 5 h); more for shorter videos.
+  - **Email:** 250 a day. **R2 storage:** 10 GB.
+  - **AI:** Groq's limits apply first; then 20 a day per Gemini model.
+- **Cost check (2026-11-10):** $0 (Vercel Hobby with no subscription and no invoices; R2, Atlas and Brevo within free limits).
 
 ## Your open actions
-1. **Tomorrow:** the email domain steps above (you're signed in to DigitalPlat).
-2. **Merge `dev` into `main`:** https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-3. ~~Test snapshots~~: deleted 2026-11-10 (only the production snapshot remains).
-4. Optional: rotate the Atlas user's password to a long random one (update Vercel Production + Preview and `web/.env.local`).
+1. **Merge `dev` into `main`:** https://github.com/chaitanya-lohar/Explivio/compare/main...dev
+2. **Check billing pages once:** Gemini key on the **Free tier** in AI Studio; Atlas cluster **M0**; Cloudflare R2 **$0** with a $1 budget alert.
+3. **Optional:** rotate the Atlas password; remove the unused `PIXABAY_API_KEY` and `RESEND_API_KEY` from Vercel and `.env`.
 
 ## Next
-- **2026-11-11:** (1) cover frame + real thumbnails; (2) Pixabay photos in videos (needs `PIXABAY_API_KEY`); then prompt suggestions and "Polish my prompt" (Gemini).
-- **Milestone plan: [Pilot open to testers](deployment/NEXT_MILESTONE_PILOT_TESTERS.md).** Explivio is a $0 pilot, not a public launch; the only blocker is email for testers.
-- Email domain (above), then **F14 leftovers:**
-  - Terms of Service and Privacy pages (the sign-up checkbox refers to them);
-  - a monthly render cap with a "paused" message;
-  - `/api/health` and `db:backup`;
-  - a test database user so the 27 live-Atlas tests can run again.
-- Then F15, final product validation.
+- **Proposed small items:**
+  - record which AI model wrote each video's plan (so Groq vs the Gemini backup is visible);
+  - fix the intermittent failures in the older web pipeline-service tests (9 tests fail in about 1 run in 4; a rerun passes).
+- **Optional for the pilot:**
+  - a friendly "paused for this month" message when the render allowance is used up;
+  - a short Privacy note;
+  - a database backup command;
+  - a test database user so the live-Atlas tests can run.
 
 ## Planned
-- F15: final product validation. Scope: [ROADMAP.md](ROADMAP.md).
+- F15, final product validation: only if the pilot moves towards a public launch. Scope: [ROADMAP.md](ROADMAP.md).
 
 ## Optional backlog
 - ~~Parked: free fallback narration voice~~: **done 2026-11-08**; see the changelog and [FREE_VOICE_IMPLEMENTATION.md](voice/FREE_VOICE_IMPLEMENTATION.md).
@@ -64,35 +64,31 @@ This file is the concise current status; the newest changelog entries are at the
 - Accessibility (screen-reader) review.
 - Image-generation trial (unapproved); leftover Stitch fixes.
 
-## Current test results (2026-11-09)
-| Suite | Result | When / notes |
+## Current test results (2026-11-11)
+| Suite | Result | Notes |
 |---|---|---|
-| Production journey (you, explivio.vercel.app and preview) | **Pass** | 2026-11-09: sign-in, email to your address, 60 s video rendered in the cloud, watched, downloaded |
-| Live production checks | **Pass** | pages 200, `/api/health/db` ok, cron 401 without its secret, HSTS and frame headers |
-| Sandbox render (90 s, fixture storyboard) | **Pass** | 1080p 186 s / 485 s CPU; 720p 150 s / 387 s CPU |
-| Web (`web: npm test`, offline) | **85/85** (27 live tests skipped) | 2026-11-09; the live-Atlas tests need a test user with access to `explivio_test_*` databases |
-| Typecheck, lint, production build | Pass | 2026-11-09 |
-| Pipeline (`npm test`, root) | 68 + 1 skipped | 2026-11-09 |
-| Full browser regression | 43/43 | 2026-11-05 (before F13/F14) |
+| Pipeline (`npm test`, root) | **75/75** | Theme, icon/emoji matching and model-chain tests added |
+| Web (`web: npm test`, offline) | **98/98** (27 live-Atlas tests skipped) | Intermittent: 9 older pipeline-service tests failed in about 1 of 4 runs (rerun passes); to investigate |
+| Typecheck, lint, production build | Pass | |
+| Cloud render (Sandbox, 90 s, 720p) | **Pass** | Clean theme, icons, emoji, thumbnail; 373–533 s CPU per video |
+| Live AI | **Pass** | Groq: video plan in 6 s, prompt helper in 0.7 s; Gemini fallback chain |
+| Production journey (user) | **Pass** | Sign-up email to a second address, create, watch, download, delete; video after the Groq deploy |
 
 ## Risks
-| Risk | Impact | Owner | Resolution |
-|---|---|---|---|
-| No verified email domain | Other users get no verification email, so they can't sign up | User + Claude | Free DigitalPlat domain + Cloudflare DNS + Resend (2026-11-10) |
-| Emails from a new free domain may go to spam | Users miss the verification email | User | Tell users to check spam; reputation improves with use |
-| Vercel Hobby: 5 h Sandbox CPU per month | About 46 × 90 s videos a month; then rendering pauses until next month | Claude | Monthly cap with a clear "paused" message (to do); never billed |
-| Vercel Hobby is for non-commercial use only | Must not be used commercially | User | Keep it a free, personal project |
-| Atlas reachable from any IP (`0.0.0.0/0`, needed for Vercel) | A leaked URI would be usable from anywhere | User | User limited to `readWrite@explivio`; rotate to a long random password |
-| Atlas M0 has no automatic backups | Data loss on a mistake | Claude | `db:backup` to R2 (to do) |
-| R2 overages bill automatically | Unexpected cost | User + Claude | Upload guard at 80% of the free tier; Cloudflare usage alert |
-| Gemini slow (30–50 s per storyboard) or free-tier 429s | Slow or failed plans | User | 90 s timeout with one retry; failed videos can be retried |
-| ElevenLabs credits used up (until 2026-11-26) | None: Kokoro is used on Vercel | — | `NARRATION_PROVIDER=kokoro` in production |
-| A known email can be locked for 15 min by 10 wrong guesses (F12 trade-off) | The owner waits or resets the password | User (accepted) | Password reset lifts the lockout |
-| Only Chrome tested | Unknown issues in other browsers | Claude (F15) | Cross-browser pass |
+| Risk | Impact | Resolution |
+|---|---|---|
+| Gemini free tier: 20 requests/day per model | Plans fail when Groq is also unavailable | Groq first; three Gemini models as backup; failed videos can be retried |
+| Groq free-tier limits (third-party figures; check the Groq console) or a model being retired (Llama 3.3 was) | AI falls back to Gemini | Any Groq error moves on to Gemini; `GROQ_MODEL` can be changed without code |
+| Vercel Hobby: 5 h Sandbox CPU/month; 15 GB snapshot storage | Rendering pauses until next month; new renderer builds blocked when storage is full | Keep one snapshot (delete the old one after each switch); never billed |
+| Hobby is for non-commercial use only | Must not be used commercially | Keep it a free pilot |
+| Emails sent from a Gmail address via Brevo may land in spam | Testers miss the verification email | Tell testers to check spam |
+| Atlas open to any IP (`0.0.0.0/0`, needed for Vercel) | A leaked URI is usable from anywhere | User limited to `readWrite@explivio`; rotate the password |
+| Atlas M0 has no automatic backups | Data loss on a mistake | Backup command (optional item) |
+| R2 overage bills automatically | Unexpected cost | Upload guard at 80% of the free tier; budget alert |
 
 ## Git
 - Work on `dev`; `main` changes only through a PR you merge: https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-- **2026-11-09:** `dev` is ahead of `main` with all of F14. Production was deployed from `dev` with the Vercel CLI (the Vercel project isn't connected to GitHub, so merging doesn't deploy).
+- **2026-11-11:** `dev` is well ahead of `main` (all of F14 and the pilot improvements). Production is deployed from `dev` with the Vercel CLI.
 
 ## Milestones
 
@@ -136,16 +132,15 @@ This file is the concise current status; the newest changelog entries are at the
 
 ## Known issues and constraints
 
-- **Visuals are diagrams, not illustrations (M6 O1):** relevant and synced now, but no real imagery. Biggest remaining quality gap.
+- **Visuals are animated diagrams with icons and emoji illustrations** (no photos, by the user's choice on 2026-11-11).
 - **ElevenLabs credits nearly used:** about 270 characters left (estimated) until 2026-11-26. The 2026-11-04 web video "How ChatGPT Answers Questions" used about 435 of the 705. 90-second narrated videos are still untested.
 
-- **Gemini 3.8 Flash is hanging (2026-11-01):** `gemini-3.8-flash` (and 3.7, flash-latest) didn't respond, even to a one-word prompt, while `gemini-3.6-flash` answered in about 2s. The pipeline now falls back to 3.6 on timeouts, but the wait cost about 170s per video. Recommended: set `GEMINI_MODEL=gemini-3.6-flash` in the root `.env` until 3.8 recovers.
-- **Generic video visuals are basic:** topics other than the rain and photosynthesis demos get a neutral background and storyboard-based step cards. That's correct but plain, with no illustrations. Before 2026-11-01 they wrongly reused the rain photo and rain text. Reusable visual templates (M3) are the fix.
+- **AI quotas:** Gemini's free tier is 20 requests per day per model; Groq goes first since 2026-11-11.
 - **Captions-off and music-off renders not yet visually checked:** the flags are wired and verified in the render input; the real test used captions on and music on.
 - **One video at a time:** across the whole app (local or cloud), by design, to protect the free render allowance. A run silent for 15 minutes is marked failed.
 
 - **Terms and Privacy pages missing:** the sign-up terms checkbox refers to a Terms of Service and Privacy Policy that don't exist yet.
-- **Email:** Resend Free delivers **only to your Resend account address** until a domain is verified (in progress, see top).
+- **Email:** sent through Brevo from a verified Gmail sender; may land in spam.
 
 - **Indian-English voice unavailable:** ElevenLabs returns HTTP 402 for library voices through the API on the free plan. Set `ELEVENLABS_NARRATOR_VOICE_ID` after upgrading.
 - **ElevenLabs credits:** free plan, 10,000 characters per month. Each API video render uses about 700.
@@ -177,10 +172,9 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Next steps
 
-1. **2026-11-10:** email domain (DigitalPlat → Cloudflare → Resend), then test sign-up from a second address.
-2. F14 leftovers: Terms/Privacy, monthly render cap, health and backup, test database user.
-3. Merge `dev` into `main` (PR), then F15.
-4. Optional backlog, without delaying the above.
+1. Merge `dev` into `main` (PR).
+2. Small items: record the AI model per video; fix the intermittent web tests.
+3. Optional pilot items (see "Next" at the top).
 
 ## Changelog
 
