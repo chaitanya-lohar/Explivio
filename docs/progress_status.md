@@ -184,6 +184,15 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-11** — **Scene photos (Pixabay): built and tested; deploy awaits approval.**
+  - Gemini writes an `image_query` per scene. One landscape photo per scene is downloaded (never hot-linked), with no repeats, a 24 h search cache and an "Images: Pixabay" footer credit. Pixabay terms (20 Oct 2026) checked: use in videos allowed, standalone redistribution not.
+  - **Relevance check:** the photo's tags must contain the search words. The first test with heading-based searches gave skyscrapers for "one trip around the Sun" and puppies for "rivers carry the land away"; those are now rejected (no photo instead of a wrong one).
+  - Image downloads that hit HTTP 429 are retried (Retry-After, up to 3 times), then the next relevant photo is tried.
+  - **Layout:** a rounded photo panel under the heading (scale-in, slow zoom and pan) with the diagram at 74% below; scenes without a photo keep the full-size diagram. Long headings (over 48 characters) use a smaller font.
+  - Files: photos made 720p files about 31 MB at CRF 18, so 720p now uses CRF 23 (about 20 MB locally, 16.5 MB in the cloud test; quality checked on a frame).
+  - Cloud test (snapshot `snap_zCNETi7G26bJNOOhzvyNl9yUYGpk`, 90 s, 720p): 7/7 photos, 159 s wall, **407 s CPU**, so no measurable extra cost (about 44 videos/month).
+  - `PIXABAY_API_KEY` is forwarded to the cloud renderer. Tests: pipeline 76/76 (photo and theme tests added), web 93/93; lint and typecheck pass.
+
 - **2026-11-11** — **Cover frame and real thumbnails: live** (deployed with the user's approval).
   - Frame 0 shows the first heading and header (cover).
   - The CLI saves `thumbnail.jpg` (a frame late in scene 1, about 23 KB), uploaded to R2 next to the video (`thumbnailKey`).
