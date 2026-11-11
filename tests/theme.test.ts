@@ -15,6 +15,9 @@ test('theme is chosen from the topic', () => {
   assert.equal(chooseTheme('Photosynthesis in 60 seconds'), 'clean');
   assert.equal(chooseTheme(undefined, 'Learn how cells divide'), 'clean', 'the learning objective counts too');
   assert.equal(chooseTheme('How to make friends'), 'vibrant');
+  assert.equal(chooseTheme('How Water and Weather Shape Our Planet'), 'clean', 'most topic words win (2 science vs 1 space)');
+  assert.equal(chooseTheme('How the Internet Works'), 'midnight');
+  assert.equal(chooseTheme('Planets and stars in space'), 'midnight');
   // Regression (2026-11-10): the objective mentioned clouds, which matched the tech theme before the title was considered.
   assert.equal(chooseTheme('How the Water Cycle Works', 'Understand how water evaporates, forms clouds and falls as rain'), 'clean');
   assert.equal(chooseTheme('What is cloud computing'), 'midnight');

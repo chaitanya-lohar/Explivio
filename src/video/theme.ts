@@ -69,7 +69,15 @@ const RULES: [ThemeName, RegExp][] = [
 export function chooseTheme(...texts: (string | undefined)[]): ThemeName {
   for (const text of texts) {
     if (!text) continue;
-    for (const [theme, pattern] of RULES) if (pattern.test(text)) return theme;
+    // The theme with the most topic words in this text wins ("water and weather … planet" → clean, 2 to 1); a tie
+    // keeps the rule order (midnight, paper, clean).
+    let best: ThemeName | null = null;
+    let bestCount = 0;
+    for (const [theme, pattern] of RULES) {
+      const count = new Set([...text.matchAll(new RegExp(pattern.source, 'gi'))].map((m) => m[0].toLowerCase())).size;
+      if (count > bestCount) [best, bestCount] = [theme, count];
+    }
+    if (best) return best;
   }
   return 'vibrant';
 }
