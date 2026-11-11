@@ -50,13 +50,13 @@ export function parseAssist(raw: string): AssistResult {
 }
 
 /**
- * Models for the prompt helper, in order. Lite Gemini models first: Google's free tier allows 20 requests per day PER
- * MODEL, and the main models are kept for video storyboards. Groq (Llama, free tier) last, when GROQ_API_KEY is set.
+ * Models for the prompt helper, in order: Groq first when GROQ_API_KEY is set (the user's choice), then lite Gemini
+ * models (Google's free tier allows 20 requests per day PER MODEL; the main models are kept for video storyboards).
  */
 export function assistModels(env: Record<string, string | undefined> = process.env): string[] {
   const gemini = (env.GEMINI_ASSIST_MODELS ?? "gemini-3.5-flash-lite,gemini-3.1-flash-lite").split(",").map((m) => m.trim()).filter(Boolean);
-  const groq = env.GROQ_API_KEY?.trim() ? [`groq:${env.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile"}`] : [];
-  return [...new Set([...(env.GEMINI_API_KEY?.trim() ? gemini : []), ...groq])];
+  const groq = env.GROQ_API_KEY?.trim() ? [`groq:${env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b"}`] : [];
+  return [...new Set([...groq, ...(env.GEMINI_API_KEY?.trim() ? gemini : [])])];
 }
 
 async function ask(model: string, prompt: string, env: Record<string, string | undefined>, fetchImpl: typeof fetch): Promise<Response> {
@@ -64,7 +64,7 @@ async function ask(model: string, prompt: string, env: Record<string, string | u
     return fetchImpl(GROQ_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.GROQ_API_KEY?.trim()}` },
-      body: JSON.stringify({ model: model.slice(5), messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" }, temperature: 0.4, max_tokens: 800 }),
+      body: JSON.stringify({ model: model.slice(5), messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" }, temperature: 0.4, max_tokens: 3000, ...(model.startsWith("groq:openai/gpt-oss") ? { reasoning_effort: "low" } : {}) }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   }
@@ -85,8 +85,8 @@ export async function assistPrompt(userText: string, env: Record<string, string 
   for (const model of models) {
     try {
       const response = await ask(model, prompt, env, fetchImpl);
-      if (response.status === 429 || response.status === 503) continue;
-      if (!response.ok) return { ok: false, reason: "unavailable" };
+      // Any failure (rate limit, busy, unknown model, server error) moves on to the next model.
+      if (!response.ok) continue;
       const body = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[]; choices?: { message?: { content?: string } }[] };
       const text = model.startsWith("groq:") ? (body.choices?.[0]?.message?.content ?? "") : (body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "");
       return parseAssist(text);

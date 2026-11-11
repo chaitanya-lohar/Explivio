@@ -48,19 +48,20 @@ test("assistPrompt: a rate-limited primary model (429) falls back to a different
   assert.deepEqual(models, ["primary-x", "fallback-y"]);
 });
 
-test("assistPrompt: lite Gemini models first (main models are kept for storyboards), Groq last with its own key format", async () => {
+test("assistPrompt: Groq first (its own key format), then lite Gemini models", async () => {
   const { assistModels } = await import("../src/lib/ai/prompt-assist.ts");
   assert.deepEqual(assistModels({ GEMINI_API_KEY: "g" }), ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]);
-  assert.deepEqual(assistModels({ GEMINI_API_KEY: "g", GROQ_API_KEY: "q" }), ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "groq:llama-3.3-70b-versatile"]);
-  assert.deepEqual(assistModels({ GROQ_API_KEY: "q" }), ["groq:llama-3.3-70b-versatile"], "Groq alone works too");
+  assert.deepEqual(assistModels({ GEMINI_API_KEY: "g", GROQ_API_KEY: "q" }), ["groq:openai/gpt-oss-120b", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]);
+  assert.deepEqual(assistModels({ GROQ_API_KEY: "q" }), ["groq:openai/gpt-oss-120b"], "Groq alone works too");
   const seen: { url: string; auth: string | null }[] = [];
   const fake = (async (url: string, init: RequestInit) => {
     seen.push({ url, auth: new Headers(init.headers).get("authorization") });
-    if (!url.includes("groq")) return new Response("{}", { status: 429 });
-    return new Response(JSON.stringify({ choices: [{ message: { content: '{"polished":"Explain tides to complete beginners.","suggestions":[],"note":""}' } }] }));
+    if (url.includes("groq")) return new Response("{}", { status: 429 });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"polished":"Explain tides to complete beginners.","suggestions":[],"note":""}' }] } }] }));
   }) as unknown as typeof fetch;
   const r = await assistPrompt("tides", { GEMINI_API_KEY: "g", GROQ_API_KEY: "QKEY" }, fake);
   assert.equal(r.ok, true);
-  assert.equal(seen.length, 3, "two Gemini models rate-limited, then Groq");
-  assert.equal(seen[2].auth, "Bearer QKEY");
+  assert.equal(seen.length, 2, "Groq rate-limited, then the first Gemini model");
+  assert.equal(seen[0].auth, "Bearer QKEY");
+  assert.ok(seen[1].url.includes("gemini-3.5-flash-lite"));
 });

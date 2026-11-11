@@ -22,16 +22,16 @@ const SKIP_MINUTES = Number(process.env.GEMINI_SKIP_FAILED_MODEL_MINUTES) || 30;
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
 /**
- * Models to try, in order (2026-11-11). Google's free tier allows only 20 requests per day PER MODEL, so several
- * Gemini models each add their own allowance; Groq (Llama, free tier, about 1,000 requests/day) is the last resort when
- * GROQ_API_KEY is set. Each model is tried at most once per storyboard (plus one repair call), so it stays bounded.
+ * Models to try, in order (2026-11-11). Groq (OpenAI's open gpt-oss-120b; Llama 3.3 was retired there) goes FIRST when
+ * GROQ_API_KEY is set (the user's choice); then Gemini models, each with its own free allowance (only 20 requests per
+ * day PER MODEL). Each model is tried at most once per storyboard (plus one repair call), so it stays bounded.
  */
 export function modelChain(env: Record<string, string | undefined> = process.env): string[] {
   const primary = env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
   const fallback = env.GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.5-flash';
   const extra = (env.GEMINI_EXTRA_MODELS ?? 'gemini-3.5-flash-lite').split(',').map((m) => m.trim()).filter(Boolean);
-  const groq = env.GROQ_API_KEY?.trim() ? [`groq:${env.GROQ_MODEL?.trim() || 'llama-3.3-70b-versatile'}`] : [];
-  return [...new Set([primary, fallback, ...extra, ...groq])];
+  const groq = env.GROQ_API_KEY?.trim() ? [`groq:${env.GROQ_MODEL?.trim() || 'openai/gpt-oss-120b'}`] : [];
+  return [...new Set([...groq, primary, fallback, ...extra])];
 }
 
 /** Groq's OpenAI-compatible chat API, asked for one JSON object. Errors carry only the status (no response text). */
@@ -39,7 +39,7 @@ async function callGroq(model: string, input: string, apiKey: string): Promise<s
   const response = await fetch(GROQ_ENDPOINT, {
     method: 'POST',
     headers: {Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json'},
-    body: JSON.stringify({model, messages: [{role: 'system', content: 'You write storyboards for short educational videos. Reply with one JSON object only.'}, {role: 'user', content: input}], response_format: {type: 'json_object'}, temperature: 0.6, max_tokens: 6000}),
+    body: JSON.stringify({model, messages: [{role: 'system', content: 'You write storyboards for short educational videos. Reply with one JSON object only.'}, {role: 'user', content: input}], response_format: {type: 'json_object'}, temperature: 0.6, max_tokens: 8000, ...(model.startsWith('openai/gpt-oss') ? {reasoning_effort: 'low'} : {})}),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`Groq request failed (HTTP ${response.status}${response.status === 429 ? ', rate limit' : response.status >= 500 ? ', server busy' : ''})`);
@@ -164,7 +164,7 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
       // For "overloaded", record which kind (free-tier quota vs. temporary server load) without the raw error text.
       const note = outcome === 'invalid_output' ? message.slice(0, 160) : outcome === 'overloaded' ? (/429|quota|rate.?limit|exhaust/i.test(message) ? 'quota or rate limit (429)' : 'server busy (503)') : undefined;
       calls.push({model, ms: Date.now() - started, outcome, note});
-      if (outcome === 'timeout' || outcome === 'overloaded') {
+      if (outcome === 'timeout' || outcome === 'overloaded' || (outcome === 'error' && afterTransientFailure({model, chain, tried, retriedModels: new Set(chain), callsLeft: maxCalls - calls.length}).action === 'switch')) {
         markHealth(model, true, outcome);
         const next = afterTransientFailure({model, chain, tried, retriedModels, callsLeft: maxCalls - calls.length});
         if (next.action === 'switch') { model = next.model; continue; }
