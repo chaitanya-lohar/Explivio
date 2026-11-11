@@ -184,6 +184,18 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-11** — **Clean theme always; "Improve my prompt"; snapshot storage full.**
+  - **Always the Clean (light) theme** (user decision after the sample): topic-based choice removed; other palettes only via `--theme` for tests.
+  - **"Improve my prompt"** (Home and Create):
+    - Gemini (free key, direct REST call) rewrites the prompt as "Explain … to complete beginners, using …" and suggests 3 related topics; nothing changes until the user picks "Use this" or an idea.
+    - Signed-in only, 30 a day per account; user text passed as quoted data (an injection attempt was refused as not a topic); about 5–7 s per request.
+    - Gemini 3 spent about 470 "thinking" tokens, so `maxOutputTokens` is 2048.
+  - **Vercel snapshot storage limit reached** (7 snapshots, 16.3 GB of 15 GB; the free plan resets 2026-12-01). New renderer builds are blocked; production (`snap_XQ07…`) still starts fine.
+    - Asking the user to approve deleting 5 unused snapshots: `snap_PYqH`, `snap_zCNE` (Pixabay), `snap_KnH9`, `snap_E75tz`, `snap_T3Pn`.
+    - Lesson: delete superseded snapshots after each successful switch.
+  - Not deployed yet: the graphics upgrade + Clean theme (needs a new snapshot) and "Improve my prompt" (website only).
+  - Tests: pipeline 74/74, web 96/96; build passes.
+
 - **2026-11-11** — **Graphics upgrade (no photos): built, cloud sample made, deploy awaits approval.**
   - **Icons on diagram items:** Lucide (MIT) via a dictionary of about 90 concepts (`src/video/concepts.ts`), in steps, hub, checklist, chips, comparison titles, cycle stages, flow nodes, timeline events and layers. No forced matches. Short words match only whole words or real variants ("Restart" no longer gets a bed icon; "carbon" no car).
   - **Scene illustration:** a big emoji beside the heading (Gemini writes an `emoji` per scene, else the dictionary, else 💡). It pops in with a spin, floats, and sits on a pulsing theme-coloured disc. `fonts-noto-color-emoji` installed in the renderer.
