@@ -184,6 +184,14 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-11** — **Graphics upgrade (no photos): built, cloud sample made, deploy awaits approval.**
+  - **Icons on diagram items:** Lucide (MIT) via a dictionary of about 90 concepts (`src/video/concepts.ts`), in steps, hub, checklist, chips, comparison titles, cycle stages, flow nodes, timeline events and layers. No forced matches. Short words match only whole words or real variants ("Restart" no longer gets a bed icon; "carbon" no car).
+  - **Scene illustration:** a big emoji beside the heading (Gemini writes an `emoji` per scene, else the dictionary, else 💡). It pops in with a spin, floats, and sits on a pulsing theme-coloured disc. `fonts-noto-color-emoji` installed in the renderer.
+  - **Varied transitions:** circle reveal, zoom-through, wipe and slide.
+  - **Theme choice:** the theme with the most topic words in the title wins ("Water and Weather … Planet" → Clean).
+  - **Cloud sample** (snapshot `snap_h5NKwZ5cNpufLs0RRoIXk1QLPhCk`, 90 s, 720p, Clean): 373 s CPU, 12 MB, so no extra cost. Earlier dark run: 486 s.
+  - Tests: pipeline 75/75 (concept and theme tests added).
+
 - **2026-11-11** — **Pixabay photos dropped (user decision; never deployed).** Commit `0a03775` reverted. Kept: the smaller font for long headings and the measure script's `--storyboard=` option. Production unchanged (snapshot `snap_XQ07S0riOhUdGz2QtYtUY4rMvhf6`, thumbnails live). Snapshot `snap_zCNETi7G26bJNOOhzvyNl9yUYGpk` (with photos) is unused. `PIXABAY_API_KEY` can be removed from Vercel and `.env`. Next: better animation and graphics without photos. Tests: pipeline 72/72, web 93/93.
 
 - **2026-11-11** — **Scene photos (Pixabay): built and tested; deploy awaits approval.**
