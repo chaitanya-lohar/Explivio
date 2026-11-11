@@ -488,3 +488,29 @@ test("delete: a cloud video's R2 object is deleted too", async () => {
     assert.equal(await service.getVideoSource(v.id, A), null);
   });
 });
+
+// ---- Thumbnails (2026-11-11): uploaded next to the video, shown only to the owner, deleted with the video ----
+
+test("thumbnail: uploaded to R2 with the video, offered as thumbnailUrl, owner only, deleted with the video", async () => {
+  await withStore(async (store) => {
+    const v = await service.createVideo(request("Explain tides [ok] [thumb]"), A);
+    const done = await settle(v.id);
+    assert.equal(done.status, "ready");
+    assert.equal(done.thumbnailUrl, `/api/videos/${v.id}/thumbnail`);
+    const s = storageOf(v.id);
+    assert.ok(s?.kind === "r2" && s.thumbnailKey === `users/${A}/videos/${v.id}/thumbnail.jpg`);
+    assert.equal(store.objects.get(s.thumbnailKey)?.contentType, "image/jpeg");
+    assert.deepEqual(await service.getThumbnailSource(v.id, A), { kind: "r2", key: s.thumbnailKey });
+    assert.equal(await service.getThumbnailSource(v.id, B), null, "B gets nothing");
+    assert.equal(await service.deleteVideo(v.id, A), "deleted");
+    assert.equal(store.objects.has(s.thumbnailKey), false, "thumbnail deleted from R2");
+  });
+});
+
+test("thumbnail: a video without one has no thumbnailUrl (older videos keep the frame preview)", async () => {
+  const v = await service.createVideo(request("Explain auroras again [ok]"), A);
+  const done = await settle(v.id);
+  assert.equal(done.status, "ready");
+  assert.equal(done.thumbnailUrl, undefined);
+  assert.equal(await service.getThumbnailSource(v.id, A), null);
+});

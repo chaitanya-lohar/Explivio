@@ -81,10 +81,16 @@ const localFile = (id: string) => {
   const dir = runDir(id);
   return dir ? path.join(dir, "video.mp4") : null;
 };
+const localThumbnail = (id: string) => {
+  const dir = runDir(id);
+  return dir ? path.join(dir, "thumbnail.jpg") : null;
+};
 
 /** The "finished rendering" part of a video's status, shared by both views: cloud upload state or the local file. */
 function finishedView(base: Omit<VideoProject, "status">, storage: VideoStorage | undefined, actualDurationSeconds: number | undefined, uploadElsewhere: boolean): VideoProject {
-  const ready: VideoProject = { ...base, status: "ready", videoUrl: `/api/videos/${base.id}/file`, actualDurationSeconds };
+  const thumb = localThumbnail(base.id);
+  const hasThumbnail = (storage?.kind === "r2" && Boolean(storage.thumbnailKey)) || Boolean(thumb && existsSync(thumb));
+  const ready: VideoProject = { ...base, status: "ready", videoUrl: `/api/videos/${base.id}/file`, actualDurationSeconds, ...(hasThumbnail ? { thumbnailUrl: `/api/videos/${base.id}/thumbnail` } : {}) };
   const file = localFile(base.id);
   const failed = (detail: string): VideoProject => ({ ...base, status: "failed", failedStage: "finishing", errorDetail: safeDetail(detail) });
   if (storage?.kind === "r2") {
@@ -262,6 +268,15 @@ async function ownedRecord(id: string, ownerUserId: string): Promise<RunRecord |
   return (await ownership().runsOf([id])).get(id) ?? null;
 }
 
+/** Server-only: where the owner's thumbnail image is (R2 or the run folder); null if none or not theirs. */
+export async function getThumbnailSource(id: string, ownerUserId: string): Promise<{ kind: "r2"; key: string } | { kind: "local"; path: string } | null> {
+  const record = await ownedRecord(id, ownerUserId);
+  if (!record) return null;
+  if (record.storage.kind === "r2" && record.storage.thumbnailKey) return { kind: "r2", key: record.storage.thumbnailKey };
+  const file = localThumbnail(id);
+  return file && existsSync(file) ? { kind: "local", path: file } : null;
+}
+
 /** Server-only: the source of the user's playable file, used by the file route. */
 export async function getVideoSource(id: string, ownerUserId: string): Promise<VideoSource | null> {
   const record = await ownedRecord(id, ownerUserId);
@@ -345,6 +360,7 @@ export async function deleteVideo(id: string, ownerUserId: string): Promise<Dele
     if (record.storage.uploadStatus !== "pending" || record.storage.size) {
       if (!objects) throw new Error("Cloud storage isn't configured, so the video file can't be deleted.");
       await objects.delete(record.storage.key);
+      if (record.storage.thumbnailKey) await objects.delete(record.storage.thumbnailKey);
     }
   }
   const dir = runDir(id);

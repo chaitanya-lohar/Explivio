@@ -9,6 +9,8 @@ import {setActivePalette} from './templates/shared';
 
 type Scene = Storyboard['scenes'][number];
 const TRANSITION = 16;
+/** Animations of the first heading/header start this many frames "before" frame 0, so frame 0 is a finished cover. */
+const COVER_SETTLED = -45;
 const photosynthesisSteps = [
   {label: 'ENERGY SOURCE', title: 'Sunlight reaches the leaf', detail: 'Light is the energy that powers the reaction.'},
   {label: 'WATER IN', title: 'Water travels from the roots', detail: 'Roots absorb water and the stem carries it upward.'},
@@ -148,7 +150,7 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
   const text = themed ? '#f8f5ec' : palette.text;
   const muted = themed ? 'rgba(248,245,236,.64)' : palette.muted;
   const heading = scene.on_screen_text.replace(/\s*->\s*/g, ' → ');
-  const bar = spring({frame: frame - (isFirst ? 10 : TRANSITION + 8), fps, config: {damping: 20, stiffness: 90}});
+  const bar = spring({frame: frame - (isFirst ? COVER_SETTLED : TRANSITION + 8), fps, config: {damping: 20, stiffness: 90}});
   return <AbsoluteFill style={{opacity, overflow: 'hidden', color: text, transform: sceneTransform}}>
     {image ? <>
       <Img src={staticFile(image)} style={{width: '100%', height: '100%', objectFit: 'cover', transform: `translateX(${xShift * frameProgress}%) scale(${1.035 + frameProgress * 0.055})`, filter: 'saturate(0.91) contrast(1.04)'}} />
@@ -159,7 +161,7 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
     {themed ? <Header section={section} topic={topic} accent={accent} color={text} reveal={intro} /> : null}
     <div style={{position: 'absolute', top: 155, left: 78, right: 78}}>
       <div style={{height: 23}} />
-      <KineticHeading startFrame={isFirst ? 4 : TRANSITION + 2} text={heading} font={themed ? 'Georgia, serif' : palette.headingFont} color={text} shadow={themed || palette.name === 'midnight' ? '0 3px 32px rgba(0,0,0,.42)' : 'none'} />
+      <KineticHeading startFrame={isFirst ? COVER_SETTLED : TRANSITION + 2} text={heading} font={themed ? 'Georgia, serif' : palette.headingFont} color={text} shadow={themed || palette.name === 'midnight' ? '0 3px 32px rgba(0,0,0,.42)' : 'none'} />
       <div style={{width: 120 * Math.min(1, bar), height: 6, marginTop: 26, background: warm, borderRadius: 4}} />
     </div>
 
@@ -197,7 +199,7 @@ const Header: React.FC<{section: string; topic: string; accent: string; color: s
 const FixedHeader: React.FC<{section: string; topic: string; accent: string; color: string}> = (props) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-  return <Header {...props} reveal={spring({frame, fps, config: {damping: 22, stiffness: 110, mass: 0.8}})} />;
+  return <Header {...props} reveal={spring({frame: frame - COVER_SETTLED, fps, config: {damping: 22, stiffness: 110, mass: 0.8}})} />;
 };
 
 /** Footer: label and one dot per scene, the current one long. */

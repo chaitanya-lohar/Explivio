@@ -21,6 +21,8 @@ export const getVideoSource = async (id: string, ownerUserId: string): Promise<p
 export type { VideoSource } from "./pipeline/videos";
 export const createVideo = (request: VideoRequest, ownerUserId: string): Promise<VideoProject> => (useMock ? mock.createVideo(request) : pipeline.createVideo(request, ownerUserId));
 export const retryVideo = (id: string, ownerUserId: string): Promise<VideoProject | null> => (useMock ? mock.retryVideo(id) : pipeline.retryVideo(id, ownerUserId));
+/** The owner's thumbnail image source (none in mock mode). */
+export const getThumbnailSource = (id: string, ownerUserId: string) => (useMock ? Promise.resolve(null) : pipeline.getThumbnailSource(id, ownerUserId));
 /** Deletes the user's video and its file (R2 or local); refused while it is being made. */
 export const deleteVideo = (id: string, ownerUserId: string): Promise<pipeline.DeleteResult> => (useMock ? mock.deleteVideo(id) : pipeline.deleteVideo(id, ownerUserId));
 export { GenerationLimitError, PipelineBusyError } from "./pipeline/videos";

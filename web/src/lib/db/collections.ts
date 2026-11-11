@@ -118,6 +118,8 @@ export interface R2VideoStorage {
   uploadedAt?: Date;
   /** Safe, user-presentable reason of the last failure (no secrets or paths). */
   lastError?: string | null;
+  /** The thumbnail image's key, once uploaded (videos from 2026-11-11 on; older ones have none). */
+  thumbnailKey?: string;
 }
 
 export type VideoStorage = LocalVideoStorage | R2VideoStorage;

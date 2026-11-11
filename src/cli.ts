@@ -151,6 +151,19 @@ Render skipped. Run manifest: ${path.join(runDir, 'manifest.json')}`);
     await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', '--crf=18', ...(resolution === '720p' ? ['--scale=0.6666666666666666'] : []), '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
   });
   manifest.metrics = {...(manifest.metrics as object), outputBytes: (await stat(outputPath)).size};
+  // Thumbnail (best effort; never fails the run): a frame late in the first scene, when its heading and diagram are
+  // both on screen. Shown in My Videos and as the player's poster.
+  if (composition === 'ExplainerVideo') {
+    const firstSceneEnd = sceneStarts?.[1] ?? Math.min(actualSeconds, 12) * 0.5;
+    const thumbFrame = Math.max(30, Math.min(Math.round(firstSceneEnd * 30 * 0.8), Math.round(actualSeconds * 30) - 1));
+    try {
+      const cli = path.resolve('node_modules', '@remotion', 'cli', 'remotion-cli.js');
+      await execFileAsync(process.execPath, [cli, 'still', 'src/video/index.tsx', composition, path.join(runDir, 'thumbnail.jpg'), `--props=${propsPath}`, `--frame=${thumbFrame}`, '--image-format=jpeg', '--jpeg-quality=82', '--scale=0.4', '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
+      manifest.thumbnail = 'thumbnail.jpg';
+    } catch (error) {
+      manifest.thumbnailError = (error instanceof Error ? error.message : String(error)).slice(0, 200);
+    }
+  }
   manifest.status = 'succeeded'; manifest.output = path.relative(process.cwd(), outputPath); manifest.elapsedMs = Date.now() - started; manifest.finishedAt = new Date().toISOString();
   await saveManifest();
   console.log(`\nVideo saved: ${outputPath}\nRun manifest: ${path.join(runDir, 'manifest.json')}`);

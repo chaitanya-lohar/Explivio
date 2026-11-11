@@ -33,7 +33,7 @@ export function VideoCard({ video }: { video: VideoProject }) {
   return (
     <Card interactive padding="none" className="relative flex h-full flex-col" data-testid="video-card">
       <div className="p-3">
-        <VideoThumbnail src={playable ? video.videoUrl : undefined} length={length.short} className="mx-auto w-full max-w-44" />
+        <VideoThumbnail src={playable ? video.videoUrl : undefined} poster={playable ? video.thumbnailUrl : undefined} length={length.short} className="mx-auto w-full max-w-44" />
       </div>
       <div className="flex flex-1 flex-col gap-3 border-t border-border p-4">
         <div className="min-w-0">

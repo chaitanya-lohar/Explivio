@@ -27,7 +27,7 @@ export function VideoDetail({ video }: { video: VideoProject }) {
       </div>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
         {video.videoUrl && !expired ? (
-          <VideoPlayer src={video.videoUrl} title={video.title} />
+          <VideoPlayer src={video.videoUrl} title={video.title} poster={video.thumbnailUrl} />
         ) : (
           <VideoPlaceholder message={expired ? "Video preview is no longer available." : "No video file is available for this project."} />
         )}

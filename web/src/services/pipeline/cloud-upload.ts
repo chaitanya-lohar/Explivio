@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
-import { fileMd5, objectStore, quotaProblem, StorageAuthError, StorageQuotaError, StorageVerificationError } from "../../lib/storage/index.ts";
+import path from "node:path";
+import { fileMd5, objectStore, type ObjectStore, quotaProblem, StorageAuthError, StorageQuotaError, StorageVerificationError } from "../../lib/storage/index.ts";
 import { ownership } from "./ownership.ts";
 
 /*
@@ -69,10 +70,25 @@ async function runUpload(id: string, filePath: string): Promise<void> {
       throw new StorageVerificationError("The uploaded video doesn't match the rendered file, so it wasn't marked as saved.");
     }
 
-    await store.updateR2Storage(id, { uploadStatus: "uploaded", size, md5: md5.hex, contentType: CONTENT_TYPE, uploadedAt: new Date(), lastError: null });
+    const thumbnailKey = await uploadThumbnail(objects, storage.key, path.join(path.dirname(filePath), "thumbnail.jpg"));
+    await store.updateR2Storage(id, { uploadStatus: "uploaded", size, md5: md5.hex, contentType: CONTENT_TYPE, uploadedAt: new Date(), lastError: null, ...(thumbnailKey ? { thumbnailKey } : {}) });
     await store.syncStatus(id, "ready").catch(() => {});
   } catch (error) {
     await store.updateR2Storage(id, { uploadStatus: "failed", lastError: failureReason(error) });
     await store.syncStatus(id, "failed").catch(() => {});
+  }
+}
+
+/** Uploads the run's thumbnail next to the video (best effort: a missing or failed thumbnail never fails the video). */
+async function uploadThumbnail(objects: ObjectStore, videoKey: string, file: string): Promise<string | null> {
+  try {
+    const { size } = await stat(/* turbopackIgnore: true */ file);
+    if (size <= 0 || size > 2_000_000) return null;
+    const key = videoKey.replace(/video.mp4$/, "thumbnail.jpg");
+    const md5 = await fileMd5(file);
+    await objects.put(key, { filePath: file, size, contentType: "image/jpeg", md5Base64: md5.base64 });
+    return key;
+  } catch {
+    return null;
   }
 }

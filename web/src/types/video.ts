@@ -37,6 +37,8 @@ export interface VideoProject {
   failedStage?: GenerationStage;
   /** Present only when a rendered MP4 can actually be played and downloaded. */
   videoUrl?: string;
+  /** A still image of the video (My Videos, player poster); videos made before 2026-11-11 have none. */
+  thumbnailUrl?: string;
   /** Measured length of the rendered video, when known. */
   actualDurationSeconds?: number;
   /** Short technical reason for a failure, safe to show (no secrets or paths). */
