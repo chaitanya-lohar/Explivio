@@ -20,6 +20,7 @@ import { retryGeneration } from "./actions";
 import { SavedSettings } from "./saved-settings";
 import { StageList } from "./stage-list";
 import { VideoActionButton } from "./video-action-button";
+import { DeleteVideoButton } from "@/features/video-library/delete-video-button";
 
 type LoadState = { kind: "loading" } | { kind: "not-found" } | { kind: "loaded"; video: VideoProject };
 
@@ -183,10 +184,13 @@ function FailedView({ video }: { video: VideoProject }) {
             Edit settings
           </Link>
         </div>
-        <Link href="/videos" className={buttonStyles({ variant: "ghost" })}>
-          Back to My Videos
-          <ArrowRight aria-hidden="true" className="size-4" />
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <DeleteVideoButton videoId={video.id} title={video.title} afterDelete="library" />
+          <Link href="/videos" className={buttonStyles({ variant: "ghost" })}>
+            Back to My Videos
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </Link>
+        </div>
       </div>
     </Card>
   );

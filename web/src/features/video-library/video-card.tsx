@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { formatDate, formatVideoLength } from "@/lib/format";
 import { videoHref } from "@/lib/routes";
 import type { VideoProject } from "@/types/video";
+import { DeleteVideoButton } from "./delete-video-button";
 import { VideoPreviewButton } from "./video-preview-button";
 import { VideoStatusBadge } from "./video-status-badge";
 import { VideoThumbnail } from "./video-thumbnail";
@@ -32,7 +33,7 @@ export function VideoCard({ video }: { video: VideoProject }) {
   return (
     <Card interactive padding="none" className="relative flex h-full flex-col" data-testid="video-card">
       <div className="p-3">
-        <VideoThumbnail src={playable ? video.videoUrl : undefined} length={length.short} className="mx-auto w-full max-w-44" />
+        <VideoThumbnail src={playable ? video.videoUrl : undefined} poster={playable ? video.thumbnailUrl : undefined} length={length.short} className="mx-auto w-full max-w-44" />
       </div>
       <div className="flex flex-1 flex-col gap-3 border-t border-border p-4">
         <div className="min-w-0">
@@ -51,13 +52,20 @@ export function VideoCard({ video }: { video: VideoProject }) {
           </span>
         </div>
         {note ? <p className="text-meta text-warning">{note}</p> : null}
-        {playable && video.videoUrl ? (
-          <div className="relative z-10 mt-auto grid grid-cols-2 gap-2">
-            <VideoPreviewButton src={video.videoUrl} title={video.title} />
-            <a href={`${video.videoUrl}?download=1`} download className={buttonStyles({ variant: "secondary" })} aria-label={`Download MP4: ${video.title}`}>
-              <Download aria-hidden="true" className="size-4" />
-              MP4
-            </a>
+        {video.status !== "generating" ? (
+          <div className="relative z-10 mt-auto flex items-center gap-2">
+            {playable && video.videoUrl ? (
+              <div className="grid flex-1 grid-cols-2 gap-2">
+                <VideoPreviewButton src={video.videoUrl} title={video.title} />
+                <a href={`${video.videoUrl}?download=1`} download className={buttonStyles({ variant: "secondary" })} aria-label={`Download MP4: ${video.title}`}>
+                  <Download aria-hidden="true" className="size-4" />
+                  MP4
+                </a>
+              </div>
+            ) : (
+              <span className="flex-1" />
+            )}
+            <DeleteVideoButton videoId={video.id} title={video.title} compact />
           </div>
         ) : null}
       </div>

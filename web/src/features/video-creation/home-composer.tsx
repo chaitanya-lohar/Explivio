@@ -14,6 +14,7 @@ import { chosenOr } from "@/lib/preferences";
 import { creationHref, validatePrompt } from "@/lib/video-request";
 import type { VideoDuration } from "@/types/video";
 import { IdeaGrid } from "./idea-grid";
+import { PromptAssist } from "./prompt-assist";
 import { PromptField } from "./prompt-field";
 
 const durationOptions = appConfig.video.durations.map((d) => ({ value: d.value, label: `${d.value}s` }));
@@ -70,6 +71,14 @@ export function HomeComposer() {
             error={error}
             tip="Tip: include your topic, audience, and the key idea you want viewers to remember."
             textareaRef={textareaRef}
+          />
+          <PromptAssist
+            prompt={prompt}
+            onApply={(text) => {
+              setPrompt(text);
+              setError(null);
+              textareaRef.current?.focus();
+            }}
           />
           <Divider />
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

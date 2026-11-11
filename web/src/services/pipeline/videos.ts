@@ -81,10 +81,16 @@ const localFile = (id: string) => {
   const dir = runDir(id);
   return dir ? path.join(dir, "video.mp4") : null;
 };
+const localThumbnail = (id: string) => {
+  const dir = runDir(id);
+  return dir ? path.join(dir, "thumbnail.jpg") : null;
+};
 
 /** The "finished rendering" part of a video's status, shared by both views: cloud upload state or the local file. */
 function finishedView(base: Omit<VideoProject, "status">, storage: VideoStorage | undefined, actualDurationSeconds: number | undefined, uploadElsewhere: boolean): VideoProject {
-  const ready: VideoProject = { ...base, status: "ready", videoUrl: `/api/videos/${base.id}/file`, actualDurationSeconds };
+  const thumb = localThumbnail(base.id);
+  const hasThumbnail = (storage?.kind === "r2" && Boolean(storage.thumbnailKey)) || Boolean(thumb && existsSync(thumb));
+  const ready: VideoProject = { ...base, status: "ready", videoUrl: `/api/videos/${base.id}/file`, actualDurationSeconds, ...(hasThumbnail ? { thumbnailUrl: `/api/videos/${base.id}/thumbnail` } : {}) };
   const file = localFile(base.id);
   const failed = (detail: string): VideoProject => ({ ...base, status: "failed", failedStage: "finishing", errorDetail: safeDetail(detail) });
   if (storage?.kind === "r2") {
@@ -262,6 +268,15 @@ async function ownedRecord(id: string, ownerUserId: string): Promise<RunRecord |
   return (await ownership().runsOf([id])).get(id) ?? null;
 }
 
+/** Server-only: where the owner's thumbnail image is (R2 or the run folder); null if none or not theirs. */
+export async function getThumbnailSource(id: string, ownerUserId: string): Promise<{ kind: "r2"; key: string } | { kind: "local"; path: string } | null> {
+  const record = await ownedRecord(id, ownerUserId);
+  if (!record) return null;
+  if (record.storage.kind === "r2" && record.storage.thumbnailKey) return { kind: "r2", key: record.storage.thumbnailKey };
+  const file = localThumbnail(id);
+  return file && existsSync(file) ? { kind: "local", path: file } : null;
+}
+
 /** Server-only: the source of the user's playable file, used by the file route. */
 export async function getVideoSource(id: string, ownerUserId: string): Promise<VideoSource | null> {
   const record = await ownedRecord(id, ownerUserId);
@@ -325,6 +340,32 @@ export async function retryVideo(id: string, ownerUserId: string): Promise<Video
     return viewOf(id, { ...record, storage: { ...storage, uploadStatus: "pending" } });
   }
   return startRun(video.request, ownerUserId);
+}
+
+export type DeleteResult = "deleted" | "not_found" | "busy";
+
+/**
+ * Deletes one of the user's videos for good: the file in R2 (cloud videos), the run folder (local videos) and the
+ * record, so it disappears from My Videos. Not while it is still being made or uploaded (the renderer would write
+ * to it). The file goes first: if storage can't be reached, nothing is deleted and the user can try again.
+ */
+export async function deleteVideo(id: string, ownerUserId: string): Promise<DeleteResult> {
+  const record = await ownedRecord(id, ownerUserId);
+  const video = record ? viewOf(id, record) : null;
+  if (!record || !video) return "not_found";
+  if (video.status === "generating" || running.has(id) || uploadInProgress(id)) return "busy";
+  if (record.storage.kind === "r2") {
+    const objects = objectStore();
+    // A video that never reached R2 has nothing to delete there; one that did needs storage to be reachable.
+    if (record.storage.uploadStatus !== "pending" || record.storage.size) {
+      if (!objects) throw new Error("Cloud storage isn't configured, so the video file can't be deleted.");
+      await objects.delete(record.storage.key);
+      if (record.storage.thumbnailKey) await objects.delete(record.storage.thumbnailKey);
+    }
+  }
+  const dir = runDir(id);
+  if (dir && existsSync(dir)) await nodeFsPromises.rm(/* turbopackIgnore: true */ dir, { recursive: true, force: true });
+  return (await ownership().deleteProject(id, ownerUserId)) ? "deleted" : "not_found";
 }
 
 /** ALL runs on disk with the owner written in request.json, if any. Only for the legacy-ownership migration script. */

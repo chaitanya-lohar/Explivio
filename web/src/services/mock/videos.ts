@@ -101,3 +101,12 @@ export async function retryVideo(id: string): Promise<VideoProject | null> {
   record.state = { kind: "job", startedAt: Date.now() };
   return toProject(record, Date.now());
 }
+
+/** Removes a mock video (not while it is generating), like the real service. */
+export async function deleteVideo(id: string): Promise<"deleted" | "not_found" | "busy"> {
+  const index = records.findIndex((r) => r.id === id);
+  if (index < 0) return "not_found";
+  if (toProject(records[index], Date.now()).status === "generating") return "busy";
+  records.splice(index, 1);
+  return "deleted";
+}

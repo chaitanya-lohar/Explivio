@@ -5,6 +5,7 @@ import { formatDate, formatVideoLength } from "@/lib/format";
 import { videoHref } from "@/lib/routes";
 import type { VideoProject } from "@/types/video";
 import { isPlayable, openLabel, unavailableNote } from "./video-card";
+import { DeleteVideoButton } from "./delete-video-button";
 import { VideoPreviewButton } from "./video-preview-button";
 import { VideoStatusBadge } from "./video-status-badge";
 import { VideoThumbnail } from "./video-thumbnail";
@@ -19,7 +20,7 @@ export function VideoListItem({ video }: { video: VideoProject }) {
   const note = unavailableNote(video);
   return (
     <div data-testid="video-row" className={`relative flex gap-3 px-4 py-3 transition-colors duration-150 hover:bg-surface-raised ${LIST_COLUMNS}`}>
-      <VideoThumbnail src={playable ? video.videoUrl : undefined} className="w-14 shrink-0 self-start xl:self-center [&_svg]:size-5" />
+      <VideoThumbnail src={playable ? video.videoUrl : undefined} poster={playable ? video.thumbnailUrl : undefined} className="w-14 shrink-0 self-start xl:self-center [&_svg]:size-5" />
       <div className="flex min-w-0 flex-1 flex-col gap-2 xl:contents">
         <div className="min-w-0">
           <h3 className="text-title text-foreground">
@@ -54,6 +55,7 @@ export function VideoListItem({ video }: { video: VideoProject }) {
               </a>
             </>
           ) : null}
+          {video.status !== "generating" ? <DeleteVideoButton videoId={video.id} title={video.title} compact /> : null}
         </div>
       </div>
     </div>

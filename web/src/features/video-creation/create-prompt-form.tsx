@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import type { VideoIdea } from "@/config/ideas";
 import { creationHref, parseDurationParam, validatePrompt } from "@/lib/video-request";
 import { IdeaGrid } from "./idea-grid";
+import { PromptAssist } from "./prompt-assist";
 import { PromptField } from "./prompt-field";
 
 /** Step 1: describe the idea. Prefills from `?prompt=` when the user comes back to edit it. */
@@ -63,6 +64,16 @@ export function CreatePromptForm() {
           placeholder="Describe the video you want to make… e.g. Explain how APIs work to complete beginners."
           textareaRef={textareaRef}
         />
+        <div className="mt-4">
+          <PromptAssist
+            prompt={prompt}
+            onApply={(text) => {
+              setPrompt(text);
+              setError(null);
+              textareaRef.current?.focus();
+            }}
+          />
+        </div>
       </Card>
       <IdeaGrid heading="Need inspiration? Start from an idea." onUse={applyIdea} />
       <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">

@@ -118,6 +118,8 @@ export interface R2VideoStorage {
   uploadedAt?: Date;
   /** Safe, user-presentable reason of the last failure (no secrets or paths). */
   lastError?: string | null;
+  /** The thumbnail image's key, once uploaded (videos from 2026-11-11 on; older ones have none). */
+  thumbnailKey?: string;
 }
 
 export type VideoStorage = LocalVideoStorage | R2VideoStorage;
@@ -159,6 +161,8 @@ export interface GenerationAttemptDoc {
   startedAt?: Date | null;
   /** The storyboard's title, once Gemini has written it. */
   title?: string | null;
+  /** Set when the user deleted the video; the attempt stays so the daily limit still counts it. */
+  deletedAt?: Date;
   actualDurationSeconds?: number | null;
   /** Where the render runs: "local" (this computer) or "sandbox" (Vercel Sandbox). */
   dispatch?: "local" | "sandbox";

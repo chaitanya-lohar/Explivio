@@ -29,6 +29,7 @@ export type SecurityEvent =
   | "reset_completed"
   | "reset_failed"
   | "access_denied"
+  | "video_deleted"
   | "generation_limited"
   | "email_queued"
   | "email_accepted"

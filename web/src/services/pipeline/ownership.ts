@@ -57,6 +57,11 @@ export interface OwnershipStore {
   hasActiveRun(aliveSince: Date): Promise<boolean>;
   /** F14: the Vercel Sandbox rendering this run (its name), so a stuck sandbox can be found and stopped. */
   recordSandbox(id: string, sandboxId: string): Promise<void>;
+  /**
+   * Deletes the user's video record (only theirs). The generation attempt is kept, with its title cleared, so the
+   * daily limit still counts it: deleting failed videos must not give extra renders. Returns false if not found.
+   */
+  deleteProject(id: string, ownerUserId: string): Promise<boolean>;
 }
 
 function toRecord(p: VideoProjectDoc, a?: GenerationAttemptDoc): RunRecord {
@@ -116,6 +121,13 @@ export const mongoOwnership: OwnershipStore = {
     const db = await getDatabase();
     return (await db.collection<GenerationAttemptDoc>(COLLECTIONS.generationAttempts).countDocuments({ status: { $in: ["queued", "running"] }, heartbeatAt: { $gte: aliveSince } }, { limit: 1 })) === 1;
   },
+  async deleteProject(id, ownerUserId) {
+    const db = await getDatabase();
+    const result = await db.collection<VideoProjectDoc>(COLLECTIONS.videoProjects).deleteOne({ _id: id, ownerUserId });
+    if (result.deletedCount !== 1) return false;
+    await db.collection<GenerationAttemptDoc>(COLLECTIONS.generationAttempts).updateOne({ _id: id, ownerUserId }, { $set: { title: null, deletedAt: new Date(), updatedAt: new Date() } });
+    return true;
+  },
   async recordSandbox(id, sandboxId) {
     const db = await getDatabase();
     await db.collection<GenerationAttemptDoc>(COLLECTIONS.generationAttempts).updateOne({ _id: id }, { $set: { sandboxId, updatedAt: new Date() } });
@@ -170,6 +182,8 @@ export function memoryOwnership(): OwnershipStore & { sandboxes: Map<string, str
   const projects = new Map<string, NewProject & { storage: VideoStorage }>();
   const attempts = new Map<string, { status: "queued" | "running" | "succeeded" | "failed"; heartbeatAt: Date; progress?: RunProgress & { heartbeatAt: string; startedAt: string } }>();
   const sandboxes = new Map<string, string>();
+  /** Deleted videos still count toward the daily limit (like the kept attempt in MongoDB). */
+  const deleted: { ownerUserId: string; createdAt: string }[] = [];
   return {
     projects,
     attempts,
@@ -209,6 +223,13 @@ export function memoryOwnership(): OwnershipStore & { sandboxes: Map<string, str
     async recordSandbox(id, sandboxId) {
       sandboxes.set(id, sandboxId);
     },
+    async deleteProject(id, ownerUserId) {
+      const project = projects.get(id);
+      if (project?.ownerUserId !== ownerUserId) return false;
+      deleted.push({ ownerUserId, createdAt: project.createdAt });
+      projects.delete(id);
+      return true;
+    },
     async syncStatus() {},
     async storageOf(ids) {
       return new Map(ids.flatMap((id) => (projects.has(id) ? [[id, structuredClone(projects.get(id)!.storage)] as const] : [])));
@@ -231,7 +252,7 @@ export function memoryOwnership(): OwnershipStore & { sandboxes: Map<string, str
       return { storedBytes, uploadsThisMonth };
     },
     async countGenerationsSince(ownerUserId, since) {
-      return [...projects.values()].filter((p) => p.ownerUserId === ownerUserId && new Date(p.createdAt) >= since).length;
+      return [...projects.values(), ...deleted].filter((p) => p.ownerUserId === ownerUserId && new Date(p.createdAt) >= since).length;
     },
   };
 }

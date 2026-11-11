@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { formatDate, formatLength } from "@/lib/format";
 import type { VideoProject } from "@/types/video";
 import { VideoPlaceholder, VideoPlayer } from "./video-player";
+import { DeleteVideoButton } from "./delete-video-button";
 import { VideoStatusBadge } from "./video-status-badge";
 
 /** Video ready / expired details. Generating and failed videos are shown on the progress screen instead. */
@@ -26,7 +27,7 @@ export function VideoDetail({ video }: { video: VideoProject }) {
       </div>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
         {video.videoUrl && !expired ? (
-          <VideoPlayer src={video.videoUrl} title={video.title} />
+          <VideoPlayer src={video.videoUrl} title={video.title} poster={video.thumbnailUrl} />
         ) : (
           <VideoPlaceholder message={expired ? "Video preview is no longer available." : "No video file is available for this project."} />
         )}
@@ -86,6 +87,7 @@ export function VideoDetail({ video }: { video: VideoProject }) {
                 My Videos
               </Link>
             </div>
+            <DeleteVideoButton videoId={video.id} title={video.title} afterDelete="library" fullWidth />
           </div>
         </Card>
       </div>

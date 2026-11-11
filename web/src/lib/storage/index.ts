@@ -35,5 +35,5 @@ export async function fileMd5(filePath: string): Promise<{ base64: string; hex: 
 }
 
 export * from "./types.ts";
-export { videoObjectKey, checkObjectKey } from "./keys.ts";
+export { videoObjectKey, thumbnailObjectKey, checkObjectKey } from "./keys.ts";
 export { quotaProblem, R2_FREE_TIER, type StorageUsage } from "./usage.ts";

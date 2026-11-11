@@ -12,6 +12,11 @@ export function videoObjectKey(userId: string, videoId: string): string {
   return `users/${userId}/videos/${videoId}/video.mp4`;
 }
 
+/** The video's thumbnail, next to it: users/<userId>/videos/<videoId>/thumbnail.jpg. */
+export function thumbnailObjectKey(userId: string, videoId: string): string {
+  return videoObjectKey(userId, videoId).replace(/video.mp4$/, "thumbnail.jpg");
+}
+
 /** Keys used by the R2 connectivity check (npm run r2:check): a separate prefix, never a user's video. */
 export function checkObjectKey(stamp: string): string {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(stamp)) throw new Error("Invalid check id.");

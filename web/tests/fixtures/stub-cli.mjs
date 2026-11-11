@@ -37,4 +37,6 @@ manifest.status = 'rendering'; save();
 await stage('render', prompt.includes('[fail-render]') ? 'Command failed: D:\\Secret Folder\\node_modules\\@remotion\\cli\\remotion-cli.js render key=AIzaSyFAKEFAKEFAKEFAKEFAKEFAKEFAKE00000 (exit 1)\n    at ChildProcess.exithandler (node:child_process:422:12)' : null);
 const sample = process.env.STUB_SAMPLE_MP4;
 if (!prompt.includes('[missing-output]') && sample && existsSync(sample)) copyFileSync(sample, path.join(dir, 'video.mp4'));
+// Like the real CLI (2026-11-11): a thumbnail next to the video when the prompt asks for one.
+if (prompt.includes('[thumb]')) writeFileSync(path.join(dir, 'thumbnail.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]));
 manifest.status = 'succeeded'; manifest.actualDurationSeconds = seconds + 1; manifest.output = `runs/${runId}/video.mp4`; save();

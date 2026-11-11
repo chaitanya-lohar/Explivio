@@ -1,6 +1,6 @@
 # Explivio — Progress Status
 
-Last updated: 2026-11-10. **Pilot open to testers: https://explivio.vercel.app. Email works for any address (Brevo SMTP), verified by the user with a second address.**
+Last updated: 2026-11-11. **Pilot live at https://explivio.vercel.app ($0): always the light Clean theme, icons + scene illustrations + varied transitions, thumbnails, "Improve my prompt", Brevo email, delete videos.**
 
 This file is the concise current status; the newest changelog entries are at the top of the changelog. The durable context is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), future phases in [ROADMAP.md](ROADMAP.md), and decisions in [DECISIONS.md](DECISIONS.md). Milestones follow [Explivio_Prototype_Implementation_Plan_v1.docx](Explivio_Prototype_Implementation_Plan_v1.docx).
 
@@ -40,10 +40,11 @@ This file is the concise current status; the newest changelog entries are at the
 ## Your open actions
 1. **Tomorrow:** the email domain steps above (you're signed in to DigitalPlat).
 2. **Merge `dev` into `main`:** https://github.com/chaitanya-lohar/Explivio/compare/main...dev
-3. **Decide:** delete the 3 test snapshots (about 4 GB, from my test sandboxes; they expire on their own in about 30 days) or let them expire.
+3. ~~Test snapshots~~: deleted 2026-11-10 (only the production snapshot remains).
 4. Optional: rotate the Atlas user's password to a long random one (update Vercel Production + Preview and `web/.env.local`).
 
 ## Next
+- **2026-11-11:** (1) cover frame + real thumbnails; (2) Pixabay photos in videos (needs `PIXABAY_API_KEY`); then prompt suggestions and "Polish my prompt" (Gemini).
 - **Milestone plan: [Pilot open to testers](deployment/NEXT_MILESTONE_PILOT_TESTERS.md).** Explivio is a $0 pilot, not a public launch; the only blocker is email for testers.
 - Email domain (above), then **F14 leftovers:**
   - Terms of Service and Privacy pages (the sign-up checkbox refers to them);
@@ -182,6 +183,100 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 4. Optional backlog, without delaying the above.
 
 ## Changelog
+
+- **2026-11-11** — **Deployed (approved by the user): graphics upgrade, always-Clean theme, "Improve my prompt".**
+  - At the user's request all old snapshots were deleted, production's last (after the switch, so rendering never broke).
+  - Only `snap_2qMMww5Zro50ElMp2MPlPwJccpP2` remains (2.3 of 15 GB), set in Vercel Production + Preview; production redeployed; login 200, health ok.
+  - Verified on this snapshot: a 90 s render at 720p succeeded in the Clean theme (533 s CPU this run; today's range 373–533 s, so about 34–48 videos/month).
+  - Rule from now on: after each successful switch, delete the superseded snapshot.
+
+- **2026-11-11** — **Clean theme always; "Improve my prompt"; snapshot storage full.**
+  - **Always the Clean (light) theme** (user decision after the sample): topic-based choice removed; other palettes only via `--theme` for tests.
+  - **"Improve my prompt"** (Home and Create):
+    - Gemini (free key, direct REST call) rewrites the prompt as "Explain … to complete beginners, using …" and suggests 3 related topics; nothing changes until the user picks "Use this" or an idea.
+    - Signed-in only, 30 a day per account; user text passed as quoted data (an injection attempt was refused as not a topic); about 5–7 s per request.
+    - Gemini 3 spent about 470 "thinking" tokens, so `maxOutputTokens` is 2048.
+  - **Vercel snapshot storage limit reached** (7 snapshots, 16.3 GB of 15 GB; the free plan resets 2026-12-01). New renderer builds are blocked; production (`snap_XQ07…`) still starts fine.
+    - Asking the user to approve deleting 5 unused snapshots: `snap_PYqH`, `snap_zCNE` (Pixabay), `snap_KnH9`, `snap_E75tz`, `snap_T3Pn`.
+    - Lesson: delete superseded snapshots after each successful switch.
+  - Not deployed yet: the graphics upgrade + Clean theme (needs a new snapshot) and "Improve my prompt" (website only).
+  - Tests: pipeline 74/74, web 96/96; build passes.
+
+- **2026-11-11** — **Graphics upgrade (no photos): built, cloud sample made, deploy awaits approval.**
+  - **Icons on diagram items:** Lucide (MIT) via a dictionary of about 90 concepts (`src/video/concepts.ts`), in steps, hub, checklist, chips, comparison titles, cycle stages, flow nodes, timeline events and layers. No forced matches. Short words match only whole words or real variants ("Restart" no longer gets a bed icon; "carbon" no car).
+  - **Scene illustration:** a big emoji beside the heading (Gemini writes an `emoji` per scene, else the dictionary, else 💡). It pops in with a spin, floats, and sits on a pulsing theme-coloured disc. `fonts-noto-color-emoji` installed in the renderer.
+  - **Varied transitions:** circle reveal, zoom-through, wipe and slide.
+  - **Theme choice:** the theme with the most topic words in the title wins ("Water and Weather … Planet" → Clean).
+  - **Cloud sample** (snapshot `snap_h5NKwZ5cNpufLs0RRoIXk1QLPhCk`, 90 s, 720p, Clean): 373 s CPU, 12 MB, so no extra cost. Earlier dark run: 486 s.
+  - Tests: pipeline 75/75 (concept and theme tests added).
+
+- **2026-11-11** — **Pixabay photos dropped (user decision; never deployed).** Commit `0a03775` reverted. Kept: the smaller font for long headings and the measure script's `--storyboard=` option. Production unchanged (snapshot `snap_XQ07S0riOhUdGz2QtYtUY4rMvhf6`, thumbnails live). Snapshot `snap_zCNETi7G26bJNOOhzvyNl9yUYGpk` (with photos) is unused. `PIXABAY_API_KEY` can be removed from Vercel and `.env`. Next: better animation and graphics without photos. Tests: pipeline 72/72, web 93/93.
+
+- **2026-11-11** — **Scene photos (Pixabay): built and tested; deploy awaits approval.**
+  - Gemini writes an `image_query` per scene. One landscape photo per scene is downloaded (never hot-linked), with no repeats, a 24 h search cache and an "Images: Pixabay" footer credit. Pixabay terms (20 Oct 2026) checked: use in videos allowed, standalone redistribution not.
+  - **Relevance check:** the photo's tags must contain the search words. The first test with heading-based searches gave skyscrapers for "one trip around the Sun" and puppies for "rivers carry the land away"; those are now rejected (no photo instead of a wrong one).
+  - Image downloads that hit HTTP 429 are retried (Retry-After, up to 3 times), then the next relevant photo is tried.
+  - **Layout:** a rounded photo panel under the heading (scale-in, slow zoom and pan) with the diagram at 74% below; scenes without a photo keep the full-size diagram. Long headings (over 48 characters) use a smaller font.
+  - Files: photos made 720p files about 31 MB at CRF 18, so 720p now uses CRF 23 (about 20 MB locally, 16.5 MB in the cloud test; quality checked on a frame).
+  - Cloud test (snapshot `snap_zCNETi7G26bJNOOhzvyNl9yUYGpk`, 90 s, 720p): 7/7 photos, 159 s wall, **407 s CPU**, so no measurable extra cost (about 44 videos/month).
+  - `PIXABAY_API_KEY` is forwarded to the cloud renderer. Tests: pipeline 76/76 (photo and theme tests added), web 93/93; lint and typecheck pass.
+
+- **2026-11-11** — **Cover frame and real thumbnails: live** (deployed with the user's approval).
+  - Frame 0 shows the first heading and header (cover).
+  - The CLI saves `thumbnail.jpg` (a frame late in scene 1, about 23 KB), uploaded to R2 next to the video (`thumbnailKey`).
+  - Owner-only `/api/videos/[id]/thumbnail`; used in My Videos and as the player poster; deleted with the video. Older videos keep the frame preview.
+  - Snapshot `snap_XQ07S0riOhUdGz2QtYtUY4rMvhf6` set in Vercel Production + Preview; production redeployed; health ok.
+  - Measured 90 s at 720p: 175 s wall, 447 s CPU (previous run 362 s; part is run-to-run variation, the thumbnail step adds about 10–20 s), so about 40–46 videos/month.
+  - Tests: web 93/93, pipeline 72/72; build passes.
+  - `PIXABAY_API_KEY` added by the user (root `.env`, Vercel Production + Preview); a test search worked (500 portrait hits for "rain clouds"). Next: stock photos in videos.
+
+- **2026-11-10** — **User feedback on the first themed video and next steps (paused until 2026-11-11).**
+  - Confirmed working in production: "how raining cycle work" rendered in the Clean (white) theme; ↻ draws correctly.
+  - Feedback: (1) no thumbnail for the video; (2) the video looks basic, like slides (no images).
+  - Diagnosis: the gallery thumbnail is the frame at 1 s, which is now almost empty (heading still building, diagram not yet shown); the first frame is just background.
+  - Plan:
+    - (1) **Cover frame and real thumbnails:** heading and topic fully visible from frame 0; a thumbnail image saved with each video in R2 and used in My Videos and as the player poster. No key needed.
+    - (2) **Stock photos per scene:** Gemini gives search words per scene; a portrait photo is shown full-screen with a slow zoom and pan, with the heading and a compact diagram on a glass card; fallback to the themed background; "Images: Pixabay" credit. Photos first; video clips later only if render cost allows (about 46 videos/month today).
+  - Image source: Pexels has paused new API keys. **Pixabay** recommended (free key, 100 requests/min, licence allows use in videos; download, don't hotlink; cache 24 h; terms to be checked in the official docs). Openverse as fallback (no key, per-image CC licences).
+  - **User action:** create a Pixabay account, get the API key at pixabay.com/api/docs, add `PIXABAY_API_KEY` to the root `.env` and Vercel (Production + Preview).
+  - Snapshots: production `snap_KnH9KGQeGOBVWDJHtei3prT8suqd`. Kept for rollback: `snap_E75tzhxZwyIhNbqD1IYTR6JGF7NF` (has the theme bug) and `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` (pre-themes). About 7 of 15 GB.
+
+- **2026-11-10** — **Fix: the first themed video was still dark, and symbols showed as boxes.**
+  - The theme was chosen from the title plus the learning objective, with the tech rules first. A water-cycle objective mentions "clouds", which matched the tech word "cloud". Now the title decides first (the objective only when the title matches nothing), and the tech rule says "cloud computing". Regression tests added.
+  - The cloud renderer had only Liberation fonts: ✓ and ↻ rendered as boxes. `fonts-dejavu-core` added to the snapshot and to the font stack; checked with a frame rendered in the cloud.
+  - New snapshot `snap_KnH9KGQeGOBVWDJHtei3prT8suqd` in Vercel Production and Preview; production redeployed.
+
+- **2026-11-10** — **Themes and motion deployed to production.**
+  - New Sandbox snapshot `snap_E75tzhxZwyIhNbqD1IYTR6JGF7NF` (built in 87 s), set as `SANDBOX_SNAPSHOT_ID` in Vercel Production and Preview; production redeployed. Health ok.
+  - Measured, 90 s video at 720p in the Sandbox: 146 s wall, **362 s active CPU** (before: 387 s), so no extra cost; about 46–49 such videos per month.
+  - The previous snapshot `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` is kept for rollback (2.3 GB; total 4.6 of 15 GB).
+
+- **2026-11-10** — **Video themes and motion upgrade** (code done; samples awaiting the user's review; cloud snapshot not rebuilt yet).
+  - **Four themes chosen automatically from the topic:** Midnight (tech, space), Clean (science, nature, health), Paper (history, ideas, economics) and Vibrant (everything else). `--theme=` forces one for testing; `manifest.theme` records it.
+  - **Motion:**
+    - a moving backdrop (drifting colour blobs, floating particles) behind all scenes;
+    - springy scene entrances from alternating sides;
+    - word-by-word headings and a slow push-in on the diagram;
+    - items pop in with a slight bounce;
+    - captions highlight the spoken word;
+    - a progress bar along the top;
+    - the header and footer stay fixed.
+  - Fixed during review: headings overlapped during scene changes (the overlap is 2 × transition), and the highlighted ring label had low contrast.
+  - Tests: pipeline 68 + 4 new theme tests; typecheck passes. Samples (22 s, 720p) render in about 18 s locally.
+  - Next: the user's OK on the samples, then rebuild the Sandbox snapshot, measure render CPU, deploy. Queued after that: prompt suggestions and "polish my prompt".
+
+- **2026-11-10** — **Delete videos** (requested before tester sharing).
+  - A Delete button with an in-app confirmation on gallery cards, list rows, the video page and the failed-video screen; hidden while a video is being made.
+  - The server checks ownership (others get not found), refuses while generating or uploading, deletes the R2 object (or local run folder) first, then the record.
+  - The generation attempt is kept with its title cleared, so deleting doesn't bypass the daily limit.
+  - Tests: 3 new; web 91/91 in 3 of 4 full runs. One run failed 9 older pipeline tests (sub-millisecond, likely timing under load; delete tests passed) and is being watched.
+  - Typecheck, lint and build pass. Preview deployed for the user's check; production after approval.
+
+- **2026-11-10** — **Cost check: $0.**
+  - Vercel: Hobby, no subscription, no invoices. Sandbox CPU 25 of 300 min this month.
+  - Atlas: about 0.8 MB used. R2: 13.7 MB of 10 GB. Brevo: within the free plan.
+  - Snapshot storage was 11.8 of 15 GB: with the user's approval, the 6 unused test snapshots (9.5 GB) were deleted; only `snap_T3Pn2bG4sk0CuQCpedP3TpLB1EUa` (2.3 GB, production) remains.
+  - For the user to confirm in dashboards: Gemini key on the Free tier (no billing on its Google Cloud project), Atlas cluster M0, Cloudflare R2 $0 with a budget alert.
 
 - **2026-11-10** — **Email works for every tester.**
   - Production deployed with the SMTP provider. The user's dashboard "Redeploy" had rebuilt the old code; the project isn't connected to GitHub, so deploys go through `vercel deploy --prod` from `web/`.

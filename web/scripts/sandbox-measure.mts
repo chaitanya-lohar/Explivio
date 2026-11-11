@@ -3,6 +3,7 @@
 // the fixture storyboard with the free Kokoro voice. Nothing is written to MongoDB or R2.
 //   npm run sandbox:measure -- --snapshot=snap_... [--vcpus=4] [--duration=90] [--resolution=720p]
 // Uses VERCEL_OIDC_TOKEN from web/.env.local. Prints no secrets.
+import { readFileSync } from "node:fs";
 import { Sandbox } from "@vercel/sandbox";
 
 const arg = (name: string, fallback: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? fallback;
@@ -11,20 +12,29 @@ if (!snapshotId) throw new Error("Pass --snapshot=snap_... (printed by npm run s
 const vcpus = Number(arg("vcpus", "4"));
 const duration = arg("duration", "90");
 const resolution = arg("resolution", "1080p");
+// Optional local storyboard to upload; default: the fixture inside the snapshot.
+const storyboardPath = arg("storyboard", "");
+// Optional: save the rendered MP4 and thumbnail here (local folder), e.g. to watch a sample.
+const downloadDir = arg("download", "");
 
 const t0 = Date.now();
 const step = (label: string) => console.log(`[${((Date.now() - t0) / 1000).toFixed(0).padStart(4)} s] ${label}`);
 const sandbox = await Sandbox.create({ source: { type: "snapshot", snapshotId }, resources: { vcpus }, timeout: 40 * 60_000, persistent: false, env: { NARRATION_PROVIDER: "kokoro" } });
 step(`sandbox started from snapshot (${vcpus} vCPU)`);
 try {
-  const args = ["tsx", "src/cli.ts", "--storyboard-file=tests/fixtures/storyboard-90s-all-templates.json", "--duration", duration, "--voice=female", "--run-id=measure1"];
+  if (storyboardPath) await sandbox.writeFiles([{ path: "app/measure-storyboard.json", content: readFileSync(storyboardPath) }]);
+  const args = ["tsx", "src/cli.ts", `--storyboard-file=${storyboardPath ? "measure-storyboard.json" : "tests/fixtures/storyboard-90s-all-templates.json"}`, "--duration", duration, "--voice=female", "--run-id=measure1"];
   if (resolution === "720p") args.push("--resolution=720p");
   const started = Date.now();
   const result = await sandbox.runCommand({ cmd: "npx", args, cwd: "app" });
   const wall = (Date.now() - started) / 1000;
   step(`render finished: exit ${result.exitCode}, ${wall.toFixed(0)} s wall`);
-  const info = await sandbox.runCommand({ cmd: "node", args: ["-e", "const m=require('./runs/measure1/manifest.json');const s=require('fs').statSync('./runs/measure1/video.mp4');console.log(JSON.stringify({status:m.status,error:m.error,actual:m.actualDurationSeconds,stages:Object.fromEntries(Object.entries(m.stages).map(([k,v])=>[k,Math.round(v.elapsedMs/100)/10])),mb:+(s.size/1e6).toFixed(1)}))"], cwd: "app" });
+  const info = await sandbox.runCommand({ cmd: "node", args: ["-e", "const m=require('./runs/measure1/manifest.json');const s=require('fs').statSync('./runs/measure1/video.mp4');console.log(JSON.stringify({status:m.status,error:m.error,actual:m.actualDurationSeconds,stages:Object.fromEntries(Object.entries(m.stages).map(([k,v])=>[k,Math.round(v.elapsedMs/100)/10])),mb:+(s.size/1e6).toFixed(1),thumbnailKB:require('fs').existsSync('./runs/measure1/thumbnail.jpg')?Math.round(require('fs').statSync('./runs/measure1/thumbnail.jpg').size/1024):(m.thumbnailError||'missing'),theme:m.theme}))"], cwd: "app" });
   console.log("        " + ((await info.stdout()).trim() || (await info.stderr()).split("\n").slice(-3).join(" ")));
+  if (downloadDir && result.exitCode === 0) {
+    for (const name of ["video.mp4", "thumbnail.jpg"]) await sandbox.downloadFile({ path: `app/runs/measure1/${name}` }, { path: `${downloadDir}/sample-${name}` }, { mkdirRecursive: true });
+    console.log(`        saved to ${downloadDir}`);
+  }
   if (result.exitCode !== 0) console.log((await result.stderr()).split("\n").filter(Boolean).slice(-8).join("\n"));
 } finally {
   const final = await sandbox.stop();

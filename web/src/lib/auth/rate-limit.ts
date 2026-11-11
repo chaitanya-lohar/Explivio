@@ -26,6 +26,8 @@ export const LIMITS = {
   emailPerAccount: { limit: 3, windowMs: 60 * 60_000 },
   emailCooldown: { limit: 1, windowMs: 60_000 },
   resetPerIp: { limit: 10, windowMs: 60 * 60_000 },
+  /** "Improve my prompt" (Gemini) per account per day: protects the shared free Gemini quota. */
+  promptAssistPerAccount: { limit: 30, windowMs: 24 * 60 * 60_000 },
 } as const satisfies Record<string, Rule>;
 
 export type HitResult = { ok: boolean; count: number; retryAfterMs: number };

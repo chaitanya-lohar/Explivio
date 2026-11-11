@@ -2,7 +2,7 @@ import React from 'react';
 import {interpolate, useCurrentFrame} from 'remotion';
 import type {Visual} from '../../schemas/visual';
 import {label as shortLabel} from '../../pipeline/visual-plan';
-import {AREA, BORDER, CARD, TEAL, TEXT, VIOLET, WARM, delayFor, lastRevealed, useReveal, type TemplateProps} from './shared';
+import {AREA, BORDER, CARD, TEAL, TEXT, VIOLET, WARM, delayFor, lastRevealed, useReveal, type TemplateProps, primaryAlpha, SHADOW, HILITE, ItemIcon} from './shared';
 
 type Timeline = Extract<Visual, {template: 'timeline'}>;
 
@@ -34,10 +34,10 @@ export const TimelineTemplate: React.FC<TemplateProps<Timeline>> = ({visual, rev
 const Event: React.FC<{top: number; height: number; when?: string; text: string; delay: number; active: boolean; done: boolean}> = ({top, height, when, text, delay, active, done}) => {
   const reveal = useReveal(delay);
   return <div style={{position: 'absolute', top, left: 0, right: 0, height, display: 'flex', alignItems: 'center'}}>
-    <div style={{position: 'absolute', left: AXIS_X - 17, width: 34, height: 34, borderRadius: 17, background: active ? VIOLET : done ? TEAL : CARD, border: `4px solid ${active ? '#fff' : done ? TEAL : BORDER}`, boxShadow: active ? '0 0 30px rgba(139,124,255,.6)' : 'none', transform: `scale(${0.6 + 0.4 * reveal})`}} />
-    <div style={{marginLeft: AXIS_X + 44, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, height: height - 8, padding: '0 26px', borderRadius: 22, background: active ? 'rgba(139,124,255,.2)' : CARD, border: `2px solid ${active ? VIOLET : BORDER}`, opacity: reveal, transform: `translateX(${(1 - reveal) * 40}px)`}}>
+    <div style={{position: 'absolute', left: AXIS_X - 17, width: 34, height: 34, borderRadius: 17, background: active ? VIOLET : done ? TEAL : CARD, border: `4px solid ${active ? HILITE : done ? TEAL : BORDER}`, boxShadow: active ? `0 0 30px ${primaryAlpha(.6)}` : SHADOW, transform: `scale(${0.6 + 0.4 * reveal})`}} />
+    <div style={{marginLeft: AXIS_X + 44, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, height: height - 8, padding: '0 26px', borderRadius: 22, background: active ? `${primaryAlpha(.2)}` : CARD, border: `2px solid ${active ? VIOLET : BORDER}`, opacity: reveal, transform: `translateX(${(1 - reveal) * 40}px)`}}>
       {when ? <div style={{fontSize: 28, fontWeight: 800, letterSpacing: 1, color: WARM}}>{when}</div> : null}
-      <div style={{fontSize: height > 120 ? 38 : 32, fontWeight: 700, lineHeight: 1.15, color: TEXT}}>{shortLabel(text, 40)}</div>
+      <div style={{display: 'flex', alignItems: 'center', gap: 14, fontSize: height > 120 ? 38 : 32, fontWeight: 700, lineHeight: 1.15, color: TEXT}}><ItemIcon label={text} size={height > 120 ? 40 : 34} color={active ? VIOLET : TEAL} reveal={reveal} />{shortLabel(text, 40)}</div>
     </div>
   </div>;
 };
