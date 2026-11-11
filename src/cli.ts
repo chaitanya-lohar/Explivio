@@ -10,6 +10,7 @@ import {apiStoryboard, buildApiVideo} from './api-explainer.js';
 import {sceneStartsFromWords, splitCuesAtScenes} from './pipeline/scene-timing.js';
 import {silentTiming} from './pipeline/silent-timing.js';
 import {chooseTheme, isThemeName} from './video/theme.js';
+import {fetchSceneImages} from './providers/pixabay.js';
 
 const execFileAsync = promisify(execFile);
 const args = process.argv.slice(2);
@@ -36,6 +37,8 @@ const requestedTheme = flagValue('theme');
 if (requestedTheme && !isThemeName(requestedTheme)) throw new Error('--theme must be midnight, clean, vibrant or paper.');
 // Tests only: stop before the (slow) render.
 const skipRender = args.includes('--skip-render');
+// Scene photos from Pixabay (needs PIXABAY_API_KEY); --no-images turns them off (tests, comparisons).
+const imagesEnabled = !args.includes('--no-images');
 const demoName = args.find((arg) => ['photosynthesis', 'rain', 'api'].includes(arg.toLowerCase()))?.toLowerCase();
 const durationIndex = args.indexOf('--duration');
 const positionalArgs = args.filter((arg, index) => !arg.startsWith('--') && index !== durationIndex + 1 && arg.toLowerCase() !== demoName);
@@ -95,6 +98,10 @@ try {
   }
   await writeFile(path.join(runDir, 'storyboard.json'), JSON.stringify(storyboard, null, 2));
   manifest.storyboard = scriptMeta;
+  // Scene photos, fetched while the narration is made (both mostly wait on the network). Never fails the run.
+  const imagesPromise = imagesEnabled && !demo && !silent
+    ? fetchSceneImages({scenes: storyboard.scenes, title: storyboard.title, apiKey: process.env.PIXABAY_API_KEY, outDir: publicRunDir, urlPrefix: `runs/${runId}`, cacheDir: path.resolve('runs', '.pixabay-cache')}).catch((error: unknown) => ({images: storyboard.scenes.map(() => null), errors: [String(error instanceof Error ? error.message : error).slice(0, 160)]}))
+    : Promise.resolve({images: storyboard.scenes.map(() => null), errors: [] as string[]});
   const narrationText = storyboard.scenes.map((scene) => scene.narration_text).join('\n\n');
   // ElevenLabs bills by characters of submitted text.
   manifest.metrics = {narrationCharacters: narrationText.length, narrationWords: narrationText.split(/\s+/).filter(Boolean).length};
@@ -136,10 +143,13 @@ try {
   manifest.durationDifferenceSeconds = actualSeconds - seconds;
   manifest.status = 'rendering'; await saveManifest();
   const outputPath = path.join(runDir, 'video.mp4');
+  const sceneImages = await imagesPromise;
+  manifest.images = {count: sceneImages.images.filter(Boolean).length, scenes: sceneImages.images.map((img) => img && {id: img.id, query: img.query, user: img.user, pageURL: img.pageURL}), ...(sceneImages.errors.length ? {errors: sceneImages.errors} : {})};
+  const images = sceneImages.images.map((img) => img?.file ?? null);
   const theme = requestedTheme && isThemeName(requestedTheme) ? requestedTheme : chooseTheme(storyboard.title, storyboard.learning_objective);
   manifest.theme = theme;
   const propsPath = path.join(runDir, 'render-props.json');
-  await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, wordTimes, handwrittenSteps: demo, theme, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : '', ...(silent ? {badge: 'SILENT EVALUATION · estimated timing'} : {})}));
+  await writeFile(propsPath, JSON.stringify(renderProps ?? {storyboard, audioPath, seconds: actualSeconds, captionCues, sceneStarts, wordTimes, handwrittenSteps: demo, theme, images, imageCredit: images.some(Boolean) ? 'Pixabay' : undefined, captions: captionsEnabled, musicPath: musicEnabled ? 'assets/soft-pad.wav' : '', ...(silent ? {badge: 'SILENT EVALUATION · estimated timing'} : {})}));
   if (skipRender) {
     manifest.renderSkipped = true; manifest.status = 'succeeded'; manifest.elapsedMs = Date.now() - started; manifest.finishedAt = new Date().toISOString(); await saveManifest();
     console.log(`
@@ -148,7 +158,7 @@ Render skipped. Run manifest: ${path.join(runDir, 'manifest.json')}`);
   }
   await stage('render', async () => {
     const cli = path.resolve('node_modules', '@remotion', 'cli', 'remotion-cli.js');
-    await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', '--crf=18', ...(resolution === '720p' ? ['--scale=0.6666666666666666'] : []), '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
+    await execFileAsync(process.execPath, [cli, 'render', 'src/video/index.tsx', composition, outputPath, `--props=${propsPath}`, ...(renderProps ? [] : [`--duration=${actualSeconds * 30}`]), '--codec=h264', ...(resolution === '720p' ? ['--crf=23', '--scale=0.6666666666666666'] : ['--crf=18']), '--log=error'], {windowsHide: true, maxBuffer: 8 * 1024 * 1024});
   });
   manifest.metrics = {...(manifest.metrics as object), outputBytes: (await stat(outputPath)).size};
   // Thumbnail (best effort; never fails the run): a frame late in the first scene, when its heading and diagram are

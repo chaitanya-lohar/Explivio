@@ -27,13 +27,13 @@ export function revealFrames(labels: readonly string[], ordered: boolean, timing
  * Animated diagram for one scene, built only from that scene's own storyboard data: its v2 `visual` when valid
  * (and drawable), otherwise the M6 layout. With narration timing, items appear as they are mentioned.
  */
-export const ConceptVisual: React.FC<{scene: Scene; durationInFrames: number; timing?: SceneTiming}> = ({scene, durationInFrames, timing}) => {
+export const ConceptVisual: React.FC<{scene: Scene; durationInFrames: number; timing?: SceneTiming; top?: number; scale?: number}> = ({scene, durationInFrames, timing, top = 560, scale = 1}) => {
   const {fps} = useVideoConfig();
   const resolved = resolveVisual(scene).visual;
   const visual = RENDERED_TEMPLATES.includes(resolved.template) ? resolved : fallbackVisual(scene);
   const {labels, ordered} = revealLabels(visual);
   const reveal = timing?.words.length ? revealFrames(labels, ordered, timing, fps) : undefined;
-  return <div style={{position: 'absolute', left: 70, right: 70, top: 560, height: 820, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Arial, sans-serif'}}>
+  return <div style={{position: 'absolute', left: 70, right: 70, top, height: 820, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Arial, "DejaVu Sans", sans-serif', transform: scale === 1 ? undefined : `scale(${scale})`, transformOrigin: '50% 0%'}}>
     <TemplateVisual visual={visual} durationInFrames={durationInFrames} reveal={reveal} />
   </div>;
 };

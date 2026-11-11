@@ -53,7 +53,7 @@ export function paletteFor(storyboard: Storyboard, requested: unknown, photoDemo
   return PALETTES[chooseTheme(storyboard.title, storyboard.learning_objective)];
 }
 
-export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = '', sceneStarts, handwrittenSteps, wordTimes, badge, theme: requestedTheme}) => {
+export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, seconds, captionCues, captions = true, musicPath = '', sceneStarts, handwrittenSteps, wordTimes, badge, theme: requestedTheme, images, imageCredit}) => {
   const {fps, durationInFrames} = useVideoConfig();
   const scenes = storyboard.scenes;
   const theme = themeFor(storyboard.title);
@@ -76,14 +76,14 @@ export const EditorialVideo: React.FC<VideoProps> = ({storyboard, audioPath, sec
     // Mention-timed reveals need both word timings and narration-aligned scene windows.
     const timing: SceneTiming | undefined = aligned && wordTimes?.length ? {words: wordTimes, start: sceneStarts[index], end: sceneStarts[index + 1] ?? seconds, sequenceFrom: from} : undefined;
     return <Sequence key={scene.scene_id} from={from} durationInFrames={duration} premountFor={fps}>
-      <EditorialScene scene={scene} index={index} total={scenes.length} duration={duration} topic={storyboard.title} section={theme.section} palette={palette} accent={accent} warm={photoDemo ? theme.warm : palette.warm} image={photoDemo ? theme.image : ''} themed={photoDemo} timing={timing} step={theme.steps[index] || theme.steps[theme.steps.length - 1] || {label: '', title: '', detail: ''}} />
+      <EditorialScene scene={scene} index={index} total={scenes.length} duration={duration} topic={storyboard.title} section={theme.section} palette={palette} accent={accent} warm={photoDemo ? theme.warm : palette.warm} image={photoDemo ? theme.image : ''} photo={photoDemo ? null : images?.[index] ?? null} themed={photoDemo} timing={timing} step={theme.steps[index] || theme.steps[theme.steps.length - 1] || {label: '', title: '', detail: ''}} />
     </Sequence>;
   });
   return <AbsoluteFill style={{background: palette.base, fontFamily: palette.bodyFont}}>
     {photoDemo ? null : <Backdrop palette={palette} />}
     {sequences}
     {photoDemo ? null : <FixedHeader section={theme.section} topic={storyboard.title} accent={accent} color={palette.text} />}
-    {photoDemo ? null : <FixedFooter starts={cores.map((c) => c.from)} accent={accent} palette={palette} />}
+    {photoDemo ? null : <FixedFooter starts={cores.map((c) => c.from)} accent={accent} palette={palette} credit={imageCredit} />}
     <ProgressBar color={accent} track={tint(palette.text, 0.12)} />
     {audioPath ? <Audio src={staticFile(audioPath)} /> : null}
     {musicPath ? <Audio src={staticFile(musicPath)} volume={(f) => {
@@ -127,7 +127,7 @@ const ProgressBar: React.FC<{color: string; track: string}> = ({color, track}) =
   </div>;
 };
 
-const EditorialScene: React.FC<{scene: Scene; index: number; total: number; duration: number; topic: string; section: string; palette: Palette; accent: string; warm: string; image: string; themed: boolean; timing?: SceneTiming; step: {label: string; title: string; detail: string}}> = ({scene, index, total, duration, topic, section, palette, accent, warm, image, themed, timing, step}) => {
+const EditorialScene: React.FC<{scene: Scene; index: number; total: number; duration: number; topic: string; section: string; palette: Palette; accent: string; warm: string; image: string; photo?: string | null; themed: boolean; timing?: SceneTiming; step: {label: string; title: string; detail: string}}> = ({scene, index, total, duration, topic, section, palette, accent, warm, image, photo, themed, timing, step}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const isFirst = index === 0;
@@ -166,7 +166,11 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
     </div>
 
     {/* Topics without a hand-made theme: an animated diagram built from this scene's storyboard (no production notes on screen). */}
-    {themed ? null : <AbsoluteFill style={{transform: `scale(${camera})`, transformOrigin: '50% 58%'}}><ConceptVisual scene={scene} durationInFrames={duration} timing={timing} /></AbsoluteFill>}
+    {themed || !photo ? null : <PhotoPanel src={photo} index={index} duration={duration} palette={palette} />}
+    {themed ? null : photo
+      // With a photo: a smaller diagram below it (the photo takes the upper middle of the frame).
+      ? <AbsoluteFill style={{transform: `scale(${camera})`, transformOrigin: '50% 80%'}}><ConceptVisual scene={scene} durationInFrames={duration} timing={timing} top={PHOTO.diagramTop} scale={PHOTO.diagramScale} /></AbsoluteFill>
+      : <AbsoluteFill style={{transform: `scale(${camera})`, transformOrigin: '50% 58%'}}><ConceptVisual scene={scene} durationInFrames={duration} timing={timing} /></AbsoluteFill>}
     {themed ? <div style={{position: 'absolute', left: 76, right: 76, bottom: 513, transform: `translateY(${(1 - callout) * 22}px) scale(${0.985 + callout * 0.015})`, opacity: callout}}>
       <div style={{borderRadius: 18, padding: '24px 31px 24px', background: 'rgba(5,13,18,.86)', border: '1px solid rgba(247,245,236,.24)', boxShadow: '0 22px 65px rgba(0,0,0,.32)'}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14}}>
@@ -184,6 +188,25 @@ const EditorialScene: React.FC<{scene: Scene; index: number; total: number; dura
 
     {themed ? <Footer label="A SHORT SCIENCE FILM" index={index} total={total} accent={accent} color={muted} dot="rgba(248,245,236,.35)" /> : null}
   </AbsoluteFill>;
+};
+
+/** Layout of scenes that have a photo (px in the 1080×1920 frame). */
+const PHOTO = {top: 470, height: 390, left: 70, right: 70, diagramTop: 905, diagramScale: 0.74};
+
+/**
+ * The scene's photo in a rounded panel: it opens with a soft scale-in and then drifts slowly (zoom and pan, the
+ * "Ken Burns" move), alternating direction per scene. A light inner gradient keeps it calm next to the text.
+ */
+const PhotoPanel: React.FC<{src: string; index: number; duration: number; palette: Palette}> = ({src, index, duration, palette}) => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const open = spring({frame: frame - (index === 0 ? COVER_SETTLED : TRANSITION), fps, config: {damping: 18, stiffness: 110, mass: 0.8}});
+  const t = interpolate(frame, [0, Math.max(1, duration)], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  const dir = index % 2 === 0 ? 1 : -1;
+  return <div style={{position: 'absolute', top: PHOTO.top, left: PHOTO.left, right: PHOTO.right, height: PHOTO.height, borderRadius: 36, overflow: 'hidden', boxShadow: palette.shadow, border: `2px solid ${tint(palette.text, 0.1)}`, opacity: Math.min(1, open), transform: `translateY(${(1 - Math.min(1, open)) * 30}px) scale(${0.94 + 0.06 * Math.min(1, open)})`}}>
+    <Img src={staticFile(src)} style={{width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${1.08 + t * 0.1}) translateX(${dir * (t - 0.5) * 3}%)`}} />
+    <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.22) 100%)'}} />
+  </div>;
 };
 
 /** Brand, section and topic along the top. */
@@ -209,10 +232,10 @@ const Footer: React.FC<{label: string; index: number; total: number; accent: str
 </div>;
 
 /** The footer for generated videos, drawn once; the current scene is the last one whose window has started. */
-const FixedFooter: React.FC<{starts: number[]; accent: string; palette: Palette}> = ({starts, accent, palette}) => {
+const FixedFooter: React.FC<{starts: number[]; accent: string; palette: Palette; credit?: string}> = ({starts, accent, palette, credit}) => {
   const frame = useCurrentFrame();
   const index = Math.max(0, starts.reduce((last, from, i) => (frame >= from ? i : last), 0));
-  return <Footer label="A SHORT EXPLAINER" index={index} total={starts.length} accent={accent} color={palette.muted} dot={tint(palette.text, 0.35)} />;
+  return <Footer label={credit ? `A SHORT EXPLAINER · IMAGES: ${credit.toUpperCase()}` : 'A SHORT EXPLAINER'} index={index} total={starts.length} accent={accent} color={palette.muted} dot={tint(palette.text, 0.35)} />;
 };
 
 /** The scene heading, word by word: each word springs up into place a moment after the previous one. */
@@ -220,7 +243,7 @@ const KineticHeading: React.FC<{startFrame: number; text: string; font: string; 
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const words = text.split(/\s+/).filter(Boolean);
-  return <div style={{fontFamily: font, fontSize: 72, lineHeight: 1.08, fontWeight: 800, marginTop: 22, maxWidth: 920, color, textShadow: shadow, display: 'flex', flexWrap: 'wrap', columnGap: '0.26em'}}>
+  return <div style={{fontFamily: font, fontSize: text.length > 48 ? 58 : 72, lineHeight: 1.08, fontWeight: 800, marginTop: 22, maxWidth: 920, color, textShadow: shadow, display: 'flex', flexWrap: 'wrap', columnGap: '0.26em'}}>
     {words.map((word, i) => {
       const s = spring({frame: frame - startFrame - i * 3, fps, config: {damping: 14, stiffness: 150, mass: 0.6}});
       return <span key={i} style={{display: 'inline-block', opacity: Math.min(1, s), transform: `translateY(${(1 - s) * 34}px)`}}>{word}</span>;

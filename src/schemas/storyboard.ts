@@ -11,6 +11,9 @@ export const SceneSchema = z.object({
   key_elements: z.array(z.string()).default([]),
   estimated_duration_seconds: z.number().positive(),
   caption_text: z.string().optional(),
+  // Photo search words for this scene (2026-11-11), e.g. "storm clouds over sea". Optional: older storyboards have none,
+  // and a bad value only means no photo (it is never shown to the viewer).
+  image_query: z.string().max(80).optional().catch(undefined),
   // Storyboard v2 (optional): template + data, validated separately in pipeline/visual-plan so a bad scene falls back.
   visual: z.unknown().optional()
 });

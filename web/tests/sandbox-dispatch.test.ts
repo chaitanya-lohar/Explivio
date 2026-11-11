@@ -28,10 +28,10 @@ const request = { prompt: "Explain tides", durationSeconds: 30 as const, voice: 
 
 test("only the pipeline's keys are forwarded to the sandbox (never auth, email or Vercel secrets)", () => {
   const env = workerEnv({
-    MONGODB_URI: "m", MONGODB_DB: "d", R2_ACCOUNT_ID: "a", R2_SECRET_ACCESS_KEY: "s", GEMINI_API_KEY: "g", ELEVENLABS_API_KEY: "e", NARRATION_PROVIDER: "kokoro", KOKORO_MALE_SPEED: "1.13", RENDER_RESOLUTION: "720p",
+    MONGODB_URI: "m", MONGODB_DB: "d", R2_ACCOUNT_ID: "a", R2_SECRET_ACCESS_KEY: "s", GEMINI_API_KEY: "g", ELEVENLABS_API_KEY: "e", NARRATION_PROVIDER: "kokoro", KOKORO_MALE_SPEED: "1.13", RENDER_RESOLUTION: "720p", PIXABAY_API_KEY: "p",
     AUTH_SECRET: "x", RESEND_API_KEY: "x", EMAIL_FROM: "x", VERCEL_OIDC_TOKEN: "x", KOKORO_MODEL_DIR: "C:/models", MONGODB_URI_TEST: "x", PATH: "x", SANDBOX_SNAPSHOT_ID: "x", EMPTY_OK: "",
   });
-  assert.deepEqual(Object.keys(env).sort(), ["ELEVENLABS_API_KEY", "GEMINI_API_KEY", "KOKORO_MALE_SPEED", "MONGODB_DB", "MONGODB_URI", "NARRATION_PROVIDER", "R2_ACCOUNT_ID", "R2_SECRET_ACCESS_KEY", "RENDER_RESOLUTION"]);
+  assert.deepEqual(Object.keys(env).sort(), ["ELEVENLABS_API_KEY", "GEMINI_API_KEY", "KOKORO_MALE_SPEED", "MONGODB_DB", "MONGODB_URI", "NARRATION_PROVIDER", "PIXABAY_API_KEY", "R2_ACCOUNT_ID", "R2_SECRET_ACCESS_KEY", "RENDER_RESOLUTION"]);
 });
 
 test("a server without a snapshot or keys refuses before creating a sandbox", async () => {
