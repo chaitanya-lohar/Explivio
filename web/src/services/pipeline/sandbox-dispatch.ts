@@ -19,7 +19,7 @@ export class SandboxConfigError extends Error {
 }
 
 /** Environment variables the worker needs, by prefix or name. KOKORO_MODEL_DIR is a local path and is not passed. */
-const FORWARD = [/^MONGODB_(URI|DB|TIMEOUT_MS)$/, /^R2_[A-Z0-9_]+$/, /^GEMINI_[A-Z0-9_]+$/, /^ELEVENLABS_[A-Z0-9_]+$/, /^KOKORO_(FEMALE|MALE)_(VOICE|SPEED)$/, /^KOKORO_(SPEED|VOICES)$/, /^NARRATION_[A-Z0-9_]+$/, /^RENDER_RESOLUTION$/];
+const FORWARD = [/^MONGODB_(URI|DB|TIMEOUT_MS)$/, /^R2_[A-Z0-9_]+$/, /^GEMINI_[A-Z0-9_]+$/, /^ELEVENLABS_[A-Z0-9_]+$/, /^KOKORO_(FEMALE|MALE)_(VOICE|SPEED)$/, /^KOKORO_(SPEED|VOICES)$/, /^NARRATION_[A-Z0-9_]+$/, /^RENDER_RESOLUTION$/, /^GROQ_(API_KEY|MODEL)$/];
 
 export function workerEnv(source: Record<string, string | undefined> = process.env): Record<string, string> {
   const env: Record<string, string> = {};

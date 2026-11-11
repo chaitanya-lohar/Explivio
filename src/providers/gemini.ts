@@ -19,7 +19,33 @@ export type StoryboardResult = {storyboard: Storyboard; model: string; attempts:
 // needed 30–50 s, so 45 s timed out repeatedly. 90 s per call (at most 3 calls).
 const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 90_000;
 const SKIP_MINUTES = Number(process.env.GEMINI_SKIP_FAILED_MODEL_MINUTES) || 30;
-const MAX_CALLS = 3; // primary/fallback + one repair: bounded, never open-ended
+const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+
+/**
+ * Models to try, in order (2026-11-11). Groq (OpenAI's open gpt-oss-120b; Llama 3.3 was retired there) goes FIRST when
+ * GROQ_API_KEY is set (the user's choice); then Gemini models, each with its own free allowance (only 20 requests per
+ * day PER MODEL). Each model is tried at most once per storyboard (plus one repair call), so it stays bounded.
+ */
+export function modelChain(env: Record<string, string | undefined> = process.env): string[] {
+  const primary = env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
+  const fallback = env.GEMINI_FALLBACK_MODEL?.trim() || 'gemini-3.5-flash';
+  const extra = (env.GEMINI_EXTRA_MODELS ?? 'gemini-3.5-flash-lite').split(',').map((m) => m.trim()).filter(Boolean);
+  const groq = env.GROQ_API_KEY?.trim() ? [`groq:${env.GROQ_MODEL?.trim() || 'openai/gpt-oss-120b'}`] : [];
+  return [...new Set([...groq, primary, fallback, ...extra])];
+}
+
+/** Groq's OpenAI-compatible chat API, asked for one JSON object. Errors carry only the status (no response text). */
+async function callGroq(model: string, input: string, apiKey: string): Promise<string> {
+  const response = await fetch(GROQ_ENDPOINT, {
+    method: 'POST',
+    headers: {Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({model, messages: [{role: 'system', content: 'You write storyboards for short educational videos. Reply with one JSON object only.'}, {role: 'user', content: input}], response_format: {type: 'json_object'}, temperature: 0.6, max_tokens: 8000, ...(model.startsWith('openai/gpt-oss') ? {reasoning_effort: 'low'} : {})}),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`Groq request failed (HTTP ${response.status}${response.status === 429 ? ', rate limit' : response.status >= 500 ? ', server busy' : ''})`);
+  const body = (await response.json()) as {choices?: {message?: {content?: string}}[]};
+  return body.choices?.[0]?.message?.content ?? '';
+}
 const HEALTH_FILE = path.resolve('runs', '.gemini-health.json');
 
 type Health = Record<string, {failedAt: string; reason: string}>;
@@ -52,12 +78,13 @@ export function classify(message: string, error?: unknown): GeminiCall['outcome'
 }
 
 /**
- * After a timeout or overload: switch to the fallback once; otherwise retry the same model once
- * (a single slow response shouldn't fail the video); otherwise give up. Always bounded by callsLeft.
+ * After a timeout or overload: switch to the next model in the chain not tried yet; when every model has been tried,
+ * retry the current one once (a single slow response shouldn't fail the video); otherwise give up. Bounded by callsLeft.
  */
-export function afterTransientFailure(state: {model: string; fallback: string; switched: boolean; retriedModels: ReadonlySet<string>; callsLeft: number}): {action: 'switch'; model: string} | {action: 'retry'} | {action: 'fail'} {
+export function afterTransientFailure(state: {model: string; chain: readonly string[]; tried: ReadonlySet<string>; retriedModels: ReadonlySet<string>; callsLeft: number}): {action: 'switch'; model: string} | {action: 'retry'} | {action: 'fail'} {
   if (state.callsLeft <= 0) return {action: 'fail'};
-  if (!state.switched && state.fallback !== state.model) return {action: 'switch', model: state.fallback};
+  const next = state.chain.find((m) => !state.tried.has(m));
+  if (next) return {action: 'switch', model: next};
   if (!state.retriedModels.has(state.model)) return {action: 'retry'};
   return {action: 'fail'};
 }
@@ -77,24 +104,29 @@ export class ScriptRejectedError extends Error {
 export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): Promise<StoryboardResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is missing. Copy .env.example to .env and add your Google AI Studio key.');
-  const primary = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-  const fallback = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.6-flash';
+  const chain = modelChain();
+  const groqKey = process.env.GROQ_API_KEY?.trim() ?? '';
+  // Each model once, plus one repair call: bounded, never open-ended.
+  const maxCalls = Math.min(chain.length + 1, 6);
   const client = new GoogleGenAI({apiKey, httpOptions: {timeout: TIMEOUT_MS, retryOptions: {attempts: 1}}});
   const input = `${INSTRUCTIONS}\n${lengthInstruction(seconds)}\n\nTopic: ${prompt}\nTarget video duration: ${seconds} seconds.`;
 
-  // Skip a model that hung or was overloaded in the last few minutes instead of waiting on it again.
-  const skippedModel = primary !== fallback && isRecentlyUnhealthy(readHealth(), primary) ? primary : undefined;
-  let model = skippedModel ? fallback : primary;
-  let switched = Boolean(skippedModel);
+  // Skip models that hung or were rate-limited in the last few minutes instead of waiting on them again.
+  const health = readHealth();
+  const usable = chain.filter((m) => !isRecentlyUnhealthy(health, m));
+  let model = usable[0] ?? chain[0];
+  const skippedModel = model !== chain[0] ? chain[0] : undefined;
+  const tried = new Set<string>(chain.slice(0, chain.indexOf(model)));
   const retriedModels = new Set<string>();
   const calls: GeminiCall[] = [];
   let repairNote: string | null = null;
 
-  while (calls.length < MAX_CALLS) {
+  while (calls.length < maxCalls) {
     const started = Date.now();
+    tried.add(model);
     try {
-      const response = await withTimeout(client.interactions.create({model, input: repairNote ? `${input}\nYour previous output failed validation: ${repairNote}. Correct the JSON and return only the fixed object.` : input}), TIMEOUT_MS);
-      const raw = response.output_text?.trim();
+      const request = repairNote ? `${input}\nYour previous output failed validation: ${repairNote}. Correct the JSON and return only the fixed object.` : input;
+      const raw = (model.startsWith('groq:') ? await callGroq(model.slice(5), request, groqKey) : (await withTimeout(client.interactions.create({model, input: request}), TIMEOUT_MS)).output_text)?.trim();
       if (!raw) throw new Error('Gemini returned an empty response.');
       if (raw.length > 100_000) throw new Error('Gemini response exceeded the 100 KB storyboard limit.');
       const storyboard = StoryboardSchema.parse(JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')));
@@ -109,7 +141,7 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
       const budget = {...words, actual: spokenWords, withinBudget: spokenWords >= words.min && spokenWords <= words.max};
       const visualReport = lintVisualPlan(storyboard);
       const visualProblem = visualRepairNote(visualReport);
-      if ((problem || visualProblem) && !repairNote && calls.length + 1 < MAX_CALLS) {
+      if ((problem || visualProblem) && !repairNote && calls.length + 1 < maxCalls) {
         calls.push({model, ms: Date.now() - started, outcome: 'invalid_output', note: [problem ? `script checks: ${[!scriptChecks.length.pass && 'length', scriptChecks.hook && 'hook', scriptChecks.ending && 'ending', scriptChecks.relevance && 'relevance', scriptChecks.consistency && 'structure'].filter(Boolean).join(', ')}` : '', visualProblem ? `visual plan: ${visualReport.scenes.filter((x) => x.problems.length).length} scene(s)` : ''].filter(Boolean).join('; ')});
         repairNote = `${[problem, visualProblem].filter(Boolean).join(' ')} Return the complete corrected JSON.`;
         continue;
@@ -132,10 +164,10 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
       // For "overloaded", record which kind (free-tier quota vs. temporary server load) without the raw error text.
       const note = outcome === 'invalid_output' ? message.slice(0, 160) : outcome === 'overloaded' ? (/429|quota|rate.?limit|exhaust/i.test(message) ? 'quota or rate limit (429)' : 'server busy (503)') : undefined;
       calls.push({model, ms: Date.now() - started, outcome, note});
-      if (outcome === 'timeout' || outcome === 'overloaded') {
+      if (outcome === 'timeout' || outcome === 'overloaded' || (outcome === 'error' && afterTransientFailure({model, chain, tried, retriedModels: new Set(chain), callsLeft: maxCalls - calls.length}).action === 'switch')) {
         markHealth(model, true, outcome);
-        const next = afterTransientFailure({model, fallback, switched, retriedModels, callsLeft: MAX_CALLS - calls.length});
-        if (next.action === 'switch') { model = next.model; switched = true; continue; }
+        const next = afterTransientFailure({model, chain, tried, retriedModels, callsLeft: maxCalls - calls.length});
+        if (next.action === 'switch') { model = next.model; continue; }
         if (next.action === 'retry') { retriedModels.add(model); continue; }
         throw new Error(`Gemini request failed before a usable response was received (${outcome} on ${model}${note ? `: ${note}` : ''}).`);
       }
@@ -148,5 +180,5 @@ export async function createStoryboard(prompt: string, seconds: 30 | 60 | 90): P
       throw new Error(`Gemini request failed: ${message.slice(0, 300)}`);
     }
   }
-  throw new Error(`Gemini storyboard failed validation after ${MAX_CALLS} attempts.`);
+  throw new Error(`Gemini storyboard failed validation after ${maxCalls} attempts.`);
 }

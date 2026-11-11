@@ -11,6 +11,7 @@
 export type PromptAssist = { polished: string; suggestions: string[]; note: string };
 export type AssistResult = { ok: true; value: PromptAssist } | { ok: false; reason: "not_configured" | "unavailable" | "unsuitable"; note?: string };
 
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const ENDPOINT = (model: string) => `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 const TIMEOUT_MS = 30_000;
 const MAX_POLISHED = 300;
@@ -48,23 +49,50 @@ export function parseAssist(raw: string): AssistResult {
   return { ok: true, value: { polished, suggestions, note } };
 }
 
-export async function assistPrompt(userText: string, env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch): Promise<AssistResult> {
-  const key = env.GEMINI_API_KEY?.trim();
-  if (!key) return { ok: false, reason: 'not_configured' };
-  const model = env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
-  try {
-    const response = await fetchImpl(ENDPOINT(model), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: instructions(userText.slice(0, 600)) }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4, // Gemini 3 models spend part of this on thinking (about 470 tokens seen) before the ~150-token answer.
-        maxOutputTokens: 2048 } }),
+/**
+ * Models for the prompt helper, in order: Groq first when GROQ_API_KEY is set (the user's choice), then lite Gemini
+ * models (Google's free tier allows 20 requests per day PER MODEL; the main models are kept for video storyboards).
+ */
+export function assistModels(env: Record<string, string | undefined> = process.env): string[] {
+  const gemini = (env.GEMINI_ASSIST_MODELS ?? "gemini-3.5-flash-lite,gemini-3.1-flash-lite").split(",").map((m) => m.trim()).filter(Boolean);
+  const groq = env.GROQ_API_KEY?.trim() ? [`groq:${env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b"}`] : [];
+  return [...new Set([...groq, ...(env.GEMINI_API_KEY?.trim() ? gemini : [])])];
+}
+
+async function ask(model: string, prompt: string, env: Record<string, string | undefined>, fetchImpl: typeof fetch): Promise<Response> {
+  if (model.startsWith("groq:")) {
+    return fetchImpl(GROQ_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.GROQ_API_KEY?.trim()}` },
+      body: JSON.stringify({ model: model.slice(5), messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" }, temperature: 0.4, max_tokens: 3000, ...(model.startsWith("groq:openai/gpt-oss") ? { reasoning_effort: "low" } : {}) }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!response.ok) return { ok: false, reason: 'unavailable' };
-    const body = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
-    return parseAssist(text);
-  } catch {
-    return { ok: false, reason: 'unavailable' };
   }
+  return fetchImpl(ENDPOINT(model), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY?.trim() ?? "" },
+    // Gemini 3 models spend part of maxOutputTokens on thinking (about 470 tokens seen) before the ~150-token answer.
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 2048 } }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+}
+
+export async function assistPrompt(userText: string, env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch): Promise<AssistResult> {
+  const models = assistModels(env);
+  if (!models.length) return { ok: false, reason: "not_configured" };
+  const prompt = instructions(userText.slice(0, 600));
+  // When a model is rate-limited (429), busy (503), times out or can't be reached, the next one is tried.
+  for (const model of models) {
+    try {
+      const response = await ask(model, prompt, env, fetchImpl);
+      // Any failure (rate limit, busy, unknown model, server error) moves on to the next model.
+      if (!response.ok) continue;
+      const body = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[]; choices?: { message?: { content?: string } }[] };
+      const text = model.startsWith("groq:") ? (body.choices?.[0]?.message?.content ?? "") : (body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "");
+      return parseAssist(text);
+    } catch {
+      // Timeout or network error: try the next model.
+    }
+  }
+  return { ok: false, reason: "unavailable" };
 }
