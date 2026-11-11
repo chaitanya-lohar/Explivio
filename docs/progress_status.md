@@ -184,6 +184,14 @@ The former "Next phase" plan (F4, written 2026-10-31) was completed on 2026-11-0
 
 ## Changelog
 
+- **2026-11-11** — **Gemini daily quota found and Groq added as the last fallback.**
+  - Google's error showed `GenerateRequestsPerDayPerProjectPerModel-FreeTier limit=20`: only **20 requests per day per model**. Both `gemini-3.6-flash` and `gemini-3.5-flash` were used up (reset about 14.8 h later); `gemini-3.5-flash-lite` still worked.
+  - The ChatGPT/OpenAI API has no free tier, so it isn't usable at $0. The user chose **Groq** (free tier; Llama 3.3 70B about 1,000 requests/day as reported by third parties).
+  - Storyboard **model chain**: 3.6 Flash → 3.5 Flash → 3.5 Flash-Lite → Groq (only with `GROQ_API_KEY`). Each model at most once plus one repair; same validation for all.
+  - Prompt helper: lite Gemini models first (keeps the main models for storyboards), then Groq.
+  - `GROQ_*` forwarded to the renderer. Tests: pipeline 75/75, web 98/98.
+  - **Pending:** the user adds `GROQ_API_KEY` to the root `.env` and Vercel Preview (Production done); a live Groq storyboard test; snapshot rebuild; deploy.
+
 - **2026-11-11** — **Gemini 429 on a user video ("training data in AI"):** a short-term rate limit; a call a minute later succeeded, so not the daily quota.
   - The pipeline fallback was the same model (`gemini-3.6-flash`), so it had no real second chance. Now the default fallback is **`gemini-3.5-flash`** (quota is per model; tested OK, 2.5 s), and the prompt helper also falls back on 429/503.
   - Tests: pipeline 74/74, web 97/97.
